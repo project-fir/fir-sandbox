@@ -1,6 +1,8 @@
 module Pages.VegaLite exposing (Model, Msg, page)
 
 --import Html5.DragDrop as DragDrop
+--import PortDefs exposing (dragStart, elmToJS)
+--import VegaLite as VL
 
 import Api exposing (queryDuckDb)
 import Array
@@ -21,14 +23,12 @@ import Json.Decode as JD
 import Json.Encode as JE
 import Page
 import Palette
-import PortDefs exposing (dragStart, elmToJS)
 import QueryBuilder exposing (Aggregation(..), ColumnRef, Granularity(..), KimballColumn(..), TimeClass(..), aggToStr, kimballClassificationToString, queryBuilder)
 import RemoteData exposing (RemoteData(..), WebData)
 import Request
 import Set exposing (Set)
 import Shared
 import Utils exposing (removeNothingsFromList)
-import VegaLite as VL
 import VegaUtils exposing (ColumnParamed, mapColToFloatCol, mapColToIntegerCol)
 import View exposing (View)
 
@@ -973,71 +973,66 @@ viewTableRefs model =
 
 -- end region view
 -- begin region vega-lite
-
-
-computeSpec : Model -> Maybe VL.Spec
-computeSpec model =
-    let
-        spec0 : ColumnParamed Int -> ColumnParamed Float -> VL.Spec
-        spec0 col1 col2 =
-            let
-                data =
-                    VL.dataFromColumns []
-                        << VL.dataColumn col1.ref (VL.nums (List.map (\i -> toFloat i) col1.vals))
-                        << VL.dataColumn col2.ref (VL.nums col2.vals)
-
-                enc =
-                    VL.encoding
-                        << VL.position VL.X [ VL.pName col1.ref, VL.pQuant ]
-                        << VL.position VL.Y [ VL.pName col2.ref, VL.pQuant ]
-            in
-            VL.toVegaLite
-                [ data []
-                , VL.line []
-                , enc []
-                , VL.height 400
-                , VL.width 600
-                ]
-    in
-    case model.duckDbForPlotResponse of
-        NotAsked ->
-            Nothing
-
-        Loading ->
-            Nothing
-
-        Failure err ->
-            Nothing
-
-        Success data ->
-            let
-                collArray =
-                    Array.fromList data.columns
-
-                col1 =
-                    case Array.get 0 collArray of
-                        Nothing ->
-                            { ref = "error"
-                            , vals = []
-                            }
-
-                        Just col ->
-                            mapColToIntegerCol col
-
-                col2 =
-                    case Array.get 1 collArray of
-                        Nothing ->
-                            { ref = "error"
-                            , vals = []
-                            }
-
-                        Just col ->
-                            mapColToFloatCol col
-            in
-            Just (spec0 col1 col2)
-
-
-
+--computeSpec : Model -> Maybe VL.Spec
+--computeSpec model =
+--    let
+--        spec0 : ColumnParamed Int -> ColumnParamed Float -> VL.Spec
+--        spec0 col1 col2 =
+--            let
+--                data =
+--                    VL.dataFromColumns []
+--                        << VL.dataColumn col1.ref (VL.nums (List.map (\i -> toFloat i) col1.vals))
+--                        << VL.dataColumn col2.ref (VL.nums col2.vals)
+--
+--                enc =
+--                    VL.encoding
+--                        << VL.position VL.X [ VL.pName col1.ref, VL.pQuant ]
+--                        << VL.position VL.Y [ VL.pName col2.ref, VL.pQuant ]
+--            in
+--            VL.toVegaLite
+--                [ data []
+--                , VL.line []
+--                , enc []
+--                , VL.height 400
+--                , VL.width 600
+--                ]
+--    in
+--    case model.duckDbForPlotResponse of
+--        NotAsked ->
+--            Nothing
+--
+--        Loading ->
+--            Nothing
+--
+--        Failure err ->
+--            Nothing
+--
+--        Success data ->
+--            let
+--                collArray =
+--                    Array.fromList data.columns
+--
+--                col1 =
+--                    case Array.get 0 collArray of
+--                        Nothing ->
+--                            { ref = "error"
+--                            , vals = []
+--                            }
+--
+--                        Just col ->
+--                            mapColToIntegerCol col
+--
+--                col2 =
+--                    case Array.get 1 collArray of
+--                        Nothing ->
+--                            { ref = "error"
+--                            , vals = []
+--                            }
+--
+--                        Just col ->
+--                            mapColToFloatCol col
+--            in
+--            Just (spec0 col1 col2)
 -- end region vega-lite
 -- begin region API
 

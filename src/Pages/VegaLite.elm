@@ -1,5 +1,7 @@
 module Pages.VegaLite exposing (Model, Msg, page)
 
+--import Html5.DragDrop as DragDrop
+
 import Api exposing (queryDuckDb)
 import Array
 import Config exposing (apiHost)
@@ -14,7 +16,6 @@ import Element.Input as Input
 import Gen.Params.VegaLite exposing (Params)
 import Html as H
 import Html.Attributes as HA
-import Html5.DragDrop as DragDrop
 import Http exposing (Error(..))
 import Json.Decode as JD
 import Json.Encode as JE
@@ -53,13 +54,14 @@ type Position
 
 
 type alias Model =
-    { spec : Maybe VL.Spec
-    , duckDbForPlotResponse : WebData Api.DuckDbQueryResponse
+    { --spec : Maybe VL.Spec
+      duckDbForPlotResponse : WebData Api.DuckDbQueryResponse
     , duckDbMetaResponse : WebData Api.DuckDbMetaResponse
     , duckDbTableRefs : WebData Api.DuckDbTableRefsResponse
     , selectedTableRef : Maybe Api.TableRef
     , hoveredOnTableRef : Maybe Api.TableRef
-    , dragDrop : DragDrop.Model Int Position
+
+    --, dragDrop : DragDrop.Model Int Position
     , data : { count : Int, position : Position }
     , selectedColumns : Dict ColumnRef KimballColumn
     , kimballCols : List KimballColumn
@@ -77,13 +79,14 @@ type alias DropId =
 
 init : ( Model, Effect Msg )
 init =
-    ( { spec = Nothing
-      , duckDbForPlotResponse = NotAsked
+    ( { --spec = Nothing
+        duckDbForPlotResponse = NotAsked
       , duckDbMetaResponse = NotAsked
       , duckDbTableRefs = Loading -- Must also fetch table refs below
       , selectedTableRef = Nothing
       , hoveredOnTableRef = Nothing
-      , dragDrop = DragDrop.init
+
+      --, dragDrop = DragDrop.init
       , data = { count = 1, position = Middle }
       , selectedColumns = Dict.empty
       , kimballCols = []
@@ -100,7 +103,7 @@ init =
 
 type Msg
     = FetchPlotData
-    | RenderPlot
+      --| RenderPlot
     | FetchTableRefs
     | FetchMetaDataForRef Api.TableRef
     | GotDuckDbResponse (Result Http.Error Api.DuckDbQueryResponse)
@@ -109,7 +112,7 @@ type Msg
     | UserSelectedTableRef Api.TableRef
     | UserMouseEnteredTableRef Api.TableRef
     | UserMouseLeftTableRef
-    | DragDropMsg (DragDrop.Msg Int Position)
+      --| DragDropMsg (DragDrop.Msg Int Position)
     | UserClickKimballColumnTab KimballColumn
     | DropDownToggled ColumnRef
     | DropDownSelected_Time ColumnRef TimeClass
@@ -184,28 +187,27 @@ update msg model =
             in
             ( { model | selectedColumns = updatedSelectedCols }, Effect.none )
 
-        DragDropMsg msg_ ->
-            let
-                ( model_, result ) =
-                    DragDrop.update msg_ model.dragDrop
-            in
-            ( { model
-                | dragDrop = model_
-                , data =
-                    case result of
-                        Nothing ->
-                            model.data
-
-                        Just ( count, position, _ ) ->
-                            { count = count + 1, position = position }
-              }
-            , Effect.fromCmd
-                (DragDrop.getDragstartEvent msg_
-                    |> Maybe.map (.event >> dragStart)
-                    |> Maybe.withDefault Cmd.none
-                )
-            )
-
+        --DragDropMsg msg_ ->
+        --    let
+        --        ( model_, result ) =
+        --            DragDrop.update msg_ model.dragDrop
+        --    in
+        --    ( { model
+        --        | dragDrop = model_
+        --        , data =
+        --            case result of
+        --                Nothing ->
+        --                    model.data
+        --
+        --                Just ( count, position, _ ) ->
+        --                    { count = count + 1, position = position }
+        --      }
+        --    , Effect.fromCmd
+        --        (DragDrop.getDragstartEvent msg_
+        --            |> Maybe.map (.event >> dragStart)
+        --            |> Maybe.withDefault Cmd.none
+        --        )
+        --    )
         FetchTableRefs ->
             ( { model | duckDbTableRefs = Loading }, Effect.fromCmd <| fetchDuckDbTableRefs )
 
@@ -268,21 +270,20 @@ limit 100
                 Err err ->
                     ( { model | duckDbForPlotResponse = Failure err }, Effect.none )
 
-        RenderPlot ->
-            let
-                newSpec =
-                    computeSpec model
-
-                elmToJsCmd =
-                    case newSpec of
-                        Nothing ->
-                            Cmd.none
-
-                        Just spec ->
-                            elmToJS spec
-            in
-            ( { model | spec = newSpec }, Effect.fromCmd elmToJsCmd )
-
+        --RenderPlot ->
+        --    let
+        --        newSpec =
+        --            computeSpec model
+        --
+        --        elmToJsCmd =
+        --            case newSpec of
+        --                Nothing ->
+        --                    Cmd.none
+        --
+        --                Just spec ->
+        --                    elmToJS spec
+        --    in
+        --    ( { model | spec = newSpec }, Effect.fromCmd elmToJsCmd )
         UserSelectedTableRef ref ->
             let
                 -- NB: A bit hacky, but we submit a query with limit 0, and use the same response without vals
@@ -819,7 +820,8 @@ viewPlotPanel model =
                 droppableAttrs : List (Attribute Msg)
                 droppableAttrs =
                     if data.position /= position then
-                        List.map E.htmlAttribute (DragDrop.droppable DragDropMsg position)
+                        --List.map E.htmlAttribute (DragDrop.droppable DragDropMsg position)
+                        []
 
                     else
                         []
@@ -843,7 +845,7 @@ viewPlotPanel model =
                              , centerX
                              , centerY
                              ]
-                                ++ List.map E.htmlAttribute (DragDrop.draggable DragDropMsg data.count)
+                             --++ List.map E.htmlAttribute (DragDrop.draggable DragDropMsg data.count)
                             )
                             { src = "https://upload.wikimedia.org/wikipedia/commons/f/f3/Elm_logo.svg"
                             , description = "Elm logo (placeholder)"

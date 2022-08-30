@@ -57,5 +57,9 @@ type
     = NoOpToFrontend
 
 
+
+--| PageMsg Pages.Msg
+
+
 type alias ToBackend =
     Bridge.ToBackend

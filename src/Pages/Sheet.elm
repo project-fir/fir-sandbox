@@ -1,5 +1,8 @@
 module Pages.Sheet exposing (Model, Msg, page)
 
+--import File exposing (File)
+--import File.Select as Select
+
 import Api exposing (queryDuckDb)
 import Array as A
 import Array.Extra as AE
@@ -14,8 +17,6 @@ import Element.Border as Border
 import Element.Events exposing (..)
 import Element.Font as Font
 import Element.Input as Input
-import File exposing (File)
-import File.Select as Select
 import Gen.Params.Sheet exposing (Params)
 import Html as H
 import Html.Attributes as HA
@@ -157,13 +158,13 @@ type Msg
     | JumpToFrame Int
     | JumpToLastFrame
     | TogglePauseResume
-      -- FileUpload Msgs
-    | FileUpload_UserClickedSelectFile
-    | FileUpload_UserSelectedCsvFile File
-    | FileUpload_UploadResponded (Result Http.Error ())
 
 
 
+-- FileUpload Msgs
+--| FileUpload_UserClickedSelectFile
+--| FileUpload_UserSelectedCsvFile File
+--| FileUpload_UploadResponded (Result Http.Error ())
 --| FileUpload_GotProgress Http.Progress
 
 
@@ -337,32 +338,33 @@ mapColumnsToSheet cols =
     array2DToSheet (fromListOfLists lolTransposed) colLabels
 
 
-uploadFile : Model -> File -> Cmd Msg
-uploadFile model f =
-    let
-        nowish_ =
-            case model.nowish of
-                Nothing ->
-                    -- HACK: as long as `Tick` is implemented at 250 ms chances of this occurring is very low
-                    --       good enough
-                    Time.posixToMillis (Time.millisToPosix 99999999)
 
-                Just n ->
-                    Time.posixToMillis n
-    in
-    Http.request
-        { method = "POST"
-        , url = apiHost ++ "/duckdb/files"
-        , headers = []
-        , body =
-            Http.multipartBody
-                [ Http.filePart "file" f
-                , Http.stringPart "duckdb_table_ref" ("elm_test_" ++ String.fromInt nowish_)
-                ]
-        , expect = Http.expectWhatever FileUpload_UploadResponded
-        , timeout = Nothing
-        , tracker = Just "upload"
-        }
+--uploadFile : Model -> File -> Cmd Msg
+--uploadFile model f =
+--    let
+--        nowish_ =
+--            case model.nowish of
+--                Nothing ->
+--                    -- HACK: as long as `Tick` is implemented at 250 ms chances of this occurring is very low
+--                    --       good enough
+--                    Time.posixToMillis (Time.millisToPosix 99999999)
+--
+--                Just n ->
+--                    Time.posixToMillis n
+--    in
+--    Http.request
+--        { method = "POST"
+--        , url = apiHost ++ "/duckdb/files"
+--        , headers = []
+--        , body =
+--            Http.multipartBody
+--                [ Http.filePart "file" f
+--                , Http.stringPart "duckdb_table_ref" ("elm_test_" ++ String.fromInt nowish_)
+--                ]
+--        , expect = Http.expectWhatever FileUpload_UploadResponded
+--        , timeout = Nothing
+--        , tracker = Just "upload"
+--        }
 
 
 update : Msg -> Model -> ( Model, Effect Msg )
@@ -406,17 +408,14 @@ update msg model =
                 Err err ->
                     ( { model | duckDbTableRefs = Failure err }, Effect.none )
 
-        FileUpload_UserClickedSelectFile ->
-            ( model, Effect.fromCmd requestFile )
-
-        FileUpload_UserSelectedCsvFile csv ->
-            ( model
-            , Effect.fromCmd <| uploadFile model csv
-            )
-
-        FileUpload_UploadResponded result ->
-            ( model, Effect.fromCmd fetchDuckDbTableRefs )
-
+        --FileUpload_UserClickedSelectFile ->
+        --    ( model, Effect.fromCmd requestFile )
+        --FileUpload_UserSelectedCsvFile csv ->
+        --    ( model
+        --    , Effect.fromCmd <| uploadFile model csv
+        --    )
+        --FileUpload_UploadResponded result ->
+        --    ( model, Effect.fromCmd fetchDuckDbTableRefs )
         UserSqlTextChanged newText ->
             ( { model | userSqlText = newText }, Effect.none )
 
@@ -1163,9 +1162,10 @@ viewDebugPanel model =
         ]
 
 
-requestFile : Cmd Msg
-requestFile =
-    Select.file [ "application/csv" ] FileUpload_UserSelectedCsvFile
+
+--requestFile : Cmd Msg
+--requestFile =
+--    Select.file [ "application/csv" ] FileUpload_UserSelectedCsvFile
 
 
 viewCatalogPanel : Model -> Element Msg
@@ -1278,27 +1278,28 @@ viewCatalogPanel model =
                 Failure err ->
                     text "Error"
 
-        viewUploadFile : Model -> Element Msg
-        viewUploadFile mdl =
-            Input.button
-                [ alignBottom
-                , alignRight
-                , padding 5
-                , Border.color Palette.black
-                , Border.width 1
-                , Border.rounded 3
-                , Background.color Palette.lightGrey
-                ]
-                { onPress = Just FileUpload_UserClickedSelectFile
-                , label = text "Upload CSV File"
-                }
+        --viewUploadFile : Model -> Element Msg
+        --viewUploadFile mdl =
+        --    Input.button
+        --        [ alignBottom
+        --        , alignRight
+        --        , padding 5
+        --        , Border.color Palette.black
+        --        , Border.width 1
+        --        , Border.rounded 3
+        --        , Background.color Palette.lightGrey
+        --        ]
+        --        { onPress = Just FileUpload_UserClickedSelectFile
+        --        , label = text "Upload CSV File"
+        --        }
     in
     column
         [ width E.fill
         , height E.fill
         ]
         [ viewTableRefs model
-        , viewUploadFile model
+
+        --, viewUploadFile model
         ]
 
 

@@ -147,7 +147,7 @@ updateFromBackend msg model =
 
 view : Model -> Browser.Document Msg
 view model =
-    { title = "Hippo"
+    { title = "Fir"
     , body =
         [ layout [] (elements model) ]
     }

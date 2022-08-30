@@ -3,7 +3,7 @@ module Backend exposing (..)
 import Bridge exposing (ToBackend(..))
 import Dict
 import Lamdera exposing (ClientId, SessionId)
-import Types exposing (BackendModel, BackendMsg(..), ToFrontend(..))
+import Types exposing (BackendModel, BackendMsg(..), FrontendMsg(..), ToFrontend(..))
 
 
 type alias Model =

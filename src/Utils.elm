@@ -1,8 +1,13 @@
 module Utils exposing (..)
 
+-- miscellaneous utility functions
+
+import Browser.Navigation as Nav
+import Gen.Route as Route exposing (Route)
 import Json.Decode as JD
 import Regex
 import Task
+import Url exposing (Url)
 
 
 removeNothingsFromList : List (Maybe a) -> List a
@@ -36,3 +41,21 @@ collapseWhitespace s trim =
 
                 False ->
                     Regex.replace rex (\_ -> " ") s
+
+
+
+-- begin region: elm-spa Route
+
+
+navigate : Nav.Key -> Route -> Cmd msg
+navigate key route =
+    Nav.pushUrl key (Route.toHref route)
+
+
+fromUrl : Url -> Route
+fromUrl =
+    Route.fromUrl
+
+
+
+--end region: elm-spa Route

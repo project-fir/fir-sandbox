@@ -321,13 +321,7 @@ view model =
     in
     { title = title
     , body =
-        [ layout
-            [ E.width E.fill
-            , E.height E.fill
-            , Font.size 12
-            , padding 5
-            ]
-            (elements model)
+        [ elements model
         ]
     }
 

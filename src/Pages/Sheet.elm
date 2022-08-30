@@ -769,11 +769,7 @@ view model =
     in
     { title = title
     , body =
-        [ layout
-            [ E.width E.fill
-            , E.height E.fill
-            ]
-            (elements model)
+        [ elements model
         ]
     }
 

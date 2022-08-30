@@ -16,11 +16,7 @@ view : View msg
 view =
     { title = "Homepage"
     , body =
-        [ layout
-            [ padding 2
-            , Font.size 16
-            ]
-            elements
+        [ elements
         ]
     }
 

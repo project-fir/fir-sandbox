@@ -135,9 +135,8 @@ update msg model =
 updateFromBackend : ToFrontend -> Model -> ( Model, Cmd FrontendMsg )
 updateFromBackend msg model =
     case msg of
-        PageMsg pageMsg ->
-            update (Page pageMsg) model
-
+        --PageMsg pageMsg ->
+        --    update (Page pageMsg) model
         NoOpToFrontend ->
             ( model, Cmd.none )
 

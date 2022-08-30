@@ -55,8 +55,6 @@ type
     ToFrontend
     -- TODO: Replace me, Do I need Bridge.elm?
     = NoOpToFrontend
-      -- TODO: I find this naming misleading.
-    | PageMsg Pages.Msg
 
 
 type alias ToBackend =

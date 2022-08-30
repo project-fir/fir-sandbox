@@ -3,12 +3,9 @@ elm-stuff
 # elm-repl generated files
 repl-temp-*
 
-.elm-spa/
-
 node_modules/
 .idea/
 
 # output of elm-spa build, note that public/index.html is built via elm-spa init, so should be commited to github
-.elm-spa/
 public/dist/
 .scratch/

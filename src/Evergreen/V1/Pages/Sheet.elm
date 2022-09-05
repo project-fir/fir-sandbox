@@ -5,6 +5,7 @@ import Browser.Dom
 import Evergreen.V1.Api
 import Evergreen.V1.Array2D
 import Evergreen.V1.SheetModel
+import File
 import Http
 import RemoteData
 import Set
@@ -101,3 +102,6 @@ type Msg
     | JumpToFrame Int
     | JumpToLastFrame
     | TogglePauseResume
+    | FileUpload_UserClickedSelectFile
+    | FileUpload_UserSelectedCsvFile File.File
+    | FileUpload_UploadResponded (Result Http.Error ())

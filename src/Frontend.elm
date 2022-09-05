@@ -6,6 +6,7 @@ import Browser.Navigation as Nav exposing (Key)
 import Effect
 import Element as E exposing (..)
 import Element.Border as Border
+import Element.Font as Font
 import Gen.Model
 import Gen.Pages as Pages
 import Gen.Route as Route
@@ -149,7 +150,11 @@ view : Model -> Browser.Document Msg
 view model =
     { title = "Fir"
     , body =
-        [ layout [] (elements model) ]
+        [ layout
+            [ Font.size 12
+            ]
+            (elements model)
+        ]
     }
 
 
@@ -175,7 +180,7 @@ elements model =
                     e
     in
     E.column
-        [ width (fill |> maximum 1400)
+        [ width fill
         , height fill
         , padding 3
         , centerX

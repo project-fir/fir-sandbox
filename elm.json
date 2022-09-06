@@ -17,7 +17,7 @@
             "elm/regex": "1.0.0",
             "elm/time": "1.0.0",
             "elm/url": "1.0.0",
-            "elm-community/array-extra": "2.5.0",
+            "elm-community/list-extra": "8.6.0",
             "jweir/elm-iso8601": "7.0.1",
             "krisajenkins/remotedata": "6.0.1",
             "lamdera/codecs": "1.0.0",

@@ -165,15 +165,6 @@ elements model =
                 , toMsg = Shared
                 }
                 model.shared
-
-        -- TODO: This feels wrong.
-        firstElement =
-            case List.head pageElements.body of
-                Nothing ->
-                    E.none
-
-                Just e ->
-                    e
     in
     E.column
         [ width fill
@@ -184,7 +175,7 @@ elements model =
 
         --, Border.color Palette.lightGrey
         ]
-        [ firstElement ]
+        pageElements.body
 
 
 

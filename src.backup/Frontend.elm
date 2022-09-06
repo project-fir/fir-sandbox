@@ -11,6 +11,7 @@ import Gen.Model
 import Gen.Pages as Pages
 import Gen.Route as Route
 import Lamdera
+import Palette
 import Request
 import Shared
 import Task
@@ -53,7 +54,10 @@ init url key =
       , shared = shared
       , page = page
       }
-    , Cmd.none
+    , Cmd.batch
+        [ Cmd.map Shared sharedCmd
+        , Effect.toCmd ( Shared, Page ) effect
+        ]
     )
 
 
@@ -181,8 +185,7 @@ elements model =
         , padding 3
         , centerX
         , Border.width 1
-
-        --, Border.color Palette.lightGrey
+        , Border.color Palette.lightGrey
         ]
         [ firstElement ]
 

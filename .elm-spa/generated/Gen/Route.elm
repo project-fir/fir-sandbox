@@ -5,8 +5,6 @@ module Gen.Route exposing
     )
 
 import Gen.Params.Home_
-import Gen.Params.Sheet
-import Gen.Params.VegaLite
 import Gen.Params.NotFound
 import Url exposing (Url)
 import Url.Parser as Parser exposing ((</>), Parser)
@@ -14,8 +12,6 @@ import Url.Parser as Parser exposing ((</>), Parser)
 
 type Route
     = Home_
-    | Sheet
-    | VegaLite
     | NotFound
 
 
@@ -27,8 +23,6 @@ fromUrl =
 routes : List (Parser (Route -> a) a)
 routes =
     [ Parser.map Home_ Gen.Params.Home_.parser
-    , Parser.map Sheet Gen.Params.Sheet.parser
-    , Parser.map VegaLite Gen.Params.VegaLite.parser
     , Parser.map NotFound Gen.Params.NotFound.parser
     ]
 
@@ -43,12 +37,6 @@ toHref route =
     case route of
         Home_ ->
             joinAsHref []
-    
-        Sheet ->
-            joinAsHref [ "sheet" ]
-    
-        VegaLite ->
-            joinAsHref [ "vega-lite" ]
     
         NotFound ->
             joinAsHref [ "not-found" ]

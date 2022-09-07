@@ -1,11 +1,11 @@
-module Evergreen.V1.Types exposing (..)
+module Evergreen.V5.Types exposing (..)
 
 import Browser
 import Browser.Navigation
 import Dict
-import Evergreen.V1.Bridge
-import Evergreen.V1.Gen.Pages
-import Evergreen.V1.Shared
+import Evergreen.V5.Bridge
+import Evergreen.V5.Gen.Pages
+import Evergreen.V5.Shared
 import Lamdera
 import Time
 import Url
@@ -14,8 +14,8 @@ import Url
 type alias FrontendModel =
     { url : Url.Url
     , key : Browser.Navigation.Key
-    , shared : Evergreen.V1.Shared.Model
-    , page : Evergreen.V1.Gen.Pages.Model
+    , shared : Evergreen.V5.Shared.Model
+    , page : Evergreen.V5.Gen.Pages.Model
     }
 
 
@@ -33,13 +33,13 @@ type alias BackendModel =
 type FrontendMsg
     = ChangedUrl Url.Url
     | ClickedLink Browser.UrlRequest
-    | Shared Evergreen.V1.Shared.Msg
-    | Page Evergreen.V1.Gen.Pages.Msg
+    | Shared Evergreen.V5.Shared.Msg
+    | Page Evergreen.V5.Gen.Pages.Msg
     | Noop
 
 
 type alias ToBackend =
-    Evergreen.V1.Bridge.ToBackend
+    Evergreen.V5.Bridge.ToBackend
 
 
 type BackendMsg

@@ -1,11 +1,11 @@
-module Evergreen.V1.SheetModel exposing (..)
+module Evergreen.V5.SheetModel exposing (..)
 
-import Evergreen.V1.Array2D
+import Evergreen.V5.Array2D
 import ISO8601
 
 
 type alias CellCoords =
-    ( Evergreen.V1.Array2D.RowIx, Evergreen.V1.Array2D.ColIx )
+    ( Evergreen.V5.Array2D.RowIx, Evergreen.V5.Array2D.ColIx )
 
 
 type CellElement
@@ -26,7 +26,7 @@ type alias ColumnLabel =
 
 
 type alias SheetEnvelope =
-    { data : Evergreen.V1.Array2D.Array2D Cell
+    { data : Evergreen.V5.Array2D.Array2D Cell
     , columnLabels : List ColumnLabel
     }
 

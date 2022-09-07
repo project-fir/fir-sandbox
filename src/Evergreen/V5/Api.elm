@@ -1,6 +1,6 @@
-module Evergreen.V1.Api exposing (..)
+module Evergreen.V5.Api exposing (..)
 
-import Evergreen.V1.QueryBuilder
+import Evergreen.V5.QueryBuilder
 import ISO8601
 
 
@@ -14,7 +14,7 @@ type Val
 
 
 type alias Column =
-    { ref : Evergreen.V1.QueryBuilder.ColumnRef
+    { ref : Evergreen.V5.QueryBuilder.ColumnRef
     , type_ : String
     , vals : List (Maybe Val)
     }
@@ -35,7 +35,7 @@ type alias DuckDbTableRefsResponse =
 
 
 type alias ColumnDescription =
-    { ref : Evergreen.V1.QueryBuilder.ColumnRef
+    { ref : Evergreen.V5.QueryBuilder.ColumnRef
     , type_ : String
     }
 

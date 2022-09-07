@@ -5,7 +5,6 @@ module Pages.Sheet exposing (Model, Msg, page)
 
 import Api exposing (queryDuckDb)
 import Array as A
-import Array.Extra as AE
 import Array2D exposing (Array2D, ColIx, RowIx, colCount, fromListOfLists, getCol, rowCount, setValueAt)
 import Browser.Dom
 import Browser.Events as Events
@@ -903,7 +902,7 @@ viewDataInspectPanel model =
             in
             row attrs
                 (A.toList <|
-                    AE.map2
+                    Array2D.map2
                         (\cix lbl -> viewSheetColumn cix lbl (getCol cix model.sheet.data))
                         (A.fromList (List.range 0 (colCount model.sheet.data - 1)))
                         (A.fromList model.sheet.columnLabels)

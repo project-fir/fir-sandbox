@@ -4,12 +4,16 @@ import Browser.Navigation exposing (Key)
 import Effect exposing (Effect)
 import ElmSpa.Page
 import Gen.Params.Home_
+import Gen.Params.Sheet
+import Gen.Params.VegaLite
 import Gen.Params.NotFound
 import Gen.Model as Model
 import Gen.Msg as Msg
 import Gen.Route as Route exposing (Route)
 import Page exposing (Page)
 import Pages.Home_
+import Pages.Sheet
+import Pages.VegaLite
 import Pages.NotFound
 import Request exposing (Request)
 import Shared
@@ -32,6 +36,12 @@ init route =
         Route.Home_ ->
             pages.home_.init ()
     
+        Route.Sheet ->
+            pages.sheet.init ()
+    
+        Route.VegaLite ->
+            pages.vegaLite.init ()
+    
         Route.NotFound ->
             pages.notFound.init ()
 
@@ -39,7 +49,11 @@ init route =
 update : Msg -> Model -> Shared.Model -> Url -> Key -> ( Model, Effect Msg )
 update msg_ model_ =
     case ( msg_, model_ ) of
+        ( Msg.Sheet msg, Model.Sheet params model ) ->
+            pages.sheet.update params msg model
     
+        ( Msg.VegaLite msg, Model.VegaLite params model ) ->
+            pages.vegaLite.update params msg model
 
         _ ->
             \_ _ _ -> ( model_, Effect.none )
@@ -54,6 +68,12 @@ view model_ =
         Model.Home_ params ->
             pages.home_.view params ()
     
+        Model.Sheet params model ->
+            pages.sheet.view params model
+    
+        Model.VegaLite params model ->
+            pages.vegaLite.view params model
+    
         Model.NotFound params ->
             pages.notFound.view params ()
 
@@ -67,6 +87,12 @@ subscriptions model_ =
         Model.Home_ params ->
             pages.home_.subscriptions params ()
     
+        Model.Sheet params model ->
+            pages.sheet.subscriptions params model
+    
+        Model.VegaLite params model ->
+            pages.vegaLite.subscriptions params model
+    
         Model.NotFound params ->
             pages.notFound.subscriptions params ()
 
@@ -77,10 +103,14 @@ subscriptions model_ =
 
 pages :
     { home_ : Static Gen.Params.Home_.Params
+    , sheet : Bundle Gen.Params.Sheet.Params Pages.Sheet.Model Pages.Sheet.Msg
+    , vegaLite : Bundle Gen.Params.VegaLite.Params Pages.VegaLite.Model Pages.VegaLite.Msg
     , notFound : Static Gen.Params.NotFound.Params
     }
 pages =
     { home_ = static Pages.Home_.view Model.Home_
+    , sheet = bundle Pages.Sheet.page Model.Sheet Msg.Sheet
+    , vegaLite = bundle Pages.VegaLite.page Model.VegaLite Msg.VegaLite
     , notFound = static Pages.NotFound.view Model.NotFound
     }
 

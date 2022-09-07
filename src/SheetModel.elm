@@ -1,7 +1,6 @@
 module SheetModel exposing (..)
 
 import Array as A
-import Array.Extra as AE
 import Array2D exposing (Array2D, ColIx, RowIx)
 import ISO8601 as Iso
 
@@ -64,9 +63,9 @@ array2DToSheet arr2d colLabels =
             Array2D.colCount arr2d
     in
     { data =
-        AE.map2
+        Array2D.map2
             (\row rix ->
-                AE.map2 (\e cix -> ( ( rix, cix ), e ))
+                Array2D.map2 (\e cix -> ( ( rix, cix ), e ))
                     row
                     (A.fromList <| List.range 0 (nCols - 1))
             )

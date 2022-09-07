@@ -1,4 +1,4 @@
-module Array2D exposing (Array2D, ColIx, RowIx, colCount, flatten, fromListOfLists, getCol, getRow, getValueAt, member, rowCount, setValueAt, toListOfLists)
+module Array2D exposing (Array2D, ColIx, RowIx, colCount, flatten, fromListOfLists, getCol, getRow, getValueAt, map2, member, rowCount, setValueAt, toListOfLists)
 
 -- Implements basic 2D array structure. I didn't consider performance at all, and all 2D arrays are assumed
 -- to be regular. Where "regular" means all rows have the same length and all cols have the same length
@@ -110,3 +110,32 @@ colCount arr2d =
 flatten : Array2D e -> A.Array e
 flatten arr2d =
     A.foldr (\row acc -> A.append row acc) A.empty arr2d
+
+
+{-| This function is copied directly from: <https://github.com/elm-community/array-extra/blob/44f8a73dc6c2fb43556a65ba9e2b48c70c925f89/src/Array/Extra.elm#L261-L270>
+I ran into weird dependency issues with deploying array-extra _shrug_
+
+Combine the elements of two `Array`s with a given function.
+If one `Array` is longer, its extra elements are not used.
+import Array exposing (fromList)
+map2 (+)
+(fromList [ 1, 2, 3 ])
+(fromList [ 1, 2, 3, 4 ])
+--> fromList [ 2, 4, 6 ]
+map2 Tuple.pair
+(fromList [ 1, 2, 3 ])
+(fromList [ 'a', 'b' ])
+--> fromList [ ( 1, 'a' ), ( 2, 'b' ) ]
+Note: [`zip`](Array-Extra#zip) can be used instead of `map2 Tuple.pair`.
+
+-}
+map2 :
+    (a -> b -> combined)
+    -> A.Array a
+    -> A.Array b
+    -> A.Array combined
+map2 combineAb aArray bArray =
+    List.map2 combineAb
+        (aArray |> A.Array.toList)
+        (bArray |> A.Array.toList)
+        |> A.Array.fromList

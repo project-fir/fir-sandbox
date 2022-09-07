@@ -3,12 +3,12 @@ module Pages.Sheet exposing (Model, Msg, page)
 --import File exposing (File)
 --import File.Select as Select
 
-import Api exposing (queryDuckDb)
 import Array as A
 import Array2D exposing (Array2D, ColIx, RowIx, colCount, fromListOfLists, getCol, rowCount, setValueAt)
 import Browser.Dom
 import Browser.Events as Events
 import Config exposing (apiHost)
+import DuckDb exposing (queryDuckDb)
 import Effect exposing (Effect)
 import Element as E exposing (..)
 import Element.Background as Background
@@ -89,16 +89,16 @@ type alias Model =
     , submissionHistory : List RawPrompt
     , timeline : A.Array Timeline
     , uiMode : UiMode
-    , duckDbResponse : WebData Api.DuckDbQueryResponse
-    , duckDbMetaResponse : WebData Api.DuckDbQueryResponse
-    , duckDbTableRefs : WebData Api.DuckDbTableRefsResponse
+    , duckDbResponse : WebData DuckDb.DuckDbQueryResponse
+    , duckDbMetaResponse : WebData DuckDb.DuckDbQueryResponse
+    , duckDbTableRefs : WebData DuckDb.DuckDbTableRefsResponse
     , userSqlText : String
     , fileUploadStatus : FileUploadStatus
     , nowish : Maybe Posix
     , viewport : Maybe Browser.Dom.Viewport
     , renderStatus : RenderStatus
-    , selectedTableRef : Maybe Api.TableRef
-    , hoveredOnTableRef : Maybe Api.TableRef
+    , selectedTableRef : Maybe DuckDb.TableName
+    , hoveredOnTableRef : Maybe DuckDb.TableName
     }
 
 
@@ -137,8 +137,8 @@ type Msg
     | GotResizeEvent Int Int
     | KeyWentDown KeyCode
     | KeyReleased KeyCode
-    | UserSelectedTableRef Api.TableRef
-    | UserMouseEnteredTableRef Api.TableRef
+    | UserSelectedTableRef DuckDb.TableName
+    | UserMouseEnteredTableRef DuckDb.TableName
     | UserMouseLeftTableRef
     | ClickedCell CellCoords
     | PromptInputChanged String
@@ -150,9 +150,9 @@ type Msg
     | QueryDuckDb String
     | UserSqlTextChanged String
       -- API response stuff:
-    | GotDuckDbResponse (Result Http.Error Api.DuckDbQueryResponse)
-    | GotDuckDbMetaResponse (Result Http.Error Api.DuckDbQueryResponse)
-    | GotDuckDbTableRefsResponse (Result Http.Error Api.DuckDbTableRefsResponse)
+    | GotDuckDbResponse (Result Http.Error DuckDb.DuckDbQueryResponse)
+    | GotDuckDbMetaResponse (Result Http.Error DuckDb.DuckDbQueryResponse)
+    | GotDuckDbTableRefsResponse (Result Http.Error DuckDb.DuckDbTableRefsResponse)
       -- Timeline stuff:
       -- TODO: Should Msg take in a `model` param?
     | JumpToFirstFrame
@@ -215,7 +215,7 @@ cell2Str cd =
                     ( "FALSE", "Boolean" )
 
 
-buildSqlText : Maybe Api.TableRef -> String
+buildSqlText : Maybe DuckDb.TableName -> String
 buildSqlText ref =
     let
         tableRef =
@@ -296,10 +296,10 @@ type alias KeyCode =
 --| NewTime Time.Posix
 
 
-mapColumnsToSheet : List Api.Column -> SheetEnvelope
+mapColumnsToSheet : List DuckDb.DuckDbColumn -> SheetEnvelope
 mapColumnsToSheet cols =
     let
-        mapVal : Maybe Api.Val -> CellElement
+        mapVal : Maybe DuckDb.Val -> CellElement
         mapVal v =
             case v of
                 Nothing ->
@@ -307,22 +307,22 @@ mapColumnsToSheet cols =
 
                 Just val ->
                     case val of
-                        Api.Varchar_ var ->
+                        DuckDb.Varchar_ var ->
                             String_ var
 
-                        Api.Int_ i ->
+                        DuckDb.Int_ i ->
                             Int_ i
 
-                        Api.Time_ t ->
+                        DuckDb.Time_ t ->
                             Time_ t
 
-                        Api.Bool_ b ->
+                        DuckDb.Bool_ b ->
                             Bool_ b
 
-                        Api.Float_ f ->
+                        DuckDb.Float_ f ->
                             Float_ f
 
-                        Api.Unknown ->
+                        DuckDb.Unknown ->
                             Empty
 
         -- lol is "list of lists", but I'm also laughing at how inefficient this is
@@ -1184,7 +1184,7 @@ viewCatalogPanel model =
 
                 Success refsResponse ->
                     let
-                        refsSelector : List Api.TableRef -> Element Msg
+                        refsSelector : List DuckDb.TableName -> Element Msg
                         refsSelector refs =
                             let
                                 backgroundColorFor ref =
@@ -1235,7 +1235,7 @@ viewCatalogPanel model =
                                             else
                                                 Palette.white
 
-                                ui : Api.TableRef -> Element Msg
+                                ui : DuckDb.TableName -> Element Msg
                                 ui ref =
                                     row
                                         [ width E.fill
@@ -1339,9 +1339,9 @@ prompt_input_dom_id =
 fetchDuckDbTableRefs : Cmd Msg
 fetchDuckDbTableRefs =
     let
-        duckDbTableRefsResponseDecoder : JD.Decoder Api.DuckDbTableRefsResponse
+        duckDbTableRefsResponseDecoder : JD.Decoder DuckDb.DuckDbTableRefsResponse
         duckDbTableRefsResponseDecoder =
-            JD.map Api.DuckDbTableRefsResponse
+            JD.map DuckDb.DuckDbTableRefsResponse
                 (JD.field "refs" (JD.list JD.string))
     in
     Http.get

@@ -1,4 +1,4 @@
-module Api exposing (..)
+module DuckDb exposing (ColumnName, DuckDbColumnDescription, DuckDbRef, Ref, SchemaName, TableName, Val, queryDuckDb)
 
 import Config exposing (apiHost)
 import Http exposing (Error(..))
@@ -10,20 +10,68 @@ import RemoteData exposing (RemoteData, asCmd)
 import Url exposing (fromString)
 
 
-type alias Column =
-    { ref : ColumnRef
+type
+    Ref
+    -- Top-level database reference, should this app support BigQuery in the future
+    -- for example, introduce a BigQuery variant of this type (and maybe pull this data type into
+    -- a non-db specific module)
+    = DuckDb DuckDbRef
+
+
+
+-- begin region: DuckDb-specific types
+--
+-- A DuckDbRef points to a SQL-queryable source, the current fir-api only exposes DuckDB tables and views, but a URI to a
+-- .parquet file could be supported, with backend changes (and likely some import conventions I've yet to think through)
+
+
+type
+    DuckDbRef
+    -- While DuckDB supports schema-less tables, I don't =)
+    = View { schemaName : SchemaName, tableName : TableName }
+    | Table { schemaRef : SchemaName, tableRef : TableName }
+
+
+type alias SchemaName =
+    -- The 'bi' in `select * from bi.foo`
+    String
+
+
+type alias TableName =
+    -- The 'foo' in `select * from bi.foo`
+    String
+
+
+type alias ColumnName =
+    -- The 'col_a' in `select f.col_a from bi.foo f`
+    String
+
+
+type alias DuckDbColumn =
+    -- A DuckDbColumn is owned by a DuckDbRef
+    -- The plain-text field `type_` is used by JSON decoding, and delegates the decoder
+    -- to its proper `Val` variant
+    -- TODO: Need to put thought into nullability, there may be performance implications with the
+    --       current superfluous use of `Maybe`, but for the moment it's a bit simpler
+    --
+    { name : ColumnName
+    , owningRef : DuckDbRef
     , type_ : String
     , vals : List (Maybe Val)
     }
 
 
-type alias ColumnDescription =
-    { ref : ColumnRef
+type alias DuckDbColumnDescription =
+    -- Just the metadata for a DuckDbColumn
+    { ref : ColumnName
+    , owningRef : DuckDbRef
     , type_ : String
     }
 
 
-type Val
+type
+    Val
+    -- Maps Elm tag to DuckDB val type
     = Varchar_ String
     | Time_ Iso.Time
     | Bool_ Bool
@@ -32,26 +80,32 @@ type Val
     | Unknown
 
 
-type alias TableRef =
-    String
+
+-- end region: DuckDb-specific types
+-- begin region: fir-api DuckDb response types
 
 
 type alias DuckDbQueryResponse =
-    { columns : List Column
+    { columns : List DuckDbColumn
     }
 
 
 type alias DuckDbMetaResponse =
-    { colDescs : List ColumnDescription
+    { colDescs : List DuckDbColumnDescription
     }
 
 
 type alias DuckDbTableRefsResponse =
-    { refs : List TableRef
+    { refs : List TableName
     }
 
 
-queryDuckDb : String -> Bool -> List TableRef -> (Result Error DuckDbQueryResponse -> msg) -> Cmd msg
+
+-- end region: fir-api DuckDb response types
+-- begin region: fir-api HTTP utility functions
+
+
+queryDuckDb : String -> Bool -> List TableName -> (Result Error DuckDbQueryResponse -> msg) -> Cmd msg
 queryDuckDb query allowFallback refs onResponse =
     let
         duckDbQueryEncoder : JE.Value
@@ -65,7 +119,7 @@ queryDuckDb query allowFallback refs onResponse =
         duckDbQueryResponseDecoder : JD.Decoder DuckDbQueryResponse
         duckDbQueryResponseDecoder =
             let
-                columnDecoderHelper : JD.Decoder Column
+                columnDecoderHelper : JD.Decoder DuckDbColumn
                 columnDecoderHelper =
                     JD.field "type" JD.string |> JD.andThen decoderByType
 
@@ -82,53 +136,53 @@ queryDuckDb query allowFallback refs onResponse =
                                         JD.succeed <| time
                             )
 
-                decoderByType : String -> JD.Decoder Column
+                decoderByType : String -> JD.Decoder DuckDbColumn
                 decoderByType type_ =
                     case type_ of
                         "VARCHAR" ->
-                            JD.map3 Column
+                            JD.map3 DuckDbColumn
                                 (JD.field "name" JD.string)
                                 (JD.field "type" JD.string)
                                 (JD.field "values" (JD.list (JD.maybe (JD.map Varchar_ JD.string))))
 
                         "INTEGER" ->
-                            JD.map3 Column
+                            JD.map3 DuckDbColumn
                                 (JD.field "name" JD.string)
                                 (JD.field "type" JD.string)
                                 (JD.field "values" (JD.list (JD.maybe (JD.map Int_ JD.int))))
 
                         "BIGINT" ->
-                            JD.map3 Column
+                            JD.map3 DuckDbColumn
                                 (JD.field "name" JD.string)
                                 (JD.field "type" JD.string)
                                 (JD.field "values" (JD.list (JD.maybe (JD.map Int_ JD.int))))
 
                         "HUGEINT" ->
-                            JD.map3 Column
+                            JD.map3 DuckDbColumn
                                 (JD.field "name" JD.string)
                                 (JD.field "type" JD.string)
                                 (JD.field "values" (JD.list (JD.maybe (JD.map Int_ JD.int))))
 
                         "BOOLEAN" ->
-                            JD.map3 Column
+                            JD.map3 DuckDbColumn
                                 (JD.field "name" JD.string)
                                 (JD.field "type" JD.string)
                                 (JD.field "values" (JD.list (JD.maybe (JD.map Bool_ JD.bool))))
 
                         "DOUBLE" ->
-                            JD.map3 Column
+                            JD.map3 DuckDbColumn
                                 (JD.field "name" JD.string)
                                 (JD.field "type" JD.string)
                                 (JD.field "values" (JD.list (JD.maybe (JD.map Float_ JD.float))))
 
                         "DATE" ->
-                            JD.map3 Column
+                            JD.map3 DuckDbColumn
                                 (JD.field "name" JD.string)
                                 (JD.field "type" JD.string)
                                 (JD.field "values" (JD.list (JD.maybe (JD.map Varchar_ JD.string))))
 
                         "TIMESTAMP" ->
-                            JD.map3 Column
+                            JD.map3 DuckDbColumn
                                 (JD.field "name" JD.string)
                                 (JD.field "type" JD.string)
                                 (JD.field "values" (JD.list (JD.maybe (JD.map Time_ timeDecoder))))
@@ -136,7 +190,7 @@ queryDuckDb query allowFallback refs onResponse =
                         _ ->
                             -- This feels wrong to me, but unsure how else to workaround the string pattern matching
                             -- Should this fail loudly?
-                            JD.map3 Column
+                            JD.map3 DuckDbColumn
                                 (JD.field "name" JD.string)
                                 (JD.field "type" JD.string)
                                 (JD.list (JD.maybe (JD.succeed Unknown)))
@@ -149,3 +203,7 @@ queryDuckDb query allowFallback refs onResponse =
         , body = Http.jsonBody duckDbQueryEncoder
         , expect = Http.expectJson onResponse duckDbQueryResponseDecoder
         }
+
+
+
+-- begin region: fir-api HTTP utility functions

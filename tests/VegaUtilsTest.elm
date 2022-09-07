@@ -1,6 +1,6 @@
 module VegaUtilsTest exposing (..)
 
-import Api exposing (Column, Val(..))
+import DuckDb exposing (DuckDbColumn, Val(..))
 import Expect exposing (Expectation)
 import Fuzz exposing (Fuzzer, int, list, string)
 import Test exposing (..)
@@ -30,7 +30,7 @@ suite =
         ]
 
 
-stringColumn : Column
+stringColumn : DuckDbColumn
 stringColumn =
     { ref = "a string column"
     , type_ = "VARCHAR"
@@ -49,7 +49,7 @@ colParamedString =
     }
 
 
-integerColumn : Column
+integerColumn : DuckDbColumn
 integerColumn =
     { ref = "an int column"
     , type_ = "INTEGER"
@@ -68,7 +68,7 @@ colParamedInt =
     }
 
 
-floatColumn : Column
+floatColumn : DuckDbColumn
 floatColumn =
     { ref = "a float column"
     , type_ = "DOUBLE"

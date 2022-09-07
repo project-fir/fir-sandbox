@@ -4,10 +4,10 @@ module Pages.VegaLite exposing (Model, Msg, page)
 --import PortDefs exposing (dragStart, elmToJS)
 --import VegaLite as VL
 
-import Api exposing (queryDuckDb)
 import Array
 import Config exposing (apiHost)
 import Dict exposing (Dict)
+import DuckDb exposing (queryDuckDb)
 import Effect exposing (Effect)
 import Element as E exposing (..)
 import Element.Background as Background
@@ -55,11 +55,11 @@ type Position
 
 type alias Model =
     { --spec : Maybe VL.Spec
-      duckDbForPlotResponse : WebData Api.DuckDbQueryResponse
-    , duckDbMetaResponse : WebData Api.DuckDbMetaResponse
-    , duckDbTableRefs : WebData Api.DuckDbTableRefsResponse
-    , selectedTableRef : Maybe Api.TableRef
-    , hoveredOnTableRef : Maybe Api.TableRef
+      duckDbForPlotResponse : WebData DuckDb.DuckDbQueryResponse
+    , duckDbMetaResponse : WebData DuckDb.DuckDbMetaResponse
+    , duckDbTableRefs : WebData DuckDb.DuckDbTableRefsResponse
+    , selectedTableRef : Maybe DuckDb.TableName
+    , hoveredOnTableRef : Maybe DuckDb.TableName
 
     --, dragDrop : DragDrop.Model Int Position
     , data : { count : Int, position : Position }
@@ -105,12 +105,12 @@ type Msg
     = FetchPlotData
       --| RenderPlot
     | FetchTableRefs
-    | FetchMetaDataForRef Api.TableRef
-    | GotDuckDbResponse (Result Http.Error Api.DuckDbQueryResponse)
-    | GotDuckDbMetaResponse (Result Http.Error Api.DuckDbMetaResponse)
-    | GotDuckDbTableRefsResponse (Result Http.Error Api.DuckDbTableRefsResponse)
-    | UserSelectedTableRef Api.TableRef
-    | UserMouseEnteredTableRef Api.TableRef
+    | FetchMetaDataForRef DuckDb.TableName
+    | GotDuckDbResponse (Result Http.Error DuckDb.DuckDbQueryResponse)
+    | GotDuckDbMetaResponse (Result Http.Error DuckDb.DuckDbMetaResponse)
+    | GotDuckDbTableRefsResponse (Result Http.Error DuckDb.DuckDbTableRefsResponse)
+    | UserSelectedTableRef DuckDb.TableName
+    | UserMouseEnteredTableRef DuckDb.TableName
     | UserMouseLeftTableRef
       --| DragDropMsg (DragDrop.Msg Int Position)
     | UserClickKimballColumnTab KimballColumn
@@ -609,7 +609,7 @@ viewQueryBuilderOutput model =
     paragraph [ width fill, height fill ] [ text displayText ]
 
 
-mapToKimball : Api.ColumnDescription -> KimballColumn
+mapToKimball : DuckDb.DuckDbColumnDescription -> KimballColumn
 mapToKimball colDesc =
     -- TODO: this function serves to be placeholder logic in lieu of persisting Kimball metadata
     --       upon successful loading of a DuckDB Ref, columns will be mapped in a "best guess" manner
@@ -875,7 +875,7 @@ viewTableRefs model =
 
         Success refsResponse ->
             let
-                refsSelector : List Api.TableRef -> Element Msg
+                refsSelector : List DuckDb.TableName -> Element Msg
                 refsSelector refs =
                     let
                         backgroundColorFor ref =
@@ -926,7 +926,7 @@ viewTableRefs model =
                                     else
                                         Palette.white
 
-                        ui : Api.TableRef -> Element Msg
+                        ui : DuckDb.TableName -> Element Msg
                         ui ref =
                             row
                                 [ width E.fill
@@ -1037,7 +1037,7 @@ viewTableRefs model =
 -- begin region API
 
 
-queryDuckDbMeta : String -> Bool -> List Api.TableRef -> Cmd Msg
+queryDuckDbMeta : String -> Bool -> List DuckDb.TableName -> Cmd Msg
 queryDuckDbMeta query allowFallback refs =
     let
         duckDbQueryEncoder : JE.Value
@@ -1048,22 +1048,22 @@ queryDuckDbMeta query allowFallback refs =
                 , ( "fallback_table_refs", JE.list JE.string refs )
                 ]
 
-        duckDbMetaResponseDecoder : JD.Decoder Api.DuckDbMetaResponse
+        duckDbMetaResponseDecoder : JD.Decoder DuckDb.DuckDbMetaResponse
         duckDbMetaResponseDecoder =
             let
-                columnDecoderHelper : JD.Decoder Api.ColumnDescription
+                columnDecoderHelper : JD.Decoder DuckDb.DuckDbColumnDescription
                 columnDecoderHelper =
                     JD.field "type" JD.string |> JD.andThen decoderByType
 
-                decoderByType : String -> JD.Decoder Api.ColumnDescription
+                decoderByType : String -> JD.Decoder DuckDb.DuckDbColumnDescription
                 decoderByType type_ =
                     case type_ of
                         _ ->
-                            JD.map2 Api.ColumnDescription
+                            JD.map2 DuckDb.DuckDbColumnDescription
                                 (JD.field "name" JD.string)
                                 (JD.field "type" JD.string)
             in
-            JD.map Api.DuckDbMetaResponse
+            JD.map DuckDb.DuckDbMetaResponse
                 (JD.field "columns" (JD.list columnDecoderHelper))
     in
     Http.post
@@ -1076,9 +1076,9 @@ queryDuckDbMeta query allowFallback refs =
 fetchDuckDbTableRefs : Cmd Msg
 fetchDuckDbTableRefs =
     let
-        duckDbTableRefsResponseDecoder : JD.Decoder Api.DuckDbTableRefsResponse
+        duckDbTableRefsResponseDecoder : JD.Decoder DuckDb.DuckDbTableRefsResponse
         duckDbTableRefsResponseDecoder =
-            JD.map Api.DuckDbTableRefsResponse
+            JD.map DuckDb.DuckDbTableRefsResponse
                 (JD.field "refs" (JD.list JD.string))
     in
     Http.get

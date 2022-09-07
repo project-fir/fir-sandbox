@@ -1,6 +1,6 @@
 module VegaUtils exposing (..)
 
-import Api exposing (Column, Val(..))
+import DuckDb exposing (DuckDbColumn, Val(..))
 import Utils exposing (removeNothingsFromList)
 
 
@@ -10,7 +10,7 @@ type alias ColumnParamed val =
     }
 
 
-mapColToStringCol : Column -> ColumnParamed String
+mapColToStringCol : DuckDbColumn -> ColumnParamed String
 mapColToStringCol col =
     case col.type_ of
         "VARCHAR" ->
@@ -40,7 +40,7 @@ mapColToStringCol col =
             }
 
 
-mapColToFloatCol : Column -> ColumnParamed Float
+mapColToFloatCol : DuckDbColumn -> ColumnParamed Float
 mapColToFloatCol col =
     case col.type_ of
         "DOUBLE" ->
@@ -70,7 +70,7 @@ mapColToFloatCol col =
             }
 
 
-mapColToIntegerCol : Column -> ColumnParamed Int
+mapColToIntegerCol : DuckDbColumn -> ColumnParamed Int
 mapColToIntegerCol col =
     case col.type_ of
         "INTEGER" ->

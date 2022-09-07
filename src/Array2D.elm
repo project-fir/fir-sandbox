@@ -136,6 +136,6 @@ map2 :
     -> A.Array combined
 map2 combineAb aArray bArray =
     List.map2 combineAb
-        (aArray |> A.Array.toList)
-        (bArray |> A.Array.toList)
-        |> A.Array.fromList
+        (aArray |> A.toList)
+        (bArray |> A.toList)
+        |> A.fromList

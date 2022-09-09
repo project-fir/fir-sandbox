@@ -7,7 +7,7 @@ module Pages.VegaLite exposing (Model, Msg, page)
 import Array
 import Config exposing (apiHost)
 import Dict exposing (Dict)
-import DuckDb exposing (queryDuckDb)
+import DuckDb exposing (DuckDbColumnDescription, DuckDbMetaResponse, fetchDuckDbTableRefs, queryDuckDb, queryDuckDbMeta)
 import Effect exposing (Effect)
 import Element as E exposing (..)
 import Element.Background as Background
@@ -92,7 +92,7 @@ init =
       , kimballCols = []
       , openedDropDown = Nothing
       }
-    , Effect.fromCmd fetchDuckDbTableRefs
+    , Effect.fromCmd <| fetchDuckDbTableRefs GotDuckDbTableRefsResponse
     )
 
 
@@ -209,7 +209,7 @@ update msg model =
         --        )
         --    )
         FetchTableRefs ->
-            ( { model | duckDbTableRefs = Loading }, Effect.fromCmd <| fetchDuckDbTableRefs )
+            ( { model | duckDbTableRefs = Loading }, Effect.fromCmd <| fetchDuckDbTableRefs GotDuckDbTableRefsResponse )
 
         GotDuckDbTableRefsResponse response ->
             case response of
@@ -225,7 +225,7 @@ update msg model =
                 queryStr =
                     "select * from " ++ ref ++ " limit 0"
             in
-            ( { model | duckDbTableRefs = Loading }, Effect.fromCmd <| queryDuckDbMeta queryStr True [ ref ] )
+            ( { model | duckDbTableRefs = Loading }, Effect.fromCmd <| queryDuckDbMeta queryStr True [ ref ] GotDuckDbMetaResponse )
 
         GotDuckDbMetaResponse response ->
             case response of
@@ -233,7 +233,7 @@ update msg model =
                     let
                         kimballCols : List KimballColumn
                         kimballCols =
-                            List.map (\cd -> mapToKimball cd) data.colDescs
+                            List.map (\cd -> mapToKimball cd) data.columnDescriptions
                     in
                     ( { model
                         | duckDbMetaResponse = Success data
@@ -291,7 +291,7 @@ limit 100
                     "select * from " ++ ref ++ " limit 0"
             in
             ( { model | duckDbMetaResponse = Loading, selectedTableRef = Just ref }
-            , Effect.fromCmd <| queryDuckDbMeta queryStr True [ ref ]
+            , Effect.fromCmd <| queryDuckDbMeta queryStr True [ ref ] GotDuckDbMetaResponse
             )
 
         UserMouseEnteredTableRef ref ->
@@ -618,31 +618,31 @@ mapToKimball colDesc =
     --       persisted server-side
     case colDesc.type_ of
         "VARCHAR" ->
-            Dimension colDesc.ref
+            Dimension colDesc.name
 
         "DATE" ->
-            Time (Discrete Day) colDesc.ref
+            Time (Discrete Day) colDesc.name
 
         "TIMESTAMP" ->
-            Time Continuous colDesc.ref
+            Time Continuous colDesc.name
 
         "BOOLEAN" ->
-            Dimension colDesc.ref
+            Dimension colDesc.name
 
         "INTEGER" ->
-            Measure Sum colDesc.ref
+            Measure Sum colDesc.name
 
         "HUGEINT" ->
-            Measure Sum colDesc.ref
+            Measure Sum colDesc.name
 
         "BIGINT" ->
-            Measure Sum colDesc.ref
+            Measure Sum colDesc.name
 
         "DOUBLE" ->
-            Measure Sum colDesc.ref
+            Measure Sum colDesc.name
 
         _ ->
-            Error colDesc.ref
+            Error colDesc.name
 
 
 colorAssociatedWith : KimballColumn -> E.Color
@@ -1034,58 +1034,3 @@ viewTableRefs model =
 --            in
 --            Just (spec0 col1 col2)
 -- end region vega-lite
--- begin region API
-
-
-queryDuckDbMeta : String -> Bool -> List DuckDb.TableName -> Cmd Msg
-queryDuckDbMeta query allowFallback refs =
-    let
-        duckDbQueryEncoder : JE.Value
-        duckDbQueryEncoder =
-            JE.object
-                [ ( "query_str", JE.string query )
-                , ( "allow_blob_fallback", JE.bool allowFallback )
-                , ( "fallback_table_refs", JE.list JE.string refs )
-                ]
-
-        duckDbMetaResponseDecoder : JD.Decoder DuckDb.DuckDbMetaResponse
-        duckDbMetaResponseDecoder =
-            let
-                columnDecoderHelper : JD.Decoder DuckDb.DuckDbColumnDescription
-                columnDecoderHelper =
-                    JD.field "type" JD.string |> JD.andThen decoderByType
-
-                decoderByType : String -> JD.Decoder DuckDb.DuckDbColumnDescription
-                decoderByType type_ =
-                    case type_ of
-                        _ ->
-                            JD.map2 DuckDb.DuckDbColumnDescription
-                                (JD.field "name" JD.string)
-                                (JD.field "type" JD.string)
-            in
-            JD.map DuckDb.DuckDbMetaResponse
-                (JD.field "columns" (JD.list columnDecoderHelper))
-    in
-    Http.post
-        { url = apiHost ++ "/duckdb"
-        , body = Http.jsonBody duckDbQueryEncoder
-        , expect = Http.expectJson GotDuckDbMetaResponse duckDbMetaResponseDecoder
-        }
-
-
-fetchDuckDbTableRefs : Cmd Msg
-fetchDuckDbTableRefs =
-    let
-        duckDbTableRefsResponseDecoder : JD.Decoder DuckDb.DuckDbTableRefsResponse
-        duckDbTableRefsResponseDecoder =
-            JD.map DuckDb.DuckDbTableRefsResponse
-                (JD.field "refs" (JD.list JD.string))
-    in
-    Http.get
-        { url = apiHost ++ "/duckdb/table_refs"
-        , expect = Http.expectJson GotDuckDbTableRefsResponse duckDbTableRefsResponseDecoder
-        }
-
-
-
--- end region API

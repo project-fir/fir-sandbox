@@ -8,7 +8,7 @@ import Array2D exposing (Array2D, ColIx, RowIx, colCount, fromListOfLists, getCo
 import Browser.Dom
 import Browser.Events as Events
 import Config exposing (apiHost)
-import DuckDb exposing (queryDuckDb)
+import DuckDb exposing (DuckDbColumn, DuckDbMetaResponse, DuckDbQueryResponse, DuckDbTableRefsResponse, fetchDuckDbTableRefs, queryDuckDb)
 import Effect exposing (Effect)
 import Element as E exposing (..)
 import Element.Background as Background
@@ -89,9 +89,9 @@ type alias Model =
     , submissionHistory : List RawPrompt
     , timeline : A.Array Timeline
     , uiMode : UiMode
-    , duckDbResponse : WebData DuckDb.DuckDbQueryResponse
-    , duckDbMetaResponse : WebData DuckDb.DuckDbQueryResponse
-    , duckDbTableRefs : WebData DuckDb.DuckDbTableRefsResponse
+    , duckDbResponse : WebData DuckDbQueryResponse
+    , duckDbMetaResponse : WebData DuckDbMetaResponse
+    , duckDbTableRefs : WebData DuckDbTableRefsResponse
     , userSqlText : String
     , fileUploadStatus : FileUploadStatus
     , nowish : Maybe Posix
@@ -150,9 +150,9 @@ type Msg
     | QueryDuckDb String
     | UserSqlTextChanged String
       -- API response stuff:
-    | GotDuckDbResponse (Result Http.Error DuckDb.DuckDbQueryResponse)
-    | GotDuckDbMetaResponse (Result Http.Error DuckDb.DuckDbQueryResponse)
-    | GotDuckDbTableRefsResponse (Result Http.Error DuckDb.DuckDbTableRefsResponse)
+    | GotDuckDbResponse (Result Http.Error DuckDbQueryResponse)
+    | GotDuckDbMetaResponse (Result Http.Error DuckDbMetaResponse)
+    | GotDuckDbTableRefsResponse (Result Http.Error DuckDbTableRefsResponse)
       -- Timeline stuff:
       -- TODO: Should Msg take in a `model` param?
     | JumpToFirstFrame
@@ -278,7 +278,7 @@ init =
     , Effect.fromCmd <|
         Cmd.batch
             [ Task.perform GotViewport Browser.Dom.getViewport
-            , fetchDuckDbTableRefs
+            , fetchDuckDbTableRefs GotDuckDbTableRefsResponse
             ]
     )
 
@@ -296,7 +296,7 @@ type alias KeyCode =
 --| NewTime Time.Posix
 
 
-mapColumnsToSheet : List DuckDb.DuckDbColumn -> SheetEnvelope
+mapColumnsToSheet : List DuckDbColumn -> SheetEnvelope
 mapColumnsToSheet cols =
     let
         mapVal : Maybe DuckDb.Val -> CellElement
@@ -334,7 +334,7 @@ mapColumnsToSheet cols =
             LE.transpose lolWrong
 
         colLabels =
-            List.map (\col -> col.ref) cols
+            List.map (\col -> col.name) cols
     in
     array2DToSheet (fromListOfLists lolTransposed) colLabels
 
@@ -417,7 +417,7 @@ update msg model =
             )
 
         FileUpload_UploadResponded result ->
-            ( model, Effect.fromCmd fetchDuckDbTableRefs )
+            ( model, Effect.fromCmd <| fetchDuckDbTableRefs GotDuckDbTableRefsResponse )
 
         UserSqlTextChanged newText ->
             ( { model | userSqlText = newText }, Effect.none )
@@ -1333,22 +1333,3 @@ prompt_input_dom_id =
 
 
 -- end region misc utils
--- begin region API
-
-
-fetchDuckDbTableRefs : Cmd Msg
-fetchDuckDbTableRefs =
-    let
-        duckDbTableRefsResponseDecoder : JD.Decoder DuckDb.DuckDbTableRefsResponse
-        duckDbTableRefsResponseDecoder =
-            JD.map DuckDb.DuckDbTableRefsResponse
-                (JD.field "refs" (JD.list JD.string))
-    in
-    Http.get
-        { url = apiHost ++ "/duckdb/table_refs"
-        , expect = Http.expectJson GotDuckDbTableRefsResponse duckDbTableRefsResponseDecoder
-        }
-
-
-
--- end region API

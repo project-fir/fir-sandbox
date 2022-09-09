@@ -1,4 +1,4 @@
-module DuckDb exposing (ColumnName, DuckDbColumnDescription, DuckDbRef, Ref, SchemaName, TableName, Val, queryDuckDb)
+module DuckDb exposing (ColumnName, DuckDbColumn, DuckDbColumnDescription, DuckDbMetaResponse, DuckDbQueryResponse, DuckDbRef, DuckDbTableRefsResponse, Ref, SchemaName, TableName, Val(..), fetchDuckDbTableRefs, queryDuckDb, queryDuckDbMeta)
 
 import Config exposing (apiHost)
 import Http exposing (Error(..))
@@ -25,11 +25,15 @@ type
 -- .parquet file could be supported, with backend changes (and likely some import conventions I've yet to think through)
 
 
+type alias OwningRef =
+    { schemaName : SchemaName, tableName : TableName }
+
+
 type
     DuckDbRef
     -- While DuckDB supports schema-less tables, I don't =)
-    = View { schemaName : SchemaName, tableName : TableName }
-    | Table { schemaRef : SchemaName, tableRef : TableName }
+    = View OwningRef
+    | Table OwningRef
 
 
 type alias SchemaName =
@@ -63,7 +67,7 @@ type alias DuckDbColumn =
 
 type alias DuckDbColumnDescription =
     -- Just the metadata for a DuckDbColumn
-    { ref : ColumnName
+    { name : ColumnName
     , owningRef : DuckDbRef
     , type_ : String
     }
@@ -91,7 +95,7 @@ type alias DuckDbQueryResponse =
 
 
 type alias DuckDbMetaResponse =
-    { colDescs : List DuckDbColumnDescription
+    { columnDescriptions : List DuckDbColumnDescription
     }
 
 
@@ -103,6 +107,9 @@ type alias DuckDbTableRefsResponse =
 
 -- end region: fir-api DuckDb response types
 -- begin region: fir-api HTTP utility functions
+--
+-- TODO: The two DuckDB query decoders needs to support the variants of DuckDbRef, like View
+--       currently I've hardcoded Table
 
 
 queryDuckDb : String -> Bool -> List TableName -> (Result Error DuckDbQueryResponse -> msg) -> Cmd msg
@@ -140,58 +147,67 @@ queryDuckDb query allowFallback refs onResponse =
                 decoderByType type_ =
                     case type_ of
                         "VARCHAR" ->
-                            JD.map3 DuckDbColumn
+                            JD.map4 DuckDbColumn
                                 (JD.field "name" JD.string)
+                                (JD.field "owningRef" (JD.map Table owningRefDecoder))
                                 (JD.field "type" JD.string)
                                 (JD.field "values" (JD.list (JD.maybe (JD.map Varchar_ JD.string))))
 
                         "INTEGER" ->
-                            JD.map3 DuckDbColumn
+                            JD.map4 DuckDbColumn
                                 (JD.field "name" JD.string)
+                                (JD.field "owningRef" (JD.map Table owningRefDecoder))
                                 (JD.field "type" JD.string)
                                 (JD.field "values" (JD.list (JD.maybe (JD.map Int_ JD.int))))
 
                         "BIGINT" ->
-                            JD.map3 DuckDbColumn
+                            JD.map4 DuckDbColumn
                                 (JD.field "name" JD.string)
+                                (JD.field "owningRef" (JD.map Table owningRefDecoder))
                                 (JD.field "type" JD.string)
                                 (JD.field "values" (JD.list (JD.maybe (JD.map Int_ JD.int))))
 
                         "HUGEINT" ->
-                            JD.map3 DuckDbColumn
+                            JD.map4 DuckDbColumn
                                 (JD.field "name" JD.string)
+                                (JD.field "owningRef" (JD.map Table owningRefDecoder))
                                 (JD.field "type" JD.string)
                                 (JD.field "values" (JD.list (JD.maybe (JD.map Int_ JD.int))))
 
                         "BOOLEAN" ->
-                            JD.map3 DuckDbColumn
+                            JD.map4 DuckDbColumn
                                 (JD.field "name" JD.string)
+                                (JD.field "owningRef" (JD.map Table owningRefDecoder))
                                 (JD.field "type" JD.string)
                                 (JD.field "values" (JD.list (JD.maybe (JD.map Bool_ JD.bool))))
 
                         "DOUBLE" ->
-                            JD.map3 DuckDbColumn
+                            JD.map4 DuckDbColumn
                                 (JD.field "name" JD.string)
+                                (JD.field "owningRef" (JD.map Table owningRefDecoder))
                                 (JD.field "type" JD.string)
                                 (JD.field "values" (JD.list (JD.maybe (JD.map Float_ JD.float))))
 
                         "DATE" ->
-                            JD.map3 DuckDbColumn
+                            JD.map4 DuckDbColumn
                                 (JD.field "name" JD.string)
+                                (JD.field "owningRef" (JD.map Table owningRefDecoder))
                                 (JD.field "type" JD.string)
                                 (JD.field "values" (JD.list (JD.maybe (JD.map Varchar_ JD.string))))
 
                         "TIMESTAMP" ->
-                            JD.map3 DuckDbColumn
+                            JD.map4 DuckDbColumn
                                 (JD.field "name" JD.string)
+                                (JD.field "owningRef" (JD.map Table owningRefDecoder))
                                 (JD.field "type" JD.string)
                                 (JD.field "values" (JD.list (JD.maybe (JD.map Time_ timeDecoder))))
 
                         _ ->
                             -- This feels wrong to me, but unsure how else to workaround the string pattern matching
                             -- Should this fail loudly?
-                            JD.map3 DuckDbColumn
+                            JD.map4 DuckDbColumn
                                 (JD.field "name" JD.string)
+                                (JD.field "owningRef" (JD.map Table owningRefDecoder))
                                 (JD.field "type" JD.string)
                                 (JD.list (JD.maybe (JD.succeed Unknown)))
             in
@@ -203,6 +219,58 @@ queryDuckDb query allowFallback refs onResponse =
         , body = Http.jsonBody duckDbQueryEncoder
         , expect = Http.expectJson onResponse duckDbQueryResponseDecoder
         }
+
+
+queryDuckDbMeta : String -> Bool -> List TableName -> (Result Error DuckDbMetaResponse -> msg) -> Cmd msg
+queryDuckDbMeta query allowFallback refs onResponse =
+    let
+        duckDbQueryEncoder : JE.Value
+        duckDbQueryEncoder =
+            JE.object
+                [ ( "query_str", JE.string query )
+                , ( "allow_blob_fallback", JE.bool allowFallback )
+                , ( "fallback_table_refs", JE.list JE.string refs )
+                ]
+
+        duckDbMetaResponseDecoder : JD.Decoder DuckDbMetaResponse
+        duckDbMetaResponseDecoder =
+            let
+                columnDescriptionDecoder : JD.Decoder DuckDbColumnDescription
+                columnDescriptionDecoder =
+                    JD.map3 DuckDbColumnDescription
+                        (JD.field "name" JD.string)
+                        (JD.field "owningRef" (JD.map Table owningRefDecoder))
+                        (JD.field "type" JD.string)
+            in
+            JD.map DuckDbMetaResponse
+                (JD.field "columnDescriptions" (JD.list columnDescriptionDecoder))
+    in
+    Http.post
+        { url = apiHost ++ "/duckdb"
+        , body = Http.jsonBody duckDbQueryEncoder
+        , expect = Http.expectJson onResponse duckDbMetaResponseDecoder
+        }
+
+
+fetchDuckDbTableRefs : (Result Error DuckDbTableRefsResponse -> msg) -> Cmd msg
+fetchDuckDbTableRefs onResponse =
+    let
+        duckDbTableRefsResponseDecoder : JD.Decoder DuckDbTableRefsResponse
+        duckDbTableRefsResponseDecoder =
+            JD.map DuckDbTableRefsResponse
+                (JD.field "refs" (JD.list JD.string))
+    in
+    Http.get
+        { url = apiHost ++ "/duckdb/table_refs"
+        , expect = Http.expectJson onResponse duckDbTableRefsResponseDecoder
+        }
+
+
+owningRefDecoder : JD.Decoder OwningRef
+owningRefDecoder =
+    JD.map2 OwningRef
+        (JD.field "schemaName" JD.string)
+        (JD.field "tableName" JD.string)
 
 
 

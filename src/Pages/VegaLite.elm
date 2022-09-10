@@ -7,7 +7,7 @@ module Pages.VegaLite exposing (Model, Msg, page)
 import Array
 import Config exposing (apiHost)
 import Dict exposing (Dict)
-import DuckDb exposing (DuckDbColumnDescription, DuckDbMetaResponse, fetchDuckDbTableRefs, queryDuckDb, queryDuckDbMeta)
+import DuckDb exposing (ColumnName, DuckDbColumnDescription(..), DuckDbMetaResponse, fetchDuckDbTableRefs, queryDuckDb, queryDuckDbMeta, refToString)
 import Effect exposing (Effect)
 import Element as E exposing (..)
 import Element.Background as Background
@@ -58,8 +58,8 @@ type alias Model =
       duckDbForPlotResponse : WebData DuckDb.DuckDbQueryResponse
     , duckDbMetaResponse : WebData DuckDb.DuckDbMetaResponse
     , duckDbTableRefs : WebData DuckDb.DuckDbTableRefsResponse
-    , selectedTableRef : Maybe DuckDb.TableName
-    , hoveredOnTableRef : Maybe DuckDb.TableName
+    , selectedTableRef : Maybe DuckDb.OwningRef
+    , hoveredOnTableRef : Maybe DuckDb.OwningRef
 
     --, dragDrop : DragDrop.Model Int Position
     , data : { count : Int, position : Position }
@@ -105,12 +105,12 @@ type Msg
     = FetchPlotData
       --| RenderPlot
     | FetchTableRefs
-    | FetchMetaDataForRef DuckDb.TableName
+    | FetchMetaDataForRef DuckDb.OwningRef
     | GotDuckDbResponse (Result Http.Error DuckDb.DuckDbQueryResponse)
     | GotDuckDbMetaResponse (Result Http.Error DuckDb.DuckDbMetaResponse)
     | GotDuckDbTableRefsResponse (Result Http.Error DuckDb.DuckDbTableRefsResponse)
-    | UserSelectedTableRef DuckDb.TableName
-    | UserMouseEnteredTableRef DuckDb.TableName
+    | UserSelectedTableRef DuckDb.OwningRef
+    | UserMouseEnteredTableRef DuckDb.OwningRef
     | UserMouseLeftTableRef
       --| DragDropMsg (DragDrop.Msg Int Position)
     | UserClickKimballColumnTab KimballColumn
@@ -223,7 +223,7 @@ update msg model =
             let
                 -- NB: A bit hacky, but we submit a query with limit 0, and use the same response without vals
                 queryStr =
-                    "select * from " ++ ref ++ " limit 0"
+                    "select * from " ++ refToString ref ++ " limit 0"
             in
             ( { model | duckDbTableRefs = Loading }, Effect.fromCmd <| queryDuckDbMeta queryStr True [ ref ] GotDuckDbMetaResponse )
 
@@ -248,15 +248,10 @@ update msg model =
         FetchPlotData ->
             let
                 queryStr =
-                    """select
-  t.rank,
-  t.spi
-from elm_test_1657972702341 t
-order by 1
-limit 100
+                    """TODO: Need to rethink default UX
                 """
             in
-            ( model, Effect.fromCmd <| queryDuckDb queryStr True [ "elm_test_1657972702341" ] GotDuckDbResponse )
+            ( model, Effect.fromCmd <| queryDuckDb queryStr True [] GotDuckDbResponse )
 
         GotDuckDbResponse response ->
             case response of
@@ -288,7 +283,7 @@ limit 100
             let
                 -- NB: A bit hacky, but we submit a query with limit 0, and use the same response without vals
                 queryStr =
-                    "select * from " ++ ref ++ " limit 0"
+                    "select * from " ++ refToString ref ++ " limit 0"
             in
             ( { model | duckDbMetaResponse = Loading, selectedTableRef = Just ref }
             , Effect.fromCmd <| queryDuckDbMeta queryStr True [ ref ] GotDuckDbMetaResponse
@@ -609,40 +604,50 @@ viewQueryBuilderOutput model =
     paragraph [ width fill, height fill ] [ text displayText ]
 
 
-mapToKimball : DuckDb.DuckDbColumnDescription -> KimballColumn
-mapToKimball colDesc =
+mapToKimball : DuckDbColumnDescription -> KimballColumn
+mapToKimball r =
     -- TODO: this function serves to be placeholder logic in lieu of persisting Kimball metadata
     --       upon successful loading of a DuckDB Ref, columns will be mapped in a "best guess" manner
     --       this longer term intent is for this to be a 'first pass', when persisted meta data does not exist
     --       (which should be the case when a user is first using data!). Any user interventions should be
     --       persisted server-side
-    case colDesc.type_ of
-        "VARCHAR" ->
-            Dimension colDesc.name
+    let
+        mapDataType : { r | dataType : String, name : ColumnName } -> KimballColumn
+        mapDataType colDesc =
+            case colDesc.dataType of
+                "VARCHAR" ->
+                    Dimension colDesc.name
 
-        "DATE" ->
-            Time (Discrete Day) colDesc.name
+                "DATE" ->
+                    Time (Discrete Day) colDesc.name
 
-        "TIMESTAMP" ->
-            Time Continuous colDesc.name
+                "TIMESTAMP" ->
+                    Time Continuous colDesc.name
 
-        "BOOLEAN" ->
-            Dimension colDesc.name
+                "BOOLEAN" ->
+                    Dimension colDesc.name
 
-        "INTEGER" ->
-            Measure Sum colDesc.name
+                "INTEGER" ->
+                    Measure Sum colDesc.name
 
-        "HUGEINT" ->
-            Measure Sum colDesc.name
+                "HUGEINT" ->
+                    Measure Sum colDesc.name
 
-        "BIGINT" ->
-            Measure Sum colDesc.name
+                "BIGINT" ->
+                    Measure Sum colDesc.name
 
-        "DOUBLE" ->
-            Measure Sum colDesc.name
+                "DOUBLE" ->
+                    Measure Sum colDesc.name
 
-        _ ->
-            Error colDesc.name
+                _ ->
+                    Error colDesc.name
+    in
+    case r of
+        Persisted_ colDesc ->
+            mapDataType colDesc
+
+        Computed_ colDesc ->
+            mapDataType colDesc
 
 
 colorAssociatedWith : KimballColumn -> E.Color
@@ -875,7 +880,7 @@ viewTableRefs model =
 
         Success refsResponse ->
             let
-                refsSelector : List DuckDb.TableName -> Element Msg
+                refsSelector : List DuckDb.OwningRef -> Element Msg
                 refsSelector refs =
                     let
                         backgroundColorFor ref =
@@ -926,7 +931,7 @@ viewTableRefs model =
                                     else
                                         Palette.white
 
-                        ui : DuckDb.TableName -> Element Msg
+                        ui : DuckDb.OwningRef -> Element Msg
                         ui ref =
                             row
                                 [ width E.fill
@@ -946,7 +951,7 @@ viewTableRefs model =
                                     , Background.color (innerBlobColorFor ref)
                                     ]
                                     E.none
-                                , text ref
+                                , text <| refToString ref
                                 ]
                     in
                     column

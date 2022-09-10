@@ -8,7 +8,7 @@ import Array2D exposing (Array2D, ColIx, RowIx, colCount, fromListOfLists, getCo
 import Browser.Dom
 import Browser.Events as Events
 import Config exposing (apiHost)
-import DuckDb exposing (DuckDbColumn, DuckDbMetaResponse, DuckDbQueryResponse, DuckDbTableRefsResponse, fetchDuckDbTableRefs, queryDuckDb)
+import DuckDb exposing (DuckDbColumn(..), DuckDbMetaResponse, DuckDbQueryResponse, DuckDbTableRefsResponse, OwningRef, fetchDuckDbTableRefs, queryDuckDb, refEquals, refToString)
 import Effect exposing (Effect)
 import Element as E exposing (..)
 import Element.Background as Background
@@ -97,8 +97,8 @@ type alias Model =
     , nowish : Maybe Posix
     , viewport : Maybe Browser.Dom.Viewport
     , renderStatus : RenderStatus
-    , selectedTableRef : Maybe DuckDb.TableName
-    , hoveredOnTableRef : Maybe DuckDb.TableName
+    , selectedTableRef : Maybe OwningRef
+    , hoveredOnTableRef : Maybe OwningRef
     }
 
 
@@ -137,8 +137,8 @@ type Msg
     | GotResizeEvent Int Int
     | KeyWentDown KeyCode
     | KeyReleased KeyCode
-    | UserSelectedTableRef DuckDb.TableName
-    | UserMouseEnteredTableRef DuckDb.TableName
+    | UserSelectedTableRef OwningRef
+    | UserMouseEnteredTableRef OwningRef
     | UserMouseLeftTableRef
     | ClickedCell CellCoords
     | PromptInputChanged String
@@ -215,7 +215,7 @@ cell2Str cd =
                     ( "FALSE", "Boolean" )
 
 
-buildSqlText : Maybe DuckDb.TableName -> String
+buildSqlText : Maybe OwningRef -> String
 buildSqlText ref =
     let
         tableRef =
@@ -224,7 +224,7 @@ buildSqlText ref =
                     "president_polls_historical"
 
                 Just ref_ ->
-                    ref_
+                    refToString ref_
     in
     """select
     *
@@ -328,13 +328,31 @@ mapColumnsToSheet cols =
         -- lol is "list of lists", but I'm also laughing at how inefficient this is
         -- TODO: I think it'd be worthwhile to refactor Array2D to accept column lists not row-lists
         lolWrong =
-            List.map (\col -> List.map (\e -> mapVal e) col.vals) cols
+            List.map
+                (\col ->
+                    case col of
+                        Persisted col_ ->
+                            List.map (\e -> mapVal e) col_.vals
+
+                        Computed col_ ->
+                            List.map (\e -> mapVal e) col_.vals
+                )
+                cols
 
         lolTransposed =
             LE.transpose lolWrong
 
         colLabels =
-            List.map (\col -> col.name) cols
+            List.map
+                (\col ->
+                    case col of
+                        Persisted col_ ->
+                            col_.name
+
+                        Computed col_ ->
+                            col_.name
+                )
+                cols
     in
     array2DToSheet (fromListOfLists lolTransposed) colLabels
 
@@ -429,8 +447,8 @@ update msg model =
                         Nothing ->
                             ( False, [] )
 
-                        Just v ->
-                            ( True, [ v ] )
+                        Just ref ->
+                            ( True, [ ref ] )
             in
             ( { model | duckDbResponse = Loading }, Effect.fromCmd <| queryDuckDb queryStr shouldFallback fallBackRef GotDuckDbResponse )
 
@@ -942,7 +960,7 @@ viewSqlInputPanel model =
                             "Select a table ref below, or upload a new CSV"
 
                         Just ref ->
-                            ref
+                            refToString ref
             in
             Input.multiline
                 [ width fill
@@ -1184,16 +1202,17 @@ viewCatalogPanel model =
 
                 Success refsResponse ->
                     let
-                        refsSelector : List DuckDb.TableName -> Element Msg
+                        refsSelector : List OwningRef -> Element Msg
                         refsSelector refs =
                             let
+                                backgroundColorFor : OwningRef -> Color
                                 backgroundColorFor ref =
                                     case model.hoveredOnTableRef of
                                         Nothing ->
                                             Palette.white
 
                                         Just ref_ ->
-                                            if ref == ref_ then
+                                            if refEquals ref ref_ then
                                                 Palette.lightGrey
 
                                             else
@@ -1235,7 +1254,7 @@ viewCatalogPanel model =
                                             else
                                                 Palette.white
 
-                                ui : DuckDb.TableName -> Element Msg
+                                ui : OwningRef -> Element Msg
                                 ui ref =
                                     row
                                         [ width E.fill
@@ -1255,7 +1274,7 @@ viewCatalogPanel model =
                                             , Background.color (innerBlobColorFor ref)
                                             ]
                                             E.none
-                                        , text ref
+                                        , text <| refToString ref
                                         ]
                             in
                             column

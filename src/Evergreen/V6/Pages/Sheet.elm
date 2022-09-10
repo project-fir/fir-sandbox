@@ -68,8 +68,8 @@ type alias Model =
     , nowish : Maybe Time.Posix
     , viewport : Maybe Browser.Dom.Viewport
     , renderStatus : RenderStatus
-    , selectedTableRef : Maybe Evergreen.V6.DuckDb.TableName
-    , hoveredOnTableRef : Maybe Evergreen.V6.DuckDb.TableName
+    , selectedTableRef : Maybe Evergreen.V6.DuckDb.OwningRef
+    , hoveredOnTableRef : Maybe Evergreen.V6.DuckDb.OwningRef
     }
 
 
@@ -83,8 +83,8 @@ type Msg
     | GotResizeEvent Int Int
     | KeyWentDown KeyCode
     | KeyReleased KeyCode
-    | UserSelectedTableRef Evergreen.V6.DuckDb.TableName
-    | UserMouseEnteredTableRef Evergreen.V6.DuckDb.TableName
+    | UserSelectedTableRef Evergreen.V6.DuckDb.OwningRef
+    | UserMouseEnteredTableRef Evergreen.V6.DuckDb.OwningRef
     | UserMouseLeftTableRef
     | ClickedCell Evergreen.V6.SheetModel.CellCoords
     | PromptInputChanged String

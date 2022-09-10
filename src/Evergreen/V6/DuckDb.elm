@@ -35,12 +35,24 @@ type Val
     | Unknown
 
 
-type alias DuckDbColumn =
+type alias PersistedDuckDbColumn =
     { name : ColumnName
     , owningRef : DuckDbRef
-    , type_ : String
+    , dataType : String
     , vals : List (Maybe Val)
     }
+
+
+type alias ComputedDuckDbColumn =
+    { name : ColumnName
+    , dataType : String
+    , vals : List (Maybe Val)
+    }
+
+
+type DuckDbColumn
+    = Persisted PersistedDuckDbColumn
+    | Computed ComputedDuckDbColumn
 
 
 type alias DuckDbQueryResponse =
@@ -48,11 +60,22 @@ type alias DuckDbQueryResponse =
     }
 
 
-type alias DuckDbColumnDescription =
+type alias PersistedDuckDbColumnDescription =
     { name : ColumnName
     , owningRef : DuckDbRef
-    , type_ : String
+    , dataType : String
     }
+
+
+type alias ComputedDuckDbColumnDescription =
+    { name : ColumnName
+    , dataType : String
+    }
+
+
+type DuckDbColumnDescription
+    = Persisted_ PersistedDuckDbColumnDescription
+    | Computed_ ComputedDuckDbColumnDescription
 
 
 type alias DuckDbMetaResponse =
@@ -61,5 +84,5 @@ type alias DuckDbMetaResponse =
 
 
 type alias DuckDbTableRefsResponse =
-    { refs : List TableName
+    { refs : List OwningRef
     }

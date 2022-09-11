@@ -8,7 +8,7 @@ import Array2D exposing (Array2D, ColIx, RowIx, colCount, fromListOfLists, getCo
 import Browser.Dom
 import Browser.Events as Events
 import Config exposing (apiHost)
-import DuckDb exposing (DuckDbColumn(..), DuckDbMetaResponse, DuckDbQueryResponse, DuckDbTableRefsResponse, OwningRef, fetchDuckDbTableRefs, queryDuckDb, refEquals, refToString)
+import DuckDb exposing (DuckDbColumn(..), DuckDbMetaResponse, DuckDbQueryResponse, DuckDbRef, DuckDbTableRefsResponse, fetchDuckDbTableRefs, queryDuckDb, refEquals, refToString)
 import Effect exposing (Effect)
 import Element as E exposing (..)
 import Element.Background as Background
@@ -97,8 +97,8 @@ type alias Model =
     , nowish : Maybe Posix
     , viewport : Maybe Browser.Dom.Viewport
     , renderStatus : RenderStatus
-    , selectedTableRef : Maybe OwningRef
-    , hoveredOnTableRef : Maybe OwningRef
+    , selectedTableRef : Maybe DuckDbRef
+    , hoveredOnTableRef : Maybe DuckDbRef
     }
 
 
@@ -137,8 +137,8 @@ type Msg
     | GotResizeEvent Int Int
     | KeyWentDown KeyCode
     | KeyReleased KeyCode
-    | UserSelectedTableRef OwningRef
-    | UserMouseEnteredTableRef OwningRef
+    | UserSelectedTableRef DuckDbRef
+    | UserMouseEnteredTableRef DuckDbRef
     | UserMouseLeftTableRef
     | ClickedCell CellCoords
     | PromptInputChanged String
@@ -215,7 +215,7 @@ cell2Str cd =
                     ( "FALSE", "Boolean" )
 
 
-buildSqlText : Maybe OwningRef -> String
+buildSqlText : Maybe DuckDbRef -> String
 buildSqlText ref =
     let
         tableRef =
@@ -1202,10 +1202,10 @@ viewCatalogPanel model =
 
                 Success refsResponse ->
                     let
-                        refsSelector : List OwningRef -> Element Msg
+                        refsSelector : List DuckDbRef -> Element Msg
                         refsSelector refs =
                             let
-                                backgroundColorFor : OwningRef -> Color
+                                backgroundColorFor : DuckDbRef -> Color
                                 backgroundColorFor ref =
                                     case model.hoveredOnTableRef of
                                         Nothing ->
@@ -1254,7 +1254,7 @@ viewCatalogPanel model =
                                             else
                                                 Palette.white
 
-                                ui : OwningRef -> Element Msg
+                                ui : DuckDbRef -> Element Msg
                                 ui ref =
                                     row
                                         [ width E.fill

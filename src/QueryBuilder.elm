@@ -1,6 +1,6 @@
 module QueryBuilder exposing (..)
 
-import DuckDb exposing (OwningRef, refToString)
+import DuckDb exposing (DuckDbRef, refToString)
 import Utils exposing (collapseWhitespace)
 
 
@@ -63,7 +63,7 @@ type alias SqlStr =
     String
 
 
-queryBuilder : List KimballColumn -> OwningRef -> SqlStr
+queryBuilder : List KimballColumn -> DuckDbRef -> SqlStr
 queryBuilder kCols ref =
     let
         selectFields : List ColumnRef

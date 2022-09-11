@@ -58,8 +58,8 @@ type alias Model =
       duckDbForPlotResponse : WebData DuckDb.DuckDbQueryResponse
     , duckDbMetaResponse : WebData DuckDb.DuckDbMetaResponse
     , duckDbTableRefs : WebData DuckDb.DuckDbTableRefsResponse
-    , selectedTableRef : Maybe DuckDb.OwningRef
-    , hoveredOnTableRef : Maybe DuckDb.OwningRef
+    , selectedTableRef : Maybe DuckDb.DuckDbRef
+    , hoveredOnTableRef : Maybe DuckDb.DuckDbRef
 
     --, dragDrop : DragDrop.Model Int Position
     , data : { count : Int, position : Position }
@@ -105,12 +105,12 @@ type Msg
     = FetchPlotData
       --| RenderPlot
     | FetchTableRefs
-    | FetchMetaDataForRef DuckDb.OwningRef
+    | FetchMetaDataForRef DuckDb.DuckDbRef
     | GotDuckDbResponse (Result Http.Error DuckDb.DuckDbQueryResponse)
     | GotDuckDbMetaResponse (Result Http.Error DuckDb.DuckDbMetaResponse)
     | GotDuckDbTableRefsResponse (Result Http.Error DuckDb.DuckDbTableRefsResponse)
-    | UserSelectedTableRef DuckDb.OwningRef
-    | UserMouseEnteredTableRef DuckDb.OwningRef
+    | UserSelectedTableRef DuckDb.DuckDbRef
+    | UserMouseEnteredTableRef DuckDb.DuckDbRef
     | UserMouseLeftTableRef
       --| DragDropMsg (DragDrop.Msg Int Position)
     | UserClickKimballColumnTab KimballColumn
@@ -880,7 +880,7 @@ viewTableRefs model =
 
         Success refsResponse ->
             let
-                refsSelector : List DuckDb.OwningRef -> Element Msg
+                refsSelector : List DuckDb.DuckDbRef -> Element Msg
                 refsSelector refs =
                     let
                         backgroundColorFor ref =
@@ -931,7 +931,7 @@ viewTableRefs model =
                                     else
                                         Palette.white
 
-                        ui : DuckDb.OwningRef -> Element Msg
+                        ui : DuckDb.DuckDbRef -> Element Msg
                         ui ref =
                             row
                                 [ width E.fill

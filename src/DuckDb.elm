@@ -1,4 +1,4 @@
-module DuckDb exposing (ColumnName, ComputedDuckDbColumn, ComputedDuckDbColumnDescription, DuckDbColumn(..), DuckDbColumnDescription(..), DuckDbMetaResponse, DuckDbQueryResponse, DuckDbRef, DuckDbTableRefsResponse, OwningRef, PersistedDuckDbColumn, PersistedDuckDbColumnDescription, Ref, SchemaName, TableName, Val(..), fetchDuckDbTableRefs, queryDuckDb, queryDuckDbMeta, refEquals, refToString)
+module DuckDb exposing (ColumnName, ComputedDuckDbColumn, ComputedDuckDbColumnDescription, DuckDbColumn(..), DuckDbColumnDescription(..), DuckDbMetaResponse, DuckDbQueryResponse, DuckDbRef, DuckDbRef_, DuckDbTableRefsResponse, PersistedDuckDbColumn, PersistedDuckDbColumnDescription, Ref, SchemaName, TableName, Val(..), fetchDuckDbTableRefs, queryDuckDb, queryDuckDbMeta, refEquals, refToString)
 
 import Config exposing (apiHost)
 import Http exposing (Error(..))
@@ -12,7 +12,7 @@ type
     -- Top-level database reference, should this app support BigQuery in the future
     -- for example, introduce a BigQuery variant of this type (and maybe pull this data type into
     -- a non-db specific module)
-    = DuckDb DuckDbRef
+    = DuckDb DuckDbRef_
 
 
 
@@ -22,25 +22,25 @@ type
 -- .parquet file could be supported, with backend changes (and likely some import conventions I've yet to think through)
 
 
-type alias OwningRef =
+type alias DuckDbRef =
     { schemaName : SchemaName, tableName : TableName }
 
 
-refEquals : OwningRef -> OwningRef -> Bool
+refEquals : DuckDbRef -> DuckDbRef -> Bool
 refEquals lhs rhs =
     (lhs.schemaName == rhs.schemaName) && (lhs.tableName == rhs.tableName)
 
 
-refToString : OwningRef -> String
+refToString : DuckDbRef -> String
 refToString ref =
     ref.schemaName ++ "." ++ ref.tableName
 
 
 type
-    DuckDbRef
+    DuckDbRef_
     -- While DuckDB supports schema-less tables, I don't =)
-    = View OwningRef
-    | Table OwningRef
+    = View DuckDbRef
+    | Table DuckDbRef
 
 
 type alias SchemaName =
@@ -65,7 +65,7 @@ type DuckDbColumn
 
 type alias PersistedDuckDbColumn =
     { name : ColumnName
-    , owningRef : DuckDbRef
+    , parentRef : DuckDbRef_
     , dataType : String
     , vals : List (Maybe Val)
     }
@@ -88,7 +88,7 @@ type DuckDbColumnDescription
 type alias PersistedDuckDbColumnDescription =
     -- Just the metadata for a DuckDbColumn
     { name : ColumnName
-    , owningRef : DuckDbRef
+    , parentRef : DuckDbRef_
     , dataType : String
     }
 
@@ -128,7 +128,7 @@ type alias DuckDbMetaResponse =
 
 
 type alias DuckDbTableRefsResponse =
-    { refs : List OwningRef
+    { refs : List DuckDbRef
     }
 
 
@@ -140,7 +140,7 @@ type alias DuckDbTableRefsResponse =
 --       currently I've hardcoded Table
 
 
-queryDuckDb : String -> Bool -> List OwningRef -> (Result Error DuckDbQueryResponse -> msg) -> Cmd msg
+queryDuckDb : String -> Bool -> List DuckDbRef -> (Result Error DuckDbQueryResponse -> msg) -> Cmd msg
 queryDuckDb query allowFallback refs onResponse =
     let
         duckDbQueryEncoder : JE.Value
@@ -148,7 +148,7 @@ queryDuckDb query allowFallback refs onResponse =
             JE.object
                 [ ( "query_str", JE.string query )
                 , ( "allow_blob_fallback", JE.bool allowFallback )
-                , ( "fallback_table_refs", JE.list owningRefEncoder refs )
+                , ( "fallback_table_refs", JE.list parentRefEncoder refs )
                 ]
 
         duckDbQueryResponseDecoder : JD.Decoder DuckDbQueryResponse
@@ -177,56 +177,56 @@ queryDuckDb query allowFallback refs onResponse =
                         "VARCHAR" ->
                             JD.map4 PersistedDuckDbColumn
                                 (JD.field "name" JD.string)
-                                (JD.field "owningRef" (JD.map Table owningRefDecoder))
+                                (JD.field "parentRef" (JD.map Table parentRefDecoder))
                                 (JD.field "type" JD.string)
                                 (JD.field "values" (JD.list (JD.maybe (JD.map Varchar_ JD.string))))
 
                         "INTEGER" ->
                             JD.map4 PersistedDuckDbColumn
                                 (JD.field "name" JD.string)
-                                (JD.field "owningRef" (JD.map Table owningRefDecoder))
+                                (JD.field "parentRef" (JD.map Table parentRefDecoder))
                                 (JD.field "type" JD.string)
                                 (JD.field "values" (JD.list (JD.maybe (JD.map Int_ JD.int))))
 
                         "BIGINT" ->
                             JD.map4 PersistedDuckDbColumn
                                 (JD.field "name" JD.string)
-                                (JD.field "owningRef" (JD.map Table owningRefDecoder))
+                                (JD.field "parentRef" (JD.map Table parentRefDecoder))
                                 (JD.field "type" JD.string)
                                 (JD.field "values" (JD.list (JD.maybe (JD.map Int_ JD.int))))
 
                         "HUGEINT" ->
                             JD.map4 PersistedDuckDbColumn
                                 (JD.field "name" JD.string)
-                                (JD.field "owningRef" (JD.map Table owningRefDecoder))
+                                (JD.field "parentRef" (JD.map Table parentRefDecoder))
                                 (JD.field "type" JD.string)
                                 (JD.field "values" (JD.list (JD.maybe (JD.map Int_ JD.int))))
 
                         "BOOLEAN" ->
                             JD.map4 PersistedDuckDbColumn
                                 (JD.field "name" JD.string)
-                                (JD.field "owningRef" (JD.map Table owningRefDecoder))
+                                (JD.field "parentRef" (JD.map Table parentRefDecoder))
                                 (JD.field "type" JD.string)
                                 (JD.field "values" (JD.list (JD.maybe (JD.map Bool_ JD.bool))))
 
                         "DOUBLE" ->
                             JD.map4 PersistedDuckDbColumn
                                 (JD.field "name" JD.string)
-                                (JD.field "owningRef" (JD.map Table owningRefDecoder))
+                                (JD.field "parentRef" (JD.map Table parentRefDecoder))
                                 (JD.field "type" JD.string)
                                 (JD.field "values" (JD.list (JD.maybe (JD.map Float_ JD.float))))
 
                         "DATE" ->
                             JD.map4 PersistedDuckDbColumn
                                 (JD.field "name" JD.string)
-                                (JD.field "owningRef" (JD.map Table owningRefDecoder))
+                                (JD.field "parentRef" (JD.map Table parentRefDecoder))
                                 (JD.field "type" JD.string)
                                 (JD.field "values" (JD.list (JD.maybe (JD.map Varchar_ JD.string))))
 
                         "TIMESTAMP" ->
                             JD.map4 PersistedDuckDbColumn
                                 (JD.field "name" JD.string)
-                                (JD.field "owningRef" (JD.map Table owningRefDecoder))
+                                (JD.field "parentRef" (JD.map Table parentRefDecoder))
                                 (JD.field "type" JD.string)
                                 (JD.field "values" (JD.list (JD.maybe (JD.map Time_ timeDecoder))))
 
@@ -235,7 +235,7 @@ queryDuckDb query allowFallback refs onResponse =
                             -- Should this fail loudly?
                             JD.map4 PersistedDuckDbColumn
                                 (JD.field "name" JD.string)
-                                (JD.field "owningRef" (JD.map Table owningRefDecoder))
+                                (JD.field "parentRef" (JD.map Table parentRefDecoder))
                                 (JD.field "type" JD.string)
                                 (JD.list (JD.maybe (JD.succeed Unknown)))
             in
@@ -249,7 +249,7 @@ queryDuckDb query allowFallback refs onResponse =
         }
 
 
-queryDuckDbMeta : String -> Bool -> List OwningRef -> (Result Error DuckDbMetaResponse -> msg) -> Cmd msg
+queryDuckDbMeta : String -> Bool -> List DuckDbRef -> (Result Error DuckDbMetaResponse -> msg) -> Cmd msg
 queryDuckDbMeta query allowFallback refs onResponse =
     let
         duckDbQueryEncoder : JE.Value
@@ -257,7 +257,7 @@ queryDuckDbMeta query allowFallback refs onResponse =
             JE.object
                 [ ( "query_str", JE.string query )
                 , ( "allow_blob_fallback", JE.bool allowFallback )
-                , ( "fallback_table_refs", JE.list owningRefEncoder refs )
+                , ( "fallback_table_refs", JE.list parentRefEncoder refs )
                 ]
 
         duckDbMetaResponseDecoder : JD.Decoder DuckDbMetaResponse
@@ -267,7 +267,7 @@ queryDuckDbMeta query allowFallback refs onResponse =
                 columnDescriptionDecoder =
                     JD.map3 PersistedDuckDbColumnDescription
                         (JD.field "name" JD.string)
-                        (JD.field "owningRef" (JD.map Table owningRefDecoder))
+                        (JD.field "parentRef" (JD.map Table parentRefDecoder))
                         (JD.field "type" JD.string)
             in
             JD.map DuckDbMetaResponse
@@ -286,7 +286,7 @@ fetchDuckDbTableRefs onResponse =
         duckDbTableRefsResponseDecoder : JD.Decoder DuckDbTableRefsResponse
         duckDbTableRefsResponseDecoder =
             JD.map DuckDbTableRefsResponse
-                (JD.field "refs" (JD.list owningRefDecoder))
+                (JD.field "refs" (JD.list parentRefDecoder))
     in
     Http.get
         { url = apiHost ++ "/duckdb/table_refs"
@@ -294,15 +294,15 @@ fetchDuckDbTableRefs onResponse =
         }
 
 
-owningRefDecoder : JD.Decoder OwningRef
-owningRefDecoder =
-    JD.map2 OwningRef
+parentRefDecoder : JD.Decoder DuckDbRef
+parentRefDecoder =
+    JD.map2 DuckDbRef
         (JD.field "schemaName" JD.string)
         (JD.field "tableName" JD.string)
 
 
-owningRefEncoder : OwningRef -> JE.Value
-owningRefEncoder ref =
+parentRefEncoder : DuckDbRef -> JE.Value
+parentRefEncoder ref =
     JE.object
         [ ( "schema_name", JE.string ref.schemaName )
         , ( "table_name", JE.string ref.tableName )

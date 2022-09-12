@@ -8,7 +8,7 @@ import Array2D exposing (Array2D, ColIx, RowIx, colCount, fromListOfLists, getCo
 import Browser.Dom
 import Browser.Events as Events
 import Config exposing (apiHost)
-import DuckDb exposing (DuckDbColumn(..), DuckDbMetaResponse, DuckDbQueryResponse, DuckDbRef, DuckDbTableRefsResponse, fetchDuckDbTableRefs, queryDuckDb, refEquals, refToString)
+import DuckDb exposing (DuckDbColumn(..), DuckDbMetaResponse, DuckDbQueryResponse, DuckDbRef, DuckDbRefsResponse, fetchDuckDbTableRefs, queryDuckDb, refEquals, refToString)
 import Effect exposing (Effect)
 import Element as E exposing (..)
 import Element.Background as Background
@@ -91,7 +91,7 @@ type alias Model =
     , uiMode : UiMode
     , duckDbResponse : WebData DuckDbQueryResponse
     , duckDbMetaResponse : WebData DuckDbMetaResponse
-    , duckDbTableRefs : WebData DuckDbTableRefsResponse
+    , duckDbTableRefs : WebData DuckDbRefsResponse
     , userSqlText : String
     , fileUploadStatus : FileUploadStatus
     , nowish : Maybe Posix
@@ -152,7 +152,7 @@ type Msg
       -- API response stuff:
     | GotDuckDbResponse (Result Http.Error DuckDbQueryResponse)
     | GotDuckDbMetaResponse (Result Http.Error DuckDbMetaResponse)
-    | GotDuckDbTableRefsResponse (Result Http.Error DuckDbTableRefsResponse)
+    | GotDuckDbTableRefsResponse (Result Http.Error DuckDbRefsResponse)
       -- Timeline stuff:
       -- TODO: Should Msg take in a `model` param?
     | JumpToFirstFrame

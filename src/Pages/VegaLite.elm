@@ -57,7 +57,7 @@ type alias Model =
     { --spec : Maybe VL.Spec
       duckDbForPlotResponse : WebData DuckDb.DuckDbQueryResponse
     , duckDbMetaResponse : WebData DuckDb.DuckDbMetaResponse
-    , duckDbTableRefs : WebData DuckDb.DuckDbTableRefsResponse
+    , duckDbTableRefs : WebData DuckDb.DuckDbRefsResponse
     , selectedTableRef : Maybe DuckDb.DuckDbRef
     , hoveredOnTableRef : Maybe DuckDb.DuckDbRef
 
@@ -108,7 +108,7 @@ type Msg
     | FetchMetaDataForRef DuckDb.DuckDbRef
     | GotDuckDbResponse (Result Http.Error DuckDb.DuckDbQueryResponse)
     | GotDuckDbMetaResponse (Result Http.Error DuckDb.DuckDbMetaResponse)
-    | GotDuckDbTableRefsResponse (Result Http.Error DuckDb.DuckDbTableRefsResponse)
+    | GotDuckDbTableRefsResponse (Result Http.Error DuckDb.DuckDbRefsResponse)
     | UserSelectedTableRef DuckDb.DuckDbRef
     | UserMouseEnteredTableRef DuckDb.DuckDbRef
     | UserMouseLeftTableRef
@@ -802,7 +802,29 @@ viewColumnPickerPanel model =
                 ]
 
         Failure err ->
-            el [] (text "Error!")
+            let
+                errAttrs =
+                    el
+                        [ Background.color Palette.lightGrey
+                        , Border.width 2
+                        , Border.color Palette.darkishGrey
+                        ]
+            in
+            case err of
+                BadUrl url ->
+                    errAttrs <| text <| "Bad url: " ++ url
+
+                Timeout ->
+                    errAttrs <| text <| "Request timed out!"
+
+                BadStatus int ->
+                    errAttrs <| text <| "Http status: " ++ String.fromInt int
+
+                NetworkError ->
+                    errAttrs <| text <| "An unknown network error!"
+
+                BadBody s ->
+                    errAttrs <| text <| "Bad body: " ++ s
 
 
 viewPlotPanel : Model -> Element Msg

@@ -15,15 +15,15 @@ type alias TableName =
     String
 
 
-type alias OwningRef =
+type alias DuckDbRef =
     { schemaName : SchemaName
     , tableName : TableName
     }
 
 
-type DuckDbRef
-    = View OwningRef
-    | Table OwningRef
+type DuckDbRef_
+    = View DuckDbRef
+    | Table DuckDbRef
 
 
 type Val
@@ -37,7 +37,7 @@ type Val
 
 type alias PersistedDuckDbColumn =
     { name : ColumnName
-    , owningRef : DuckDbRef
+    , parentRef : DuckDbRef_
     , dataType : String
     , vals : List (Maybe Val)
     }
@@ -62,7 +62,7 @@ type alias DuckDbQueryResponse =
 
 type alias PersistedDuckDbColumnDescription =
     { name : ColumnName
-    , owningRef : DuckDbRef
+    , parentRef : DuckDbRef_
     , dataType : String
     }
 
@@ -83,6 +83,6 @@ type alias DuckDbMetaResponse =
     }
 
 
-type alias DuckDbTableRefsResponse =
-    { refs : List OwningRef
+type alias DuckDbRefsResponse =
+    { refs : List DuckDbRef
     }

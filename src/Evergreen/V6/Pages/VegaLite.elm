@@ -16,9 +16,9 @@ type Position
 type alias Model =
     { duckDbForPlotResponse : RemoteData.WebData Evergreen.V6.DuckDb.DuckDbQueryResponse
     , duckDbMetaResponse : RemoteData.WebData Evergreen.V6.DuckDb.DuckDbMetaResponse
-    , duckDbTableRefs : RemoteData.WebData Evergreen.V6.DuckDb.DuckDbTableRefsResponse
-    , selectedTableRef : Maybe Evergreen.V6.DuckDb.OwningRef
-    , hoveredOnTableRef : Maybe Evergreen.V6.DuckDb.OwningRef
+    , duckDbTableRefs : RemoteData.WebData Evergreen.V6.DuckDb.DuckDbRefsResponse
+    , selectedTableRef : Maybe Evergreen.V6.DuckDb.DuckDbRef
+    , hoveredOnTableRef : Maybe Evergreen.V6.DuckDb.DuckDbRef
     , data :
         { count : Int
         , position : Position
@@ -32,12 +32,12 @@ type alias Model =
 type Msg
     = FetchPlotData
     | FetchTableRefs
-    | FetchMetaDataForRef Evergreen.V6.DuckDb.OwningRef
+    | FetchMetaDataForRef Evergreen.V6.DuckDb.DuckDbRef
     | GotDuckDbResponse (Result Http.Error Evergreen.V6.DuckDb.DuckDbQueryResponse)
     | GotDuckDbMetaResponse (Result Http.Error Evergreen.V6.DuckDb.DuckDbMetaResponse)
-    | GotDuckDbTableRefsResponse (Result Http.Error Evergreen.V6.DuckDb.DuckDbTableRefsResponse)
-    | UserSelectedTableRef Evergreen.V6.DuckDb.OwningRef
-    | UserMouseEnteredTableRef Evergreen.V6.DuckDb.OwningRef
+    | GotDuckDbTableRefsResponse (Result Http.Error Evergreen.V6.DuckDb.DuckDbRefsResponse)
+    | UserSelectedTableRef Evergreen.V6.DuckDb.DuckDbRef
+    | UserMouseEnteredTableRef Evergreen.V6.DuckDb.DuckDbRef
     | UserMouseLeftTableRef
     | UserClickKimballColumnTab Evergreen.V6.QueryBuilder.KimballColumn
     | DropDownToggled Evergreen.V6.QueryBuilder.ColumnRef

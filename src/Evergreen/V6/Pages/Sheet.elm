@@ -62,14 +62,14 @@ type alias Model =
     , uiMode : UiMode
     , duckDbResponse : RemoteData.WebData Evergreen.V6.DuckDb.DuckDbQueryResponse
     , duckDbMetaResponse : RemoteData.WebData Evergreen.V6.DuckDb.DuckDbMetaResponse
-    , duckDbTableRefs : RemoteData.WebData Evergreen.V6.DuckDb.DuckDbTableRefsResponse
+    , duckDbTableRefs : RemoteData.WebData Evergreen.V6.DuckDb.DuckDbRefsResponse
     , userSqlText : String
     , fileUploadStatus : FileUploadStatus
     , nowish : Maybe Time.Posix
     , viewport : Maybe Browser.Dom.Viewport
     , renderStatus : RenderStatus
-    , selectedTableRef : Maybe Evergreen.V6.DuckDb.OwningRef
-    , hoveredOnTableRef : Maybe Evergreen.V6.DuckDb.OwningRef
+    , selectedTableRef : Maybe Evergreen.V6.DuckDb.DuckDbRef
+    , hoveredOnTableRef : Maybe Evergreen.V6.DuckDb.DuckDbRef
     }
 
 
@@ -83,8 +83,8 @@ type Msg
     | GotResizeEvent Int Int
     | KeyWentDown KeyCode
     | KeyReleased KeyCode
-    | UserSelectedTableRef Evergreen.V6.DuckDb.OwningRef
-    | UserMouseEnteredTableRef Evergreen.V6.DuckDb.OwningRef
+    | UserSelectedTableRef Evergreen.V6.DuckDb.DuckDbRef
+    | UserMouseEnteredTableRef Evergreen.V6.DuckDb.DuckDbRef
     | UserMouseLeftTableRef
     | ClickedCell Evergreen.V6.SheetModel.CellCoords
     | PromptInputChanged String
@@ -97,7 +97,7 @@ type Msg
     | UserSqlTextChanged String
     | GotDuckDbResponse (Result Http.Error Evergreen.V6.DuckDb.DuckDbQueryResponse)
     | GotDuckDbMetaResponse (Result Http.Error Evergreen.V6.DuckDb.DuckDbMetaResponse)
-    | GotDuckDbTableRefsResponse (Result Http.Error Evergreen.V6.DuckDb.DuckDbTableRefsResponse)
+    | GotDuckDbTableRefsResponse (Result Http.Error Evergreen.V6.DuckDb.DuckDbRefsResponse)
     | JumpToFirstFrame
     | JumpToFrame Int
     | JumpToLastFrame

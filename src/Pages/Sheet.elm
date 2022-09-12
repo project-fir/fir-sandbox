@@ -3,12 +3,12 @@ module Pages.Sheet exposing (Model, Msg, page)
 --import File exposing (File)
 --import File.Select as Select
 
-import Api exposing (queryDuckDb)
 import Array as A
 import Array2D exposing (Array2D, ColIx, RowIx, colCount, fromListOfLists, getCol, rowCount, setValueAt)
 import Browser.Dom
 import Browser.Events as Events
 import Config exposing (apiHost)
+import DuckDb exposing (DuckDbColumn(..), DuckDbMetaResponse, DuckDbQueryResponse, DuckDbRef, DuckDbRefsResponse, fetchDuckDbTableRefs, queryDuckDb, refEquals, refToString)
 import Effect exposing (Effect)
 import Element as E exposing (..)
 import Element.Background as Background
@@ -89,16 +89,16 @@ type alias Model =
     , submissionHistory : List RawPrompt
     , timeline : A.Array Timeline
     , uiMode : UiMode
-    , duckDbResponse : WebData Api.DuckDbQueryResponse
-    , duckDbMetaResponse : WebData Api.DuckDbQueryResponse
-    , duckDbTableRefs : WebData Api.DuckDbTableRefsResponse
+    , duckDbResponse : WebData DuckDbQueryResponse
+    , duckDbMetaResponse : WebData DuckDbMetaResponse
+    , duckDbTableRefs : WebData DuckDbRefsResponse
     , userSqlText : String
     , fileUploadStatus : FileUploadStatus
     , nowish : Maybe Posix
     , viewport : Maybe Browser.Dom.Viewport
     , renderStatus : RenderStatus
-    , selectedTableRef : Maybe Api.TableRef
-    , hoveredOnTableRef : Maybe Api.TableRef
+    , selectedTableRef : Maybe DuckDbRef
+    , hoveredOnTableRef : Maybe DuckDbRef
     }
 
 
@@ -137,8 +137,8 @@ type Msg
     | GotResizeEvent Int Int
     | KeyWentDown KeyCode
     | KeyReleased KeyCode
-    | UserSelectedTableRef Api.TableRef
-    | UserMouseEnteredTableRef Api.TableRef
+    | UserSelectedTableRef DuckDbRef
+    | UserMouseEnteredTableRef DuckDbRef
     | UserMouseLeftTableRef
     | ClickedCell CellCoords
     | PromptInputChanged String
@@ -150,9 +150,9 @@ type Msg
     | QueryDuckDb String
     | UserSqlTextChanged String
       -- API response stuff:
-    | GotDuckDbResponse (Result Http.Error Api.DuckDbQueryResponse)
-    | GotDuckDbMetaResponse (Result Http.Error Api.DuckDbQueryResponse)
-    | GotDuckDbTableRefsResponse (Result Http.Error Api.DuckDbTableRefsResponse)
+    | GotDuckDbResponse (Result Http.Error DuckDbQueryResponse)
+    | GotDuckDbMetaResponse (Result Http.Error DuckDbMetaResponse)
+    | GotDuckDbTableRefsResponse (Result Http.Error DuckDbRefsResponse)
       -- Timeline stuff:
       -- TODO: Should Msg take in a `model` param?
     | JumpToFirstFrame
@@ -215,7 +215,7 @@ cell2Str cd =
                     ( "FALSE", "Boolean" )
 
 
-buildSqlText : Maybe Api.TableRef -> String
+buildSqlText : Maybe DuckDbRef -> String
 buildSqlText ref =
     let
         tableRef =
@@ -224,7 +224,7 @@ buildSqlText ref =
                     "president_polls_historical"
 
                 Just ref_ ->
-                    ref_
+                    refToString ref_
     in
     """select
     *
@@ -278,7 +278,7 @@ init =
     , Effect.fromCmd <|
         Cmd.batch
             [ Task.perform GotViewport Browser.Dom.getViewport
-            , fetchDuckDbTableRefs
+            , fetchDuckDbTableRefs GotDuckDbTableRefsResponse
             ]
     )
 
@@ -296,10 +296,10 @@ type alias KeyCode =
 --| NewTime Time.Posix
 
 
-mapColumnsToSheet : List Api.Column -> SheetEnvelope
+mapColumnsToSheet : List DuckDbColumn -> SheetEnvelope
 mapColumnsToSheet cols =
     let
-        mapVal : Maybe Api.Val -> CellElement
+        mapVal : Maybe DuckDb.Val -> CellElement
         mapVal v =
             case v of
                 Nothing ->
@@ -307,34 +307,52 @@ mapColumnsToSheet cols =
 
                 Just val ->
                     case val of
-                        Api.Varchar_ var ->
+                        DuckDb.Varchar_ var ->
                             String_ var
 
-                        Api.Int_ i ->
+                        DuckDb.Int_ i ->
                             Int_ i
 
-                        Api.Time_ t ->
+                        DuckDb.Time_ t ->
                             Time_ t
 
-                        Api.Bool_ b ->
+                        DuckDb.Bool_ b ->
                             Bool_ b
 
-                        Api.Float_ f ->
+                        DuckDb.Float_ f ->
                             Float_ f
 
-                        Api.Unknown ->
+                        DuckDb.Unknown ->
                             Empty
 
         -- lol is "list of lists", but I'm also laughing at how inefficient this is
         -- TODO: I think it'd be worthwhile to refactor Array2D to accept column lists not row-lists
         lolWrong =
-            List.map (\col -> List.map (\e -> mapVal e) col.vals) cols
+            List.map
+                (\col ->
+                    case col of
+                        Persisted col_ ->
+                            List.map (\e -> mapVal e) col_.vals
+
+                        Computed col_ ->
+                            List.map (\e -> mapVal e) col_.vals
+                )
+                cols
 
         lolTransposed =
             LE.transpose lolWrong
 
         colLabels =
-            List.map (\col -> col.ref) cols
+            List.map
+                (\col ->
+                    case col of
+                        Persisted col_ ->
+                            col_.name
+
+                        Computed col_ ->
+                            col_.name
+                )
+                cols
     in
     array2DToSheet (fromListOfLists lolTransposed) colLabels
 
@@ -417,7 +435,7 @@ update msg model =
             )
 
         FileUpload_UploadResponded result ->
-            ( model, Effect.fromCmd fetchDuckDbTableRefs )
+            ( model, Effect.fromCmd <| fetchDuckDbTableRefs GotDuckDbTableRefsResponse )
 
         UserSqlTextChanged newText ->
             ( { model | userSqlText = newText }, Effect.none )
@@ -429,8 +447,8 @@ update msg model =
                         Nothing ->
                             ( False, [] )
 
-                        Just v ->
-                            ( True, [ v ] )
+                        Just ref ->
+                            ( True, [ ref ] )
             in
             ( { model | duckDbResponse = Loading }, Effect.fromCmd <| queryDuckDb queryStr shouldFallback fallBackRef GotDuckDbResponse )
 
@@ -942,7 +960,7 @@ viewSqlInputPanel model =
                             "Select a table ref below, or upload a new CSV"
 
                         Just ref ->
-                            ref
+                            refToString ref
             in
             Input.multiline
                 [ width fill
@@ -1184,16 +1202,17 @@ viewCatalogPanel model =
 
                 Success refsResponse ->
                     let
-                        refsSelector : List Api.TableRef -> Element Msg
+                        refsSelector : List DuckDbRef -> Element Msg
                         refsSelector refs =
                             let
+                                backgroundColorFor : DuckDbRef -> Color
                                 backgroundColorFor ref =
                                     case model.hoveredOnTableRef of
                                         Nothing ->
                                             Palette.white
 
                                         Just ref_ ->
-                                            if ref == ref_ then
+                                            if refEquals ref ref_ then
                                                 Palette.lightGrey
 
                                             else
@@ -1235,7 +1254,7 @@ viewCatalogPanel model =
                                             else
                                                 Palette.white
 
-                                ui : Api.TableRef -> Element Msg
+                                ui : DuckDbRef -> Element Msg
                                 ui ref =
                                     row
                                         [ width E.fill
@@ -1255,7 +1274,7 @@ viewCatalogPanel model =
                                             , Background.color (innerBlobColorFor ref)
                                             ]
                                             E.none
-                                        , text ref
+                                        , text <| refToString ref
                                         ]
                             in
                             column
@@ -1333,22 +1352,3 @@ prompt_input_dom_id =
 
 
 -- end region misc utils
--- begin region API
-
-
-fetchDuckDbTableRefs : Cmd Msg
-fetchDuckDbTableRefs =
-    let
-        duckDbTableRefsResponseDecoder : JD.Decoder Api.DuckDbTableRefsResponse
-        duckDbTableRefsResponseDecoder =
-            JD.map Api.DuckDbTableRefsResponse
-                (JD.field "refs" (JD.list JD.string))
-    in
-    Http.get
-        { url = apiHost ++ "/duckdb/table_refs"
-        , expect = Http.expectJson GotDuckDbTableRefsResponse duckDbTableRefsResponseDecoder
-        }
-
-
-
--- end region API

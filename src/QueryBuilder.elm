@@ -1,5 +1,6 @@
 module QueryBuilder exposing (..)
 
+import DuckDb exposing (DuckDbRef, refToString)
 import Utils exposing (collapseWhitespace)
 
 
@@ -62,12 +63,8 @@ type alias SqlStr =
     String
 
 
-type alias TableRef =
-    String
-
-
-queryBuilder : List KimballColumn -> TableRef -> SqlStr
-queryBuilder kCols tRef =
+queryBuilder : List KimballColumn -> DuckDbRef -> SqlStr
+queryBuilder kCols ref =
     let
         selectFields : List ColumnRef
         selectFields =
@@ -169,7 +166,7 @@ queryBuilder kCols tRef =
         ("select "
             ++ String.join ", " (selectFields ++ measureAggregates)
             ++ " from "
-            ++ tRef
+            ++ refToString ref
             ++ " "
             ++ groupBys
         )

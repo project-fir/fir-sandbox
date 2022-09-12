@@ -17,7 +17,7 @@ import Shared
 import Task
 import Types exposing (FrontendModel, FrontendMsg(..), ToFrontend(..))
 import Url exposing (Url)
-import View
+import View exposing (View)
 
 
 type alias Model =
@@ -161,6 +161,7 @@ view model =
 elements : Model -> Element Msg
 elements model =
     let
+        pageElements : View Msg
         pageElements =
             Shared.sharedView (Request.create () model.url model.key)
                 { page =
@@ -169,15 +170,6 @@ elements model =
                 , toMsg = Shared
                 }
                 model.shared
-
-        -- TODO: This feels wrong.
-        firstElement =
-            case List.head pageElements.body of
-                Nothing ->
-                    E.none
-
-                Just e ->
-                    e
     in
     E.column
         [ width fill
@@ -187,7 +179,7 @@ elements model =
         , Border.width 1
         , Border.color Palette.lightGrey
         ]
-        [ firstElement ]
+        pageElements.body
 
 
 

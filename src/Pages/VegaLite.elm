@@ -4,10 +4,10 @@ module Pages.VegaLite exposing (Model, Msg, page)
 --import PortDefs exposing (dragStart, elmToJS)
 --import VegaLite as VL
 
-import Api exposing (queryDuckDb)
 import Array
 import Config exposing (apiHost)
 import Dict exposing (Dict)
+import DuckDb exposing (ColumnName, DuckDbColumnDescription(..), DuckDbMetaResponse, fetchDuckDbTableRefs, queryDuckDb, queryDuckDbMeta, refToString)
 import Effect exposing (Effect)
 import Element as E exposing (..)
 import Element.Background as Background
@@ -55,11 +55,11 @@ type Position
 
 type alias Model =
     { --spec : Maybe VL.Spec
-      duckDbForPlotResponse : WebData Api.DuckDbQueryResponse
-    , duckDbMetaResponse : WebData Api.DuckDbMetaResponse
-    , duckDbTableRefs : WebData Api.DuckDbTableRefsResponse
-    , selectedTableRef : Maybe Api.TableRef
-    , hoveredOnTableRef : Maybe Api.TableRef
+      duckDbForPlotResponse : WebData DuckDb.DuckDbQueryResponse
+    , duckDbMetaResponse : WebData DuckDb.DuckDbMetaResponse
+    , duckDbTableRefs : WebData DuckDb.DuckDbRefsResponse
+    , selectedTableRef : Maybe DuckDb.DuckDbRef
+    , hoveredOnTableRef : Maybe DuckDb.DuckDbRef
 
     --, dragDrop : DragDrop.Model Int Position
     , data : { count : Int, position : Position }
@@ -92,7 +92,7 @@ init =
       , kimballCols = []
       , openedDropDown = Nothing
       }
-    , Effect.fromCmd fetchDuckDbTableRefs
+    , Effect.fromCmd <| fetchDuckDbTableRefs GotDuckDbTableRefsResponse
     )
 
 
@@ -105,12 +105,12 @@ type Msg
     = FetchPlotData
       --| RenderPlot
     | FetchTableRefs
-    | FetchMetaDataForRef Api.TableRef
-    | GotDuckDbResponse (Result Http.Error Api.DuckDbQueryResponse)
-    | GotDuckDbMetaResponse (Result Http.Error Api.DuckDbMetaResponse)
-    | GotDuckDbTableRefsResponse (Result Http.Error Api.DuckDbTableRefsResponse)
-    | UserSelectedTableRef Api.TableRef
-    | UserMouseEnteredTableRef Api.TableRef
+    | FetchMetaDataForRef DuckDb.DuckDbRef
+    | GotDuckDbResponse (Result Http.Error DuckDb.DuckDbQueryResponse)
+    | GotDuckDbMetaResponse (Result Http.Error DuckDb.DuckDbMetaResponse)
+    | GotDuckDbTableRefsResponse (Result Http.Error DuckDb.DuckDbRefsResponse)
+    | UserSelectedTableRef DuckDb.DuckDbRef
+    | UserMouseEnteredTableRef DuckDb.DuckDbRef
     | UserMouseLeftTableRef
       --| DragDropMsg (DragDrop.Msg Int Position)
     | UserClickKimballColumnTab KimballColumn
@@ -209,7 +209,7 @@ update msg model =
         --        )
         --    )
         FetchTableRefs ->
-            ( { model | duckDbTableRefs = Loading }, Effect.fromCmd <| fetchDuckDbTableRefs )
+            ( { model | duckDbTableRefs = Loading }, Effect.fromCmd <| fetchDuckDbTableRefs GotDuckDbTableRefsResponse )
 
         GotDuckDbTableRefsResponse response ->
             case response of
@@ -223,9 +223,9 @@ update msg model =
             let
                 -- NB: A bit hacky, but we submit a query with limit 0, and use the same response without vals
                 queryStr =
-                    "select * from " ++ ref ++ " limit 0"
+                    "select * from " ++ refToString ref ++ " limit 0"
             in
-            ( { model | duckDbTableRefs = Loading }, Effect.fromCmd <| queryDuckDbMeta queryStr True [ ref ] )
+            ( { model | duckDbTableRefs = Loading }, Effect.fromCmd <| queryDuckDbMeta queryStr True [ ref ] GotDuckDbMetaResponse )
 
         GotDuckDbMetaResponse response ->
             case response of
@@ -233,7 +233,7 @@ update msg model =
                     let
                         kimballCols : List KimballColumn
                         kimballCols =
-                            List.map (\cd -> mapToKimball cd) data.colDescs
+                            List.map (\cd -> mapToKimball cd) data.columnDescriptions
                     in
                     ( { model
                         | duckDbMetaResponse = Success data
@@ -248,15 +248,10 @@ update msg model =
         FetchPlotData ->
             let
                 queryStr =
-                    """select
-  t.rank,
-  t.spi
-from elm_test_1657972702341 t
-order by 1
-limit 100
+                    """TODO: Need to rethink default UX
                 """
             in
-            ( model, Effect.fromCmd <| queryDuckDb queryStr True [ "elm_test_1657972702341" ] GotDuckDbResponse )
+            ( model, Effect.fromCmd <| queryDuckDb queryStr True [] GotDuckDbResponse )
 
         GotDuckDbResponse response ->
             case response of
@@ -288,10 +283,10 @@ limit 100
             let
                 -- NB: A bit hacky, but we submit a query with limit 0, and use the same response without vals
                 queryStr =
-                    "select * from " ++ ref ++ " limit 0"
+                    "select * from " ++ refToString ref ++ " limit 0"
             in
             ( { model | duckDbMetaResponse = Loading, selectedTableRef = Just ref }
-            , Effect.fromCmd <| queryDuckDbMeta queryStr True [ ref ]
+            , Effect.fromCmd <| queryDuckDbMeta queryStr True [ ref ] GotDuckDbMetaResponse
             )
 
         UserMouseEnteredTableRef ref ->
@@ -609,40 +604,50 @@ viewQueryBuilderOutput model =
     paragraph [ width fill, height fill ] [ text displayText ]
 
 
-mapToKimball : Api.ColumnDescription -> KimballColumn
-mapToKimball colDesc =
+mapToKimball : DuckDbColumnDescription -> KimballColumn
+mapToKimball r =
     -- TODO: this function serves to be placeholder logic in lieu of persisting Kimball metadata
     --       upon successful loading of a DuckDB Ref, columns will be mapped in a "best guess" manner
     --       this longer term intent is for this to be a 'first pass', when persisted meta data does not exist
     --       (which should be the case when a user is first using data!). Any user interventions should be
     --       persisted server-side
-    case colDesc.type_ of
-        "VARCHAR" ->
-            Dimension colDesc.ref
+    let
+        mapDataType : { r | dataType : String, name : ColumnName } -> KimballColumn
+        mapDataType colDesc =
+            case colDesc.dataType of
+                "VARCHAR" ->
+                    Dimension colDesc.name
 
-        "DATE" ->
-            Time (Discrete Day) colDesc.ref
+                "DATE" ->
+                    Time (Discrete Day) colDesc.name
 
-        "TIMESTAMP" ->
-            Time Continuous colDesc.ref
+                "TIMESTAMP" ->
+                    Time Continuous colDesc.name
 
-        "BOOLEAN" ->
-            Dimension colDesc.ref
+                "BOOLEAN" ->
+                    Dimension colDesc.name
 
-        "INTEGER" ->
-            Measure Sum colDesc.ref
+                "INTEGER" ->
+                    Measure Sum colDesc.name
 
-        "HUGEINT" ->
-            Measure Sum colDesc.ref
+                "HUGEINT" ->
+                    Measure Sum colDesc.name
 
-        "BIGINT" ->
-            Measure Sum colDesc.ref
+                "BIGINT" ->
+                    Measure Sum colDesc.name
 
-        "DOUBLE" ->
-            Measure Sum colDesc.ref
+                "DOUBLE" ->
+                    Measure Sum colDesc.name
 
-        _ ->
-            Error colDesc.ref
+                _ ->
+                    Error colDesc.name
+    in
+    case r of
+        Persisted_ colDesc ->
+            mapDataType colDesc
+
+        Computed_ colDesc ->
+            mapDataType colDesc
 
 
 colorAssociatedWith : KimballColumn -> E.Color
@@ -797,7 +802,29 @@ viewColumnPickerPanel model =
                 ]
 
         Failure err ->
-            el [] (text "Error!")
+            let
+                errAttrs =
+                    el
+                        [ Background.color Palette.lightGrey
+                        , Border.width 2
+                        , Border.color Palette.darkishGrey
+                        ]
+            in
+            case err of
+                BadUrl url ->
+                    errAttrs <| text <| "Bad url: " ++ url
+
+                Timeout ->
+                    errAttrs <| text <| "Request timed out!"
+
+                BadStatus int ->
+                    errAttrs <| text <| "Http status: " ++ String.fromInt int
+
+                NetworkError ->
+                    errAttrs <| text <| "An unknown network error!"
+
+                BadBody s ->
+                    errAttrs <| text <| "Bad body: " ++ s
 
 
 viewPlotPanel : Model -> Element Msg
@@ -875,7 +902,7 @@ viewTableRefs model =
 
         Success refsResponse ->
             let
-                refsSelector : List Api.TableRef -> Element Msg
+                refsSelector : List DuckDb.DuckDbRef -> Element Msg
                 refsSelector refs =
                     let
                         backgroundColorFor ref =
@@ -926,7 +953,7 @@ viewTableRefs model =
                                     else
                                         Palette.white
 
-                        ui : Api.TableRef -> Element Msg
+                        ui : DuckDb.DuckDbRef -> Element Msg
                         ui ref =
                             row
                                 [ width E.fill
@@ -946,7 +973,7 @@ viewTableRefs model =
                                     , Background.color (innerBlobColorFor ref)
                                     ]
                                     E.none
-                                , text ref
+                                , text <| refToString ref
                                 ]
                     in
                     column
@@ -1034,58 +1061,3 @@ viewTableRefs model =
 --            in
 --            Just (spec0 col1 col2)
 -- end region vega-lite
--- begin region API
-
-
-queryDuckDbMeta : String -> Bool -> List Api.TableRef -> Cmd Msg
-queryDuckDbMeta query allowFallback refs =
-    let
-        duckDbQueryEncoder : JE.Value
-        duckDbQueryEncoder =
-            JE.object
-                [ ( "query_str", JE.string query )
-                , ( "allow_blob_fallback", JE.bool allowFallback )
-                , ( "fallback_table_refs", JE.list JE.string refs )
-                ]
-
-        duckDbMetaResponseDecoder : JD.Decoder Api.DuckDbMetaResponse
-        duckDbMetaResponseDecoder =
-            let
-                columnDecoderHelper : JD.Decoder Api.ColumnDescription
-                columnDecoderHelper =
-                    JD.field "type" JD.string |> JD.andThen decoderByType
-
-                decoderByType : String -> JD.Decoder Api.ColumnDescription
-                decoderByType type_ =
-                    case type_ of
-                        _ ->
-                            JD.map2 Api.ColumnDescription
-                                (JD.field "name" JD.string)
-                                (JD.field "type" JD.string)
-            in
-            JD.map Api.DuckDbMetaResponse
-                (JD.field "columns" (JD.list columnDecoderHelper))
-    in
-    Http.post
-        { url = apiHost ++ "/duckdb"
-        , body = Http.jsonBody duckDbQueryEncoder
-        , expect = Http.expectJson GotDuckDbMetaResponse duckDbMetaResponseDecoder
-        }
-
-
-fetchDuckDbTableRefs : Cmd Msg
-fetchDuckDbTableRefs =
-    let
-        duckDbTableRefsResponseDecoder : JD.Decoder Api.DuckDbTableRefsResponse
-        duckDbTableRefsResponseDecoder =
-            JD.map Api.DuckDbTableRefsResponse
-                (JD.field "refs" (JD.list JD.string))
-    in
-    Http.get
-        { url = apiHost ++ "/duckdb/table_refs"
-        , expect = Http.expectJson GotDuckDbTableRefsResponse duckDbTableRefsResponseDecoder
-        }
-
-
-
--- end region API

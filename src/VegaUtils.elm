@@ -1,6 +1,6 @@
 module VegaUtils exposing (..)
 
-import Api exposing (Column, Val(..))
+import DuckDb exposing (DuckDbColumn(..), Val(..))
 import Utils exposing (removeNothingsFromList)
 
 
@@ -10,91 +10,124 @@ type alias ColumnParamed val =
     }
 
 
-mapColToStringCol : Column -> ColumnParamed String
+mapColToStringCol : DuckDbColumn -> ColumnParamed String
 mapColToStringCol col =
-    case col.type_ of
-        "VARCHAR" ->
-            let
-                vals_ =
-                    removeNothingsFromList col.vals
+    let
+        mapToStringList : List String -> List Val -> List String
+        mapToStringList accum vals__ =
+            case vals__ of
+                [ Varchar_ i ] ->
+                    accum ++ [ i ]
 
-                mapToStringList : List String -> List Val -> List String
-                mapToStringList accum vals__ =
-                    case vals__ of
-                        [ Varchar_ v ] ->
-                            accum ++ [ v ]
+                (Varchar_ i) :: is ->
+                    [ i ] ++ mapToStringList accum is
 
-                        (Varchar_ v) :: vs ->
-                            [ v ] ++ mapToStringList accum vs
+                _ ->
+                    []
+    in
+    case col of
+        Persisted col_ ->
+            case col_.dataType of
+                "VARCHAR" ->
+                    { ref = col_.name
+                    , vals = mapToStringList [] (removeNothingsFromList col_.vals)
+                    }
 
-                        _ ->
-                            []
-            in
-            { ref = col.ref
-            , vals = mapToStringList [] vals_
-            }
+                _ ->
+                    { ref = "ERROR - INT MAP"
+                    , vals = []
+                    }
 
-        _ ->
-            { ref = "ERROR - STRING MAP"
-            , vals = []
-            }
+        Computed col_ ->
+            case col_.dataType of
+                "DOUBLE" ->
+                    { ref = col_.name
+                    , vals = mapToStringList [] (removeNothingsFromList col_.vals)
+                    }
+
+                _ ->
+                    { ref = "ERROR - INT MAP"
+                    , vals = []
+                    }
 
 
-mapColToFloatCol : Column -> ColumnParamed Float
+mapColToFloatCol : DuckDbColumn -> ColumnParamed Float
 mapColToFloatCol col =
-    case col.type_ of
-        "DOUBLE" ->
-            let
-                vals_ =
-                    removeNothingsFromList col.vals
+    let
+        mapToFloatList : List Float -> List Val -> List Float
+        mapToFloatList accum vals__ =
+            case vals__ of
+                [ Float_ i ] ->
+                    accum ++ [ i ]
 
-                mapToFloatList : List Float -> List Val -> List Float
-                mapToFloatList accum vals__ =
-                    case vals__ of
-                        [ Float_ f ] ->
-                            accum ++ [ f ]
+                (Float_ i) :: is ->
+                    [ i ] ++ mapToFloatList accum is
 
-                        (Float_ f) :: fs ->
-                            [ f ] ++ mapToFloatList accum fs
+                _ ->
+                    []
+    in
+    case col of
+        Persisted col_ ->
+            case col_.dataType of
+                "DOUBLE" ->
+                    { ref = col_.name
+                    , vals = mapToFloatList [] (removeNothingsFromList col_.vals)
+                    }
 
-                        _ ->
-                            []
-            in
-            { ref = col.ref
-            , vals = mapToFloatList [] vals_
-            }
+                _ ->
+                    { ref = "ERROR - INT MAP"
+                    , vals = []
+                    }
 
-        _ ->
-            { ref = "ERROR - FLOAT MAP"
-            , vals = []
-            }
+        Computed col_ ->
+            case col_.dataType of
+                "DOUBLE" ->
+                    { ref = col_.name
+                    , vals = mapToFloatList [] (removeNothingsFromList col_.vals)
+                    }
+
+                _ ->
+                    { ref = "ERROR - INT MAP"
+                    , vals = []
+                    }
 
 
-mapColToIntegerCol : Column -> ColumnParamed Int
+mapColToIntegerCol : DuckDbColumn -> ColumnParamed Int
 mapColToIntegerCol col =
-    case col.type_ of
-        "INTEGER" ->
-            let
-                vals_ =
-                    removeNothingsFromList col.vals
+    let
+        mapToIntList : List Int -> List Val -> List Int
+        mapToIntList accum vals__ =
+            case vals__ of
+                [ Int_ i ] ->
+                    accum ++ [ i ]
 
-                mapToIntList : List Int -> List Val -> List Int
-                mapToIntList accum vals__ =
-                    case vals__ of
-                        [ Int_ i ] ->
-                            accum ++ [ i ]
+                (Int_ i) :: is ->
+                    [ i ] ++ mapToIntList accum is
 
-                        (Int_ i) :: is ->
-                            [ i ] ++ mapToIntList accum is
+                _ ->
+                    []
+    in
+    case col of
+        Persisted col_ ->
+            case col_.dataType of
+                "INTEGER" ->
+                    { ref = col_.name
+                    , vals = mapToIntList [] (removeNothingsFromList col_.vals)
+                    }
 
-                        _ ->
-                            []
-            in
-            { ref = col.ref
-            , vals = mapToIntList [] vals_
-            }
+                _ ->
+                    { ref = "ERROR - INT MAP"
+                    , vals = []
+                    }
 
-        _ ->
-            { ref = "ERROR - INT MAP"
-            , vals = []
-            }
+        Computed col_ ->
+            case col_.dataType of
+                "INTEGER" ->
+                    { ref = col_.name
+                    , vals = mapToIntList [] (removeNothingsFromList col_.vals)
+                    }
+
+                _ ->
+                    { ref = "ERROR - INT MAP"
+                    , vals = []
+                    }

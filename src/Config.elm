@@ -1,6 +1,16 @@
-module Config exposing (..)
+module Config exposing (apiHost)
 
 import Env
+
+
+type LocalDevModes
+    = PointToProduction
+    | PointToLocalGunicorn
+    | PointToLocalDevFastApi
+
+
+localDevMode =
+    PointToProduction
 
 
 apiHost =
@@ -9,12 +19,12 @@ apiHost =
             "https://fir-api.robsoko.tech"
 
         _ ->
-            "http://localhost:8000"
+            case localDevMode of
+                PointToLocalDevFastApi ->
+                    "http://localhost:8000"
 
+                PointToLocalGunicorn ->
+                    "http://localhost:8080"
 
-
--- develop against local dev-fastapi
---"http://localhost:8080"
--- develop against gunicorn server
---"https://fir-api.robsoko.tech"
--- develop against prod
+                PointToProduction ->
+                    "https://fir-api.robsoko.tech"

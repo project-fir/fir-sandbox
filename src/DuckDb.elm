@@ -1,6 +1,7 @@
-module DuckDb exposing (ColumnName, ComputedDuckDbColumn, ComputedDuckDbColumnDescription, DuckDbColumn(..), DuckDbColumnDescription(..), DuckDbMetaResponse, DuckDbQueryResponse, DuckDbRef, DuckDbRef_, DuckDbRefsResponse, PersistedDuckDbColumn, PersistedDuckDbColumnDescription, Ref, SchemaName, TableName, Val(..), fetchDuckDbTableRefs, queryDuckDb, queryDuckDbMeta, refEquals, refToString)
+module DuckDb exposing (ColumnName, ComputedDuckDbColumn, ComputedDuckDbColumnDescription, DuckDbColumn(..), DuckDbColumnDescription(..), DuckDbMetaResponse, DuckDbQueryResponse, DuckDbRef, DuckDbRef_, DuckDbRefsResponse, PersistedDuckDbColumn, PersistedDuckDbColumnDescription, Ref, SchemaName, TableName, Val(..), fetchDuckDbTableRefs, queryDuckDb, queryDuckDbMeta, refEquals, refToString, uploadFile)
 
 import Config exposing (apiHost)
+import File exposing (File)
 import Http exposing (Error(..))
 import ISO8601 as Iso
 import Json.Decode as JD
@@ -307,6 +308,24 @@ parentRefEncoder ref =
         [ ( "schema_name", JE.string ref.schemaName )
         , ( "table_name", JE.string ref.tableName )
         ]
+
+
+uploadFile : File -> String -> String -> (Result Http.Error () -> msg) -> Cmd msg
+uploadFile file schemaName tableName onResponse =
+    Http.request
+        { method = "POST"
+        , url = apiHost ++ "/duckdb/files"
+        , headers = []
+        , body =
+            Http.multipartBody
+                [ Http.filePart "file" file
+                , Http.stringPart "schema_name" schemaName
+                , Http.stringPart "table_name" tableName
+                ]
+        , expect = Http.expectWhatever onResponse
+        , timeout = Nothing
+        , tracker = Just "upload"
+        }
 
 
 

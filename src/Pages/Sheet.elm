@@ -8,7 +8,7 @@ import Array2D exposing (Array2D, ColIx, RowIx, colCount, fromListOfLists, getCo
 import Browser.Dom
 import Browser.Events as Events
 import Config exposing (apiHost)
-import DuckDb exposing (DuckDbColumn(..), DuckDbMetaResponse, DuckDbQueryResponse, DuckDbRef, DuckDbRefsResponse, fetchDuckDbTableRefs, queryDuckDb, refEquals, refToString)
+import DuckDb exposing (DuckDbColumn(..), DuckDbMetaResponse, DuckDbQueryResponse, DuckDbRef, DuckDbRefsResponse, fetchDuckDbTableRefs, queryDuckDb, refEquals, refToString, uploadFile)
 import Effect exposing (Effect)
 import Element as E exposing (..)
 import Element.Background as Background
@@ -99,6 +99,9 @@ type alias Model =
     , renderStatus : RenderStatus
     , selectedTableRef : Maybe DuckDbRef
     , hoveredOnTableRef : Maybe DuckDbRef
+    , file : Maybe File
+    , proposedCsvTargetSchemaName : String
+    , proposedCsvTargetTableName : String
     }
 
 
@@ -162,7 +165,10 @@ type Msg
       -- FileUpload Msgs
     | FileUpload_UserClickedSelectFile
     | FileUpload_UserSelectedCsvFile File
+    | FileUpload_UserConfirmsUpload
     | FileUpload_UploadResponded (Result Http.Error ())
+    | FileUpload_UserChangedSchemaName String
+    | FileUpload_UserChangedTableName String
 
 
 
@@ -272,6 +278,9 @@ init =
             , renderStatus = AwaitingDomInfo
             , selectedTableRef = Nothing
             , hoveredOnTableRef = Nothing
+            , file = Nothing
+            , proposedCsvTargetSchemaName = ""
+            , proposedCsvTargetTableName = ""
             }
     in
     ( model
@@ -357,34 +366,6 @@ mapColumnsToSheet cols =
     array2DToSheet (fromListOfLists lolTransposed) colLabels
 
 
-uploadFile : Model -> File -> Cmd Msg
-uploadFile model f =
-    let
-        nowish_ =
-            case model.nowish of
-                Nothing ->
-                    -- HACK: as long as `Tick` is implemented at 250 ms chances of this occurring is very low
-                    --       good enough
-                    Time.posixToMillis (Time.millisToPosix 99999999)
-
-                Just n ->
-                    Time.posixToMillis n
-    in
-    Http.request
-        { method = "POST"
-        , url = apiHost ++ "/duckdb/files"
-        , headers = []
-        , body =
-            Http.multipartBody
-                [ Http.filePart "file" f
-                , Http.stringPart "duckdb_table_ref" ("elm_test_" ++ String.fromInt nowish_)
-                ]
-        , expect = Http.expectWhatever FileUpload_UploadResponded
-        , timeout = Nothing
-        , tracker = Just "upload"
-        }
-
-
 update : Msg -> Model -> ( Model, Effect Msg )
 update msg model =
     case msg of
@@ -429,13 +410,37 @@ update msg model =
         FileUpload_UserClickedSelectFile ->
             ( model, Effect.fromCmd requestFile )
 
-        FileUpload_UserSelectedCsvFile csv ->
-            ( model
-            , Effect.fromCmd <| uploadFile model csv
+        FileUpload_UserSelectedCsvFile file ->
+            -- NB: We do not upload file yet, as user must fill out a small form, then click upload!
+            ( { model | file = Just file }
+            , Effect.none
+              --,
             )
 
+        FileUpload_UserConfirmsUpload ->
+            case model.file of
+                Nothing ->
+                    ( model, Effect.none )
+
+                Just csv ->
+                    ( model
+                    , Effect.fromCmd <|
+                        uploadFile
+                            csv
+                            model.proposedCsvTargetSchemaName
+                            model.proposedCsvTargetTableName
+                            FileUpload_UploadResponded
+                    )
+
         FileUpload_UploadResponded result ->
-            ( model, Effect.fromCmd <| fetchDuckDbTableRefs GotDuckDbTableRefsResponse )
+            -- File has uploaded, clear the File from front-end model, re-fetch refs
+            ( { model | file = Nothing }, Effect.fromCmd <| fetchDuckDbTableRefs GotDuckDbTableRefsResponse )
+
+        FileUpload_UserChangedSchemaName schemaName ->
+            ( { model | proposedCsvTargetSchemaName = schemaName }, Effect.none )
+
+        FileUpload_UserChangedTableName tableName ->
+            ( { model | proposedCsvTargetTableName = tableName }, Effect.none )
 
         UserSqlTextChanged newText ->
             ( { model | userSqlText = newText }, Effect.none )
@@ -1191,9 +1196,9 @@ requestFile =
 viewCatalogPanel : Model -> Element Msg
 viewCatalogPanel model =
     let
-        viewTableRefs : Model -> Element Msg
-        viewTableRefs mdl =
-            case mdl.duckDbTableRefs of
+        viewTableRefs : Element Msg
+        viewTableRefs =
+            case model.duckDbTableRefs of
                 NotAsked ->
                     text " "
 
@@ -1299,27 +1304,95 @@ viewCatalogPanel model =
                 Failure err ->
                     text "Error"
 
-        viewUploadFile : Model -> Element Msg
-        viewUploadFile mdl =
-            Input.button
-                [ alignBottom
-                , alignRight
-                , padding 5
-                , Border.color Palette.black
-                , Border.width 1
-                , Border.rounded 3
-                , Background.color Palette.lightGrey
-                ]
-                { onPress = Just FileUpload_UserClickedSelectFile
-                , label = text "Upload CSV File"
-                }
+        viewUploadFilePanel : Element Msg
+        viewUploadFilePanel =
+            let
+                shouldAllowUpload : String -> String -> Bool
+                shouldAllowUpload schemaName tableName =
+                    if String.length schemaName >= 2 && String.length tableName >= 4 then
+                        True
+
+                    else
+                        False
+
+                uploadButton : Element Msg
+                uploadButton =
+                    case shouldAllowUpload model.proposedCsvTargetSchemaName model.proposedCsvTargetTableName of
+                        True ->
+                            Input.button
+                                [ alignBottom
+                                , alignRight
+                                , padding 5
+                                , Border.color Palette.darkCharcoal
+                                , Border.width 4
+                                , Border.rounded 3
+                                , Background.color Palette.darkishGrey
+                                ]
+                                { onPress = Just FileUpload_UserConfirmsUpload
+                                , label = text "Upload"
+                                }
+
+                        False ->
+                            Input.button
+                                [ alignBottom
+                                , alignRight
+                                , padding 5
+                                , Border.color Palette.black
+                                , Border.width 1
+
+                                --, Font.color Palette.lightGrey
+                                , Border.rounded 3
+                                , Background.color Palette.lightGrey
+                                ]
+                                { onPress = Nothing
+                                , label = text "Finish form to upload"
+                                }
+            in
+            case model.file of
+                Nothing ->
+                    -- The user has either 1) not yet selected a file, or 2) successfully uploaded a file. So show
+                    -- select file button
+                    Input.button
+                        [ alignBottom
+                        , alignRight
+                        , padding 5
+                        , Border.color Palette.black
+                        , Border.width 1
+                        , Border.rounded 3
+                        , Background.color Palette.lightGrey
+                        ]
+                        { onPress = Just FileUpload_UserClickedSelectFile
+                        , label = text "Upload CSV File"
+                        }
+
+                Just _ ->
+                    -- The user has selected a file locally, but must fill out form prior to upload
+                    -- we don't do anything here with the file itself, it's just saved to the front-end model
+                    column
+                        [ alignBottom
+                        , width fill
+                        ]
+                        [ Input.text []
+                            { onChange = FileUpload_UserChangedSchemaName
+                            , text = model.proposedCsvTargetSchemaName
+                            , placeholder = Just <| Input.placeholder [] (E.text "2+ letters, one word")
+                            , label = Input.labelLeft [] (E.text "Schema Name:")
+                            }
+                        , Input.text []
+                            { onChange = FileUpload_UserChangedTableName
+                            , text = model.proposedCsvTargetTableName
+                            , placeholder = Just <| Input.placeholder [] (E.text "4+ letters, one word")
+                            , label = Input.labelLeft [] (E.text "Table Name:")
+                            }
+                        , uploadButton
+                        ]
     in
     column
         [ width E.fill
         , height E.fill
         ]
-        [ viewTableRefs model
-        , viewUploadFile model
+        [ viewTableRefs
+        , viewUploadFilePanel
         ]
 
 

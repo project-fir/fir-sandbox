@@ -190,11 +190,15 @@ type
     | UserMouseLeftTableRef
     | UserMouseEnteredNodeTitleBar DuckDb.DuckDbRef
     | UserMouseLeftNodeTitleBar
+    | ClearNodeHoverState
 
 
 update : Msg -> Model -> ( Model, Effect Msg )
 update msg model =
     case msg of
+        ClearNodeHoverState ->
+            ( { model | hoveredOnNodeTitle = Nothing }, Effect.none )
+
         UserMouseEnteredNodeTitleBar ref ->
             ( { model | hoveredOnNodeTitle = Just ref }, Effect.none )
 
@@ -388,7 +392,7 @@ viewDataSourceNode model table pos =
         , SA.width (ST.px 250)
         , SA.height (ST.px 350)
         ]
-        [ E.layoutWith { options = [ noStaticStyleSheet ] } [] element ]
+        [ E.layoutWith { options = [ noStaticStyleSheet ] } [ Events.onMouseLeave ClearNodeHoverState ] element ]
 
 
 

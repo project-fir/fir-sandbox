@@ -1,6 +1,7 @@
 module Pages.Kimball exposing (Model, Msg, page)
 
-import DuckDb exposing (ColumnName, DuckDbColumn, DuckDbColumnDescription(..), DuckDbRef_(..), fetchDuckDbTableRefs, refToString)
+import Dict exposing (Dict)
+import DuckDb exposing (ColumnName, DuckDbColumn, DuckDbColumnDescription(..), DuckDbRef, DuckDbRef_(..), fetchDuckDbTableRefs, refEquals, refToString)
 import Effect exposing (Effect)
 import Element as E exposing (..)
 import Element.Background as Background
@@ -48,13 +49,23 @@ type
 -- INIT
 
 
+type alias RefString =
+    String
+
+
+type alias TableRenderInfo =
+    { pos : PositionPx
+    , ref : DuckDb.DuckDbRef
+    }
+
+
 type alias Model =
     { duckDbRefs : WebData DuckDb.DuckDbRefsResponse
     , selectedTableRef : Maybe DuckDb.DuckDbRef
     , hoveredOnTableRef : Maybe DuckDb.DuckDbRef
+    , hoveredOnNodeTitle : Maybe DuckDb.DuckDbRef
     , tables : List Table
-    , pos : PositionPx
-    , message : String
+    , tableRenderInfo : Dict RefString TableRenderInfo
     }
 
 
@@ -96,14 +107,64 @@ demoDim1 =
         ]
 
 
+
+-- begin region: ref utils
+
+
+refDrillDown : DuckDbRef_ -> DuckDbRef
+refDrillDown ref =
+    case ref of
+        DuckDb.View vRef ->
+            vRef
+
+        DuckDb.Table tRef ->
+            tRef
+
+
+refOfTable : Table -> DuckDbRef
+refOfTable table =
+    case table of
+        Fact ref _ ->
+            refDrillDown ref
+
+        Dim ref _ ->
+            refDrillDown ref
+
+
+refStringOfTable : Table -> String
+refStringOfTable table =
+    case table of
+        Fact ref _ ->
+            refToString (refDrillDown ref)
+
+        Dim ref _ ->
+            refToString (refDrillDown ref)
+
+
+
+-- end region: ref utils
+
+
 init : ( Model, Effect Msg )
 init =
     ( { duckDbRefs = Loading -- Must also fetch table refs below
       , selectedTableRef = Nothing
       , hoveredOnTableRef = Nothing
       , tables = [ demoFact, demoDim1 ]
-      , pos = { ex = 400, y = 250 }
-      , message = "init message"
+      , tableRenderInfo =
+            Dict.fromList
+                [ ( refStringOfTable demoFact
+                  , { pos = { x = 100, y = 250 }
+                    , ref = refOfTable demoFact
+                    }
+                  )
+                , ( refStringOfTable demoDim1
+                  , { pos = { x = 400, y = 250 }
+                    , ref = refOfTable demoDim1
+                    }
+                  )
+                ]
+      , hoveredOnNodeTitle = Nothing
       }
     , Effect.fromCmd <| fetchDuckDbTableRefs GotDuckDbTableRefsResponse
     )
@@ -127,11 +188,19 @@ type
     | UserSelectedTableRef DuckDb.DuckDbRef
     | UserMouseEnteredTableRef DuckDb.DuckDbRef
     | UserMouseLeftTableRef
+    | UserMouseEnteredNodeTitleBar DuckDb.DuckDbRef
+    | UserMouseLeftNodeTitleBar
 
 
 update : Msg -> Model -> ( Model, Effect Msg )
 update msg model =
     case msg of
+        UserMouseEnteredNodeTitleBar ref ->
+            ( { model | hoveredOnNodeTitle = Just ref }, Effect.none )
+
+        UserMouseLeftNodeTitleBar ->
+            ( { model | hoveredOnNodeTitle = Nothing }, Effect.none )
+
         FetchTableRefs ->
             ( { model | duckDbRefs = Loading }, Effect.fromCmd <| fetchDuckDbTableRefs GotDuckDbTableRefsResponse )
 
@@ -180,43 +249,35 @@ view model =
 
 
 type alias PositionPx =
-    { ex : Float
+    { x : Float
     , y : Float
     }
 
 
-viewDataSourceNode : Table -> PositionPx -> Svg Msg
-viewDataSourceNode table pos =
+viewDataSourceNode : Model -> Table -> PositionPx -> Svg Msg
+viewDataSourceNode model table pos =
     let
         ( table_, type_, backgroundColor ) =
             case table of
-                Fact ref t ->
+                Fact _ t ->
                     ( t, "Fact", Palette.lightBlue )
 
-                Dim ref t ->
+                Dim _ t ->
                     ( t, "Dimension", Palette.green_keylime )
 
-        isProperTable : List DuckDbColumnDescription -> Bool
-        isProperTable t =
-            True
+        ref : DuckDbRef
+        ref =
+            refOfTable table
 
         cols : List DuckDbColumnDescription
         cols =
             case table of
-                Fact ref cols_ ->
+                Fact _ cols_ ->
                     cols_
 
-                Dim ref cols_ ->
+                Dim _ cols_ ->
                     cols_
 
-        --backgroundColor : Color.Color
-        --backgroundColor =
-        --    case isProperTable table_ of
-        --        True ->
-        --            Palette.toAvhColor Palette.lightBlue
-        --
-        --        False ->
-        --            Palette.toAvhColor Palette.red
         title : String
         title =
             case List.head table_ of
@@ -248,10 +309,52 @@ viewDataSourceNode table pos =
                         Computed_ desc ->
                             desc.name
             in
-            el [] <| E.text name
+            row
+                [ width E.fill
+                , moveRight 3
+                , paddingXY 5 2
+                , spacingXY 4 0
+
+                --, Events.onClick <| UserSelectedTableRef ref
+                --, Events.onMouseEnter <| UserMouseEnteredTableRef ref
+                --, Events.onMouseLeave <| UserMouseLeftTableRef
+                --, Background.color (backgroundColorFor ref)
+                --, Border.widthEach (borderFor ref)
+                --, Border.color (borderColorFor ref)
+                ]
+                [ el
+                    [ width <| px 5
+                    , height <| px 5
+                    , Border.width 1
+                    , Background.color Palette.lightGrey
+                    ]
+                    E.none
+                , text name
+                , el
+                    [ width <| px 5
+                    , height <| px 5
+                    , Border.width 1
+                    , Background.color Palette.lightGrey
+                    , alignRight
+                    ]
+                    E.none
+                ]
 
         element : Element Msg
         element =
+            let
+                titleBarBackgroundColor =
+                    case model.hoveredOnNodeTitle of
+                        Nothing ->
+                            backgroundColor
+
+                        Just ref_ ->
+                            if refEquals ref ref_ then
+                                Palette.darkishGrey
+
+                            else
+                                backgroundColor
+            in
             column
                 [ width fill
                 , height fill
@@ -259,41 +362,55 @@ viewDataSourceNode table pos =
                 , Border.width 2
                 , padding 2
                 , Background.color backgroundColor
+                , Font.size 14
                 ]
-                ([ el [] <| E.text title ] ++ List.map (\col -> viewColumn col) cols)
+                ([ el
+                    [ Border.widthEach { top = 0, left = 0, right = 0, bottom = 2 }
+                    , Border.color Palette.black
+                    , width fill
+                    , Background.color titleBarBackgroundColor
+                    , Events.onMouseEnter (UserMouseEnteredNodeTitleBar (refOfTable table))
+                    , Events.onMouseLeave UserMouseLeftNodeTitleBar
+                    ]
+                   <|
+                    el [ centerX ] (E.text title)
+                 ]
+                    ++ List.map (\col -> viewColumn col) cols
+                )
     in
-    S.rect
-        [ SA.x (ST.px pos.ex)
+    SC.foreignObject
+        [ SA.x (ST.px pos.x)
         , SA.y (ST.px pos.y)
         , SA.width (ST.px 250)
         , SA.height (ST.px 350)
         ]
-        []
+        [ E.layoutWith { options = [ noStaticStyleSheet ] } [] element ]
 
 
 
---SC.foreignObject
 --
---    [ E.layoutWith { options = [ noStaticStyleSheet ] } [] element ]
 
 
 viewCanvas : Model -> Element Msg
 viewCanvas model =
     let
-        poss : List PositionPx
-        poss =
-            [ { ex = 100, y = 100 }
-            , { ex = 400, y = 250 }
-            ]
+        renderHelp : Table -> Svg Msg
+        renderHelp tbl =
+            let
+                key =
+                    refStringOfTable tbl
 
-        tables : List Table
-        tables =
-            [ demoFact, demoDim1 ]
+                info =
+                    case Dict.get key model.tableRenderInfo of
+                        Just info_ ->
+                            info_
 
-        --List.map (\tbl -> tbl) model.tables
-        viewStuff : String -> Element Msg
-        viewStuff s =
-            E.text s
+                        Nothing ->
+                            { pos = { x = 0, y = 0 }
+                            , ref = refOfTable tbl
+                            }
+            in
+            viewDataSourceNode model tbl info.pos
     in
     el
         [ Border.width 1
@@ -303,19 +420,12 @@ viewCanvas model =
         , Background.color Palette.white
         ]
     <|
-        viewStuff model.message
-
-
-
---E.html <|
---    S.svg
---        [ SA.height (ST.px 800)
---        , SA.width (ST.px 1200)
---        ]
---        [ viewStuff demoDim1 model.pos ]
---[ viewDataSourceNode demoFact { x = 100, y = 200 }
---, viewDataSourceNode demoDim1 { x = 400, y = 300 }
---]
+        E.html <|
+            S.svg
+                [ SA.height (ST.px 800)
+                , SA.width (ST.px 1200)
+                ]
+                (List.map (\tbl -> renderHelp tbl) model.tables)
 
 
 elements : Model -> Element Msg

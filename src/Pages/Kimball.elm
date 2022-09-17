@@ -371,9 +371,13 @@ viewDataSourceNode model table pos =
                     , Background.color titleBarBackgroundColor
                     , Events.onMouseEnter (UserMouseEnteredNodeTitleBar (refOfTable table))
                     , Events.onMouseLeave UserMouseLeftNodeTitleBar
+                    , paddingXY 0 5
                     ]
                    <|
-                    el [ centerX ] (E.text title)
+                    row [ width fill, paddingXY 5 0 ]
+                        [ el [ alignLeft ] (E.text <| type_ ++ ":")
+                        , el [ alignLeft, moveRight 10 ] (E.text title)
+                        ]
                  ]
                     ++ List.map (\col -> viewColumn col) cols
                 )

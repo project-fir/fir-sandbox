@@ -4,6 +4,7 @@ import Browser.Navigation exposing (Key)
 import Effect exposing (Effect)
 import ElmSpa.Page
 import Gen.Params.Home_
+import Gen.Params.Kimball
 import Gen.Params.Sheet
 import Gen.Params.VegaLite
 import Gen.Params.NotFound
@@ -12,6 +13,7 @@ import Gen.Msg as Msg
 import Gen.Route as Route exposing (Route)
 import Page exposing (Page)
 import Pages.Home_
+import Pages.Kimball
 import Pages.Sheet
 import Pages.VegaLite
 import Pages.NotFound
@@ -36,6 +38,9 @@ init route =
         Route.Home_ ->
             pages.home_.init ()
     
+        Route.Kimball ->
+            pages.kimball.init ()
+    
         Route.Sheet ->
             pages.sheet.init ()
     
@@ -49,6 +54,9 @@ init route =
 update : Msg -> Model -> Shared.Model -> Url -> Key -> ( Model, Effect Msg )
 update msg_ model_ =
     case ( msg_, model_ ) of
+        ( Msg.Kimball msg, Model.Kimball params model ) ->
+            pages.kimball.update params msg model
+    
         ( Msg.Sheet msg, Model.Sheet params model ) ->
             pages.sheet.update params msg model
     
@@ -67,6 +75,9 @@ view model_ =
     
         Model.Home_ params ->
             pages.home_.view params ()
+    
+        Model.Kimball params model ->
+            pages.kimball.view params model
     
         Model.Sheet params model ->
             pages.sheet.view params model
@@ -87,6 +98,9 @@ subscriptions model_ =
         Model.Home_ params ->
             pages.home_.subscriptions params ()
     
+        Model.Kimball params model ->
+            pages.kimball.subscriptions params model
+    
         Model.Sheet params model ->
             pages.sheet.subscriptions params model
     
@@ -103,12 +117,14 @@ subscriptions model_ =
 
 pages :
     { home_ : Static Gen.Params.Home_.Params
+    , kimball : Bundle Gen.Params.Kimball.Params Pages.Kimball.Model Pages.Kimball.Msg
     , sheet : Bundle Gen.Params.Sheet.Params Pages.Sheet.Model Pages.Sheet.Msg
     , vegaLite : Bundle Gen.Params.VegaLite.Params Pages.VegaLite.Model Pages.VegaLite.Msg
     , notFound : Static Gen.Params.NotFound.Params
     }
 pages =
     { home_ = static Pages.Home_.view Model.Home_
+    , kimball = bundle Pages.Kimball.page Model.Kimball Msg.Kimball
     , sheet = bundle Pages.Sheet.page Model.Sheet Msg.Sheet
     , vegaLite = bundle Pages.VegaLite.page Model.VegaLite Msg.VegaLite
     , notFound = static Pages.NotFound.view Model.NotFound

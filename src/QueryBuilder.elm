@@ -23,7 +23,11 @@ type TimeClass
     | Discrete Granularity
 
 
-type KimballColumn
+type
+    KimballColumn
+    -- DEPRECATED: To preserve functionality pre-/kimball assignment page I'm keeping this around, but should not be
+    --             used
+    -- TODO: Move old functionality to new
     = Dimension ColumnRef
     | Measure Aggregation ColumnRef
     | Time TimeClass ColumnRef

@@ -24,7 +24,6 @@ import Html.Attributes as HA
 import Http exposing (Error(..))
 import ISO8601 as Iso
 import Json.Decode as JD
-import Json.Encode as JE
 import List.Extra as LE
 import Page
 import Palette
@@ -433,6 +432,7 @@ update msg model =
                     )
 
         FileUpload_UploadResponded result ->
+            -- TODO: Failure path + UI
             -- File has uploaded, clear the File from front-end model, re-fetch refs
             ( { model | file = Nothing }, Effect.fromCmd <| fetchDuckDbTableRefs GotDuckDbTableRefsResponse )
 

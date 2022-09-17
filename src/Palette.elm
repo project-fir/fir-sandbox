@@ -1,5 +1,6 @@
 module Palette exposing (..)
 
+import Color as CColor
 import Element exposing (rgb255)
 
 
@@ -58,3 +59,14 @@ green_keylime =
 
 orange_error_alert =
     rgb255 0xFC 0x8F 0x32
+
+
+toAvhColor : Element.Color -> CColor.Color
+toAvhColor color =
+    -- I typically work with Element.Color in UIs, but Svg gets along better with Avh's Color,
+    -- so to keep the palette defined in one place, transform between the two
+    let
+        rgba =
+            Element.toRgb color
+    in
+    CColor.rgba rgba.red rgba.green rgba.blue rgba.alpha

@@ -433,6 +433,7 @@ update msg model =
                     )
 
         FileUpload_UploadResponded result ->
+            -- TODO: Failure path + UI
             -- File has uploaded, clear the File from front-end model, re-fetch refs
             ( { model | file = Nothing }, Effect.fromCmd <| fetchDuckDbTableRefs GotDuckDbTableRefsResponse )
 

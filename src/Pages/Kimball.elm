@@ -398,6 +398,8 @@ update msg model =
                                     { layoutInfo
                                         | viewBoxWidth = layoutInfo.viewBoxWidth - dx
                                         , viewBoxHeight = layoutInfo.viewBoxHeight - dy
+                                        , viewBoxXMin = layoutInfo.viewBoxXMin + (0.5 * dx)
+                                        , viewBoxYMin = layoutInfo.viewBoxXMin + (0.5 * dy)
                                     }
                             in
                             ( { model | pageRenderStatus = Ready newLayoutInfo }, Effect.none )
@@ -932,11 +934,15 @@ viewTableRefs model =
             in
             column
                 [ width E.fill
-                , height (px 400)
+                , height (px 300)
                 , spacing 2
                 , alignTop
                 , Border.width 1
                 , Border.color Palette.darkishGrey
+                , clipX
+                , scrollbarX
+                , clipY
+                , scrollbarY
                 ]
                 [ text "DuckDB Refs:"
                 , refsSelector refsResponse.refs

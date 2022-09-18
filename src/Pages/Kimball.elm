@@ -261,7 +261,7 @@ update msg model =
 
                 sidePanelWidth : Int
                 sidePanelWidth =
-                    round viewPort.viewport.width - mainPanelWidth - 1
+                    min 300 (round viewPort.viewport.width - mainPanelWidth - 5)
 
                 canvasPanelWidth : Float
                 canvasPanelWidth =
@@ -494,7 +494,7 @@ view model =
                 E.none
 
             Ready layoutInfo ->
-                elements model layoutInfo
+                viewElements model layoutInfo
         ]
     }
 
@@ -684,8 +684,8 @@ viewCanvas model layoutInfo =
                 (List.map (\tbl -> renderHelp tbl) model.tables)
 
 
-viewViewBoxControls : Model -> Element Msg
-viewViewBoxControls model =
+viewViewBoxControls : Element Msg
+viewViewBoxControls =
     row
         [ width fill
         , height (px 40)
@@ -704,29 +704,34 @@ viewViewBoxControls model =
         ]
 
 
-elements : Model -> LayoutInfo -> Element Msg
-elements model layoutInfo =
+viewElements : Model -> LayoutInfo -> Element Msg
+viewElements model layoutInfo =
     row
         [ width fill
         , height fill
         , centerX
         , centerY
+        , Background.color Palette.lightGrey
         ]
         [ column
             [ height fill
             , width (px layoutInfo.mainPanelWidth)
-            , padding 5
+            , paddingXY 0 3
             , Background.color Palette.lightGrey
+            , centerX
             ]
             [ viewCanvas model layoutInfo
-            , viewViewBoxControls model
+            , viewViewBoxControls
             ]
         , column
             [ height fill
             , width (px layoutInfo.sidePanelWidth)
+            , Background.color Palette.white
             , Border.width 1
             , Border.color Palette.darkishGrey
-            , padding 5
+            , clipX
+            , scrollbarX
+            , alignRight
             ]
             [ viewTableRefs model
             , viewDebugPanel model
@@ -779,7 +784,7 @@ viewDebugPanel model =
                 Just viewPort ->
                     "(" ++ String.fromFloat viewPort.viewport.x ++ ", " ++ String.fromFloat viewPort.viewport.y ++ ", " ++ String.fromFloat viewPort.viewport.width ++ ", " ++ String.fromFloat viewPort.viewport.height ++ ")"
     in
-    column [ width fill, height fill ]
+    column [ width fill, height fill, Border.width 1, Border.color Palette.darkishGrey ]
         [ E.text <| "events: " ++ mouseEventStr
         , E.text <| "drag state: " ++ dragStateStr
         , E.text <| "veiwPort: " ++ viewPortStr
@@ -927,8 +932,11 @@ viewTableRefs model =
             in
             column
                 [ width E.fill
-                , height E.fill
+                , height (px 400)
                 , spacing 2
+                , alignTop
+                , Border.width 1
+                , Border.color Palette.darkishGrey
                 ]
                 [ text "DuckDB Refs:"
                 , refsSelector refsResponse.refs

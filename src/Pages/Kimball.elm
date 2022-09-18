@@ -1,5 +1,6 @@
 module Pages.Kimball exposing (Model, Msg, page)
 
+import Browser.Events as BE
 import Dict exposing (Dict)
 import DuckDb exposing (ColumnName, DuckDbColumn, DuckDbColumnDescription(..), DuckDbRef, DuckDbRef_(..), fetchDuckDbTableRefs, refEquals, refToString)
 import Effect exposing (Effect)
@@ -10,7 +11,9 @@ import Element.Events as Events
 import Element.Font as Font
 import Element.Input as Input
 import Gen.Params.Kimball exposing (Params)
+import Html.Events.Extra.Mouse as Mouse exposing (Event)
 import Http
+import Json.Decode as JD
 import Page
 import Palette
 import QueryBuilder exposing (Aggregation(..), ColumnRef, Granularity(..), TimeClass(..))
@@ -62,8 +65,8 @@ type alias TableRenderInfo =
 type alias SvgViewBoxDimensions =
     { width : Float
     , height : Float
-    , viewBoxXmin : Float
-    , viewBoxYmin : Float
+    , viewBoxXMin : Float
+    , viewBoxYMin : Float
     , viewBoxWidth : Float
     , viewBoxHeight : Float
     }
@@ -77,7 +80,15 @@ type alias Model =
     , tables : List Table
     , tableRenderInfo : Dict RefString TableRenderInfo
     , svgViewBox : SvgViewBoxDimensions
+    , dragState : DragState
+    , mouseEvent : Maybe Event
     }
+
+
+type DragState
+    = Idle
+    | DragInitiated DuckDb.DuckDbRef
+    | Dragging DuckDb.DuckDbRef (Maybe Event) Event TableRenderInfo
 
 
 demoFact : Table
@@ -142,7 +153,7 @@ refOfTable table =
             refDrillDown ref
 
 
-refStringOfTable : Table -> String
+refStringOfTable : Table -> RefString
 refStringOfTable table =
     case table of
         Fact ref _ ->
@@ -160,8 +171,8 @@ defaultViewBox : SvgViewBoxDimensions
 defaultViewBox =
     { width = 1200
     , height = 800
-    , viewBoxXmin = 0
-    , viewBoxYmin = 0
+    , viewBoxXMin = 0
+    , viewBoxYMin = 0
     , viewBoxWidth = 1200
     , viewBoxHeight = 800
     }
@@ -188,6 +199,8 @@ init =
                 ]
       , hoveredOnNodeTitle = Nothing
       , svgViewBox = defaultViewBox
+      , dragState = Idle
+      , mouseEvent = Nothing
       }
     , Effect.fromCmd <| fetchDuckDbTableRefs GotDuckDbTableRefsResponse
     )
@@ -215,6 +228,10 @@ type
     | UserMouseLeftNodeTitleBar
     | ClearNodeHoverState
     | SvgViewBoxTransform SvgViewBoxTransformation
+    | BeginNodeDrag DuckDb.DuckDbRef
+    | DraggedAt Event
+    | DragStoppedAt Event
+    | TerminateDrags
 
 
 type SvgViewBoxTransformation
@@ -226,6 +243,78 @@ type SvgViewBoxTransformation
 update : Msg -> Model -> ( Model, Effect Msg )
 update msg model =
     case msg of
+        TerminateDrags ->
+            ( { model | dragState = Idle }, Effect.none )
+
+        DraggedAt mouseEvent ->
+            let
+                ( newDragState, updatedTableInfo ) =
+                    case model.dragState of
+                        Idle ->
+                            ( Idle, Nothing )
+
+                        DragInitiated ref ->
+                            let
+                                anchoredInfo : Maybe TableRenderInfo
+                                anchoredInfo =
+                                    Dict.get (refToString ref) model.tableRenderInfo
+                            in
+                            case anchoredInfo of
+                                Nothing ->
+                                    ( Idle, Nothing )
+
+                                Just anchoredInfo_ ->
+                                    ( Dragging ref Nothing mouseEvent anchoredInfo_, Nothing )
+
+                        Dragging ref firstEvent oldEvent anchoredInfo ->
+                            case firstEvent of
+                                Nothing ->
+                                    ( Dragging ref (Just oldEvent) mouseEvent anchoredInfo, Nothing )
+
+                                Just firstEvent_ ->
+                                    let
+                                        dx : Float
+                                        dx =
+                                            Tuple.first mouseEvent.clientPos - Tuple.first firstEvent_.clientPos
+
+                                        dy : Float
+                                        dy =
+                                            Tuple.second mouseEvent.clientPos - Tuple.second firstEvent_.clientPos
+
+                                        updatedInfo : TableRenderInfo
+                                        updatedInfo =
+                                            { pos =
+                                                { x = anchoredInfo.pos.x + dx
+                                                , y = anchoredInfo.pos.y + dy
+                                                }
+                                            , ref = anchoredInfo.ref
+                                            }
+                                    in
+                                    ( Dragging ref (Just firstEvent_) mouseEvent anchoredInfo, Just updatedInfo )
+
+                newTableInfos : Dict RefString TableRenderInfo
+                newTableInfos =
+                    case updatedTableInfo of
+                        Nothing ->
+                            model.tableRenderInfo
+
+                        Just info ->
+                            Dict.insert (refToString info.ref) info model.tableRenderInfo
+            in
+            ( { model
+                | mouseEvent = Just mouseEvent
+                , dragState = newDragState
+                , tableRenderInfo = newTableInfos
+              }
+            , Effect.none
+            )
+
+        BeginNodeDrag ref ->
+            ( { model | dragState = DragInitiated ref }, Effect.none )
+
+        DragStoppedAt _ ->
+            ( { model | dragState = Idle }, Effect.none )
+
         SvgViewBoxTransform transformation ->
             case transformation of
                 Zoom dz ->
@@ -239,8 +328,8 @@ update msg model =
                         newViewBox =
                             { width = model.svgViewBox.width
                             , height = model.svgViewBox.height
-                            , viewBoxXmin = model.svgViewBox.viewBoxXmin + dx
-                            , viewBoxYmin = model.svgViewBox.viewBoxYmin + dy
+                            , viewBoxXMin = model.svgViewBox.viewBoxXMin + dx
+                            , viewBoxYMin = model.svgViewBox.viewBoxYMin + dy
                             , viewBoxWidth = model.svgViewBox.viewBoxWidth * (1.0 - dz)
                             , viewBoxHeight = model.svgViewBox.viewBoxHeight * (1.0 - dz)
                             }
@@ -252,8 +341,8 @@ update msg model =
                         newViewBox =
                             { width = model.svgViewBox.width
                             , height = model.svgViewBox.height
-                            , viewBoxXmin = model.svgViewBox.viewBoxXmin + dx
-                            , viewBoxYmin = model.svgViewBox.viewBoxYmin + dy
+                            , viewBoxXMin = model.svgViewBox.viewBoxXMin + dx
+                            , viewBoxYMin = model.svgViewBox.viewBoxYMin + dy
                             , viewBoxWidth = model.svgViewBox.viewBoxWidth
                             , viewBoxHeight = model.svgViewBox.viewBoxHeight
                             }
@@ -270,7 +359,11 @@ update msg model =
             ( { model | hoveredOnNodeTitle = Just ref }, Effect.none )
 
         UserMouseLeftNodeTitleBar ->
-            ( { model | hoveredOnNodeTitle = Nothing }, Effect.none )
+            ( { model
+                | hoveredOnNodeTitle = Nothing
+              }
+            , Effect.none
+            )
 
         FetchTableRefs ->
             ( { model | duckDbRefs = Loading }, Effect.fromCmd <| fetchDuckDbTableRefs GotDuckDbTableRefsResponse )
@@ -299,7 +392,21 @@ update msg model =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Sub.none
+    case model.dragState of
+        Idle ->
+            Sub.none
+
+        DragInitiated _ ->
+            Sub.batch
+                [ BE.onMouseMove (JD.map DraggedAt Mouse.eventDecoder)
+                , BE.onMouseUp (JD.map DragStoppedAt Mouse.eventDecoder)
+                ]
+
+        Dragging _ _ _ _ ->
+            Sub.batch
+                [ BE.onMouseMove (JD.map DraggedAt Mouse.eventDecoder)
+                , BE.onMouseUp (JD.map DragStoppedAt Mouse.eventDecoder)
+                ]
 
 
 
@@ -442,6 +549,7 @@ viewDataSourceNode model table pos =
                     , Background.color titleBarBackgroundColor
                     , Events.onMouseEnter (UserMouseEnteredNodeTitleBar (refOfTable table))
                     , Events.onMouseLeave UserMouseLeftNodeTitleBar
+                    , Events.onMouseDown (BeginNodeDrag (refOfTable table))
                     , paddingXY 0 5
                     ]
                    <|
@@ -488,6 +596,7 @@ viewCanvas model =
     el
         [ Border.width 1
         , Border.color Palette.darkishGrey
+        , Events.onMouseLeave TerminateDrags
         , centerY
         , centerX
         , Background.color Palette.white
@@ -497,7 +606,7 @@ viewCanvas model =
             S.svg
                 [ SA.width (ST.px model.svgViewBox.width)
                 , SA.height (ST.px model.svgViewBox.height)
-                , SA.viewBox model.svgViewBox.viewBoxXmin model.svgViewBox.viewBoxYmin model.svgViewBox.viewBoxWidth model.svgViewBox.viewBoxHeight
+                , SA.viewBox model.svgViewBox.viewBoxXMin model.svgViewBox.viewBoxYMin model.svgViewBox.viewBoxWidth model.svgViewBox.viewBoxHeight
                 ]
                 (List.map (\tbl -> renderHelp tbl) model.tables)
 
@@ -535,14 +644,58 @@ elements model =
             [ viewCanvas model
             , viewViewBoxControls model
             ]
-        , el
+        , column
             [ height fill
             , width <| fillPortion 2
             , Border.width 1
             , Border.color Palette.darkishGrey
             , padding 5
             ]
-            (viewTableRefs model)
+            [ viewTableRefs model
+            , viewDebugPanel model
+            ]
+        ]
+
+
+viewDebugPanel : Model -> Element Msg
+viewDebugPanel model =
+    let
+        dragStateStr : String
+        dragStateStr =
+            case model.dragState of
+                Idle ->
+                    "idle"
+
+                DragInitiated ref ->
+                    "drag initiated on " ++ refToString ref
+
+                Dragging ref first current anchorInfo ->
+                    let
+                        firstStr =
+                            case first of
+                                Nothing ->
+                                    "(,)"
+
+                                Just first_ ->
+                                    "(" ++ String.fromFloat (Tuple.first first_.clientPos) ++ ", " ++ String.fromFloat (Tuple.second first_.clientPos) ++ ")"
+
+                        currentStr =
+                            "(" ++ String.fromFloat (Tuple.first current.clientPos) ++ ", " ++ String.fromFloat (Tuple.second current.clientPos) ++ ")"
+                    in
+                    "dragging " ++ refToString ref ++ " " ++ firstStr ++ " " ++ currentStr
+
+        mouseEventStr : String
+        mouseEventStr =
+            case model.mouseEvent of
+                Nothing ->
+                    "No events"
+
+                Just event ->
+                    "(" ++ String.fromFloat (Tuple.first event.clientPos) ++ ", " ++ String.fromFloat (Tuple.second event.clientPos) ++ ")"
+    in
+    column [ width fill, height fill ]
+        [ E.text <| "events: " ++ mouseEventStr
+        , E.text <| "drag state: " ++ dragStateStr
         ]
 
 

@@ -59,6 +59,16 @@ type alias TableRenderInfo =
     }
 
 
+type alias SvgViewBoxDimensions =
+    { width : Float
+    , height : Float
+    , viewBoxXmin : Float
+    , viewBoxYmin : Float
+    , viewBoxWidth : Float
+    , viewBoxHeight : Float
+    }
+
+
 type alias Model =
     { duckDbRefs : WebData DuckDb.DuckDbRefsResponse
     , selectedTableRef : Maybe DuckDb.DuckDbRef
@@ -66,6 +76,7 @@ type alias Model =
     , hoveredOnNodeTitle : Maybe DuckDb.DuckDbRef
     , tables : List Table
     , tableRenderInfo : Dict RefString TableRenderInfo
+    , svgViewBox : SvgViewBoxDimensions
     }
 
 
@@ -145,6 +156,17 @@ refStringOfTable table =
 -- end region: ref utils
 
 
+defaultViewBox : SvgViewBoxDimensions
+defaultViewBox =
+    { width = 1200
+    , height = 800
+    , viewBoxXmin = 0
+    , viewBoxYmin = 0
+    , viewBoxWidth = 1200
+    , viewBoxHeight = 800
+    }
+
+
 init : ( Model, Effect Msg )
 init =
     ( { duckDbRefs = Loading -- Must also fetch table refs below
@@ -154,17 +176,18 @@ init =
       , tableRenderInfo =
             Dict.fromList
                 [ ( refStringOfTable demoFact
-                  , { pos = { x = 100, y = 250 }
+                  , { pos = { x = 0, y = 400 }
                     , ref = refOfTable demoFact
                     }
                   )
                 , ( refStringOfTable demoDim1
-                  , { pos = { x = 400, y = 250 }
+                  , { pos = { x = 950, y = 250 }
                     , ref = refOfTable demoDim1
                     }
                   )
                 ]
       , hoveredOnNodeTitle = Nothing
+      , svgViewBox = defaultViewBox
       }
     , Effect.fromCmd <| fetchDuckDbTableRefs GotDuckDbTableRefsResponse
     )
@@ -191,11 +214,55 @@ type
     | UserMouseEnteredNodeTitleBar DuckDb.DuckDbRef
     | UserMouseLeftNodeTitleBar
     | ClearNodeHoverState
+    | SvgViewBoxTransform SvgViewBoxTransformation
+
+
+type SvgViewBoxTransformation
+    = Zoom Float
+    | Translation Float Float
+    | Reset
 
 
 update : Msg -> Model -> ( Model, Effect Msg )
 update msg model =
     case msg of
+        SvgViewBoxTransform transformation ->
+            case transformation of
+                Zoom dz ->
+                    let
+                        dx =
+                            model.svgViewBox.width * (0.5 * dz)
+
+                        dy =
+                            model.svgViewBox.height * (0.5 * dz)
+
+                        newViewBox =
+                            { width = model.svgViewBox.width
+                            , height = model.svgViewBox.height
+                            , viewBoxXmin = model.svgViewBox.viewBoxXmin + dx
+                            , viewBoxYmin = model.svgViewBox.viewBoxYmin + dy
+                            , viewBoxWidth = model.svgViewBox.viewBoxWidth * (1.0 - dz)
+                            , viewBoxHeight = model.svgViewBox.viewBoxHeight * (1.0 - dz)
+                            }
+                    in
+                    ( { model | svgViewBox = newViewBox }, Effect.none )
+
+                Translation dx dy ->
+                    let
+                        newViewBox =
+                            { width = model.svgViewBox.width
+                            , height = model.svgViewBox.height
+                            , viewBoxXmin = model.svgViewBox.viewBoxXmin + dx
+                            , viewBoxYmin = model.svgViewBox.viewBoxYmin + dy
+                            , viewBoxWidth = model.svgViewBox.viewBoxWidth
+                            , viewBoxHeight = model.svgViewBox.viewBoxHeight
+                            }
+                    in
+                    ( { model | svgViewBox = newViewBox }, Effect.none )
+
+                Reset ->
+                    ( { model | svgViewBox = defaultViewBox }, Effect.none )
+
         ClearNodeHoverState ->
             ( { model | hoveredOnNodeTitle = Nothing }, Effect.none )
 
@@ -395,19 +462,17 @@ viewDataSourceNode model table pos =
         [ E.layoutWith { options = [ noStaticStyleSheet ] } [ Events.onMouseLeave ClearNodeHoverState ] element ]
 
 
-
---
-
-
 viewCanvas : Model -> Element Msg
 viewCanvas model =
     let
         renderHelp : Table -> Svg Msg
         renderHelp tbl =
             let
+                key : RefString
                 key =
                     refStringOfTable tbl
 
+                info : TableRenderInfo
                 info =
                     case Dict.get key model.tableRenderInfo of
                         Just info_ ->
@@ -430,10 +495,29 @@ viewCanvas model =
     <|
         E.html <|
             S.svg
-                [ SA.height (ST.px 800)
-                , SA.width (ST.px 1200)
+                [ SA.width (ST.px model.svgViewBox.width)
+                , SA.height (ST.px model.svgViewBox.height)
+                , SA.viewBox model.svgViewBox.viewBoxXmin model.svgViewBox.viewBoxYmin model.svgViewBox.viewBoxWidth model.svgViewBox.viewBoxHeight
                 ]
                 (List.map (\tbl -> renderHelp tbl) model.tables)
+
+
+viewViewBoxControls : Model -> Element Msg
+viewViewBoxControls model =
+    row
+        [ width fill
+        , height (px 100)
+        , Font.size 30
+        , spacing 4
+        ]
+        [ el [ centerX, Border.width 1, Border.color Palette.black, Events.onClick <| SvgViewBoxTransform (Zoom 0.1) ] <| E.text "+"
+        , el [ centerX, Border.width 1, Border.color Palette.black, Events.onClick <| SvgViewBoxTransform (Zoom -0.1) ] <| E.text "-"
+        , el [ centerX, Border.width 1, Border.color Palette.black, Events.onClick <| SvgViewBoxTransform Reset ] <| E.text "reset"
+        , el [ centerX, Border.width 1, Border.color Palette.black, Events.onClick <| SvgViewBoxTransform (Translation -20 0) ] <| E.text "ᐊ"
+        , el [ centerX, Border.width 1, Border.color Palette.black, Events.onClick <| SvgViewBoxTransform (Translation 20 0) ] <| E.text "ᐅ"
+        , el [ centerX, Border.width 1, Border.color Palette.black, Events.onClick <| SvgViewBoxTransform (Translation 0 -20) ] <| E.text "ᐃ"
+        , el [ centerX, Border.width 1, Border.color Palette.black, Events.onClick <| SvgViewBoxTransform (Translation 0 20) ] <| E.text "ᐁ"
+        ]
 
 
 elements : Model -> Element Msg
@@ -449,6 +533,7 @@ elements model =
             , Background.color Palette.lightGrey
             ]
             [ viewCanvas model
+            , viewViewBoxControls model
             ]
         , el
             [ height fill

@@ -1,5 +1,6 @@
 module Pages.Kimball exposing (Model, Msg, page)
 
+import Browser.Dom
 import Browser.Events as BE
 import Dict exposing (Dict)
 import DuckDb exposing (ColumnName, DuckDbColumn, DuckDbColumnDescription(..), DuckDbRef, DuckDbRef_(..), fetchDuckDbTableRefs, refEquals, refToString)
@@ -20,6 +21,7 @@ import QueryBuilder exposing (Aggregation(..), ColumnRef, Granularity(..), TimeC
 import RemoteData exposing (RemoteData(..), WebData)
 import Request
 import Shared
+import Task
 import TypedSvg as S
 import TypedSvg.Attributes as SA
 import TypedSvg.Core as SC exposing (Svg)
@@ -62,26 +64,17 @@ type alias TableRenderInfo =
     }
 
 
-type alias SvgViewBoxDimensions =
-    { width : Float
-    , height : Float
-    , viewBoxXMin : Float
-    , viewBoxYMin : Float
-    , viewBoxWidth : Float
-    , viewBoxHeight : Float
-    }
-
-
 type alias Model =
     { duckDbRefs : WebData DuckDb.DuckDbRefsResponse
     , selectedTableRef : Maybe DuckDb.DuckDbRef
     , hoveredOnTableRef : Maybe DuckDb.DuckDbRef
+    , pageRenderStatus : PageRenderStatus
     , hoveredOnNodeTitle : Maybe DuckDb.DuckDbRef
     , tables : List Table
     , tableRenderInfo : Dict RefString TableRenderInfo
-    , svgViewBox : SvgViewBoxDimensions
     , dragState : DragState
     , mouseEvent : Maybe Event
+    , viewPort : Maybe Browser.Dom.Viewport
     }
 
 
@@ -129,6 +122,11 @@ demoDim1 =
         ]
 
 
+type PageRenderStatus
+    = AwaitingDomInfo
+    | Ready LayoutInfo
+
+
 
 -- begin region: ref utils
 
@@ -167,17 +165,6 @@ refStringOfTable table =
 -- end region: ref utils
 
 
-defaultViewBox : SvgViewBoxDimensions
-defaultViewBox =
-    { width = 1200
-    , height = 800
-    , viewBoxXMin = 0
-    , viewBoxYMin = 0
-    , viewBoxWidth = 1200
-    , viewBoxHeight = 800
-    }
-
-
 init : ( Model, Effect Msg )
 init =
     ( { duckDbRefs = Loading -- Must also fetch table refs below
@@ -198,11 +185,16 @@ init =
                   )
                 ]
       , hoveredOnNodeTitle = Nothing
-      , svgViewBox = defaultViewBox
       , dragState = Idle
       , mouseEvent = Nothing
+      , pageRenderStatus = AwaitingDomInfo
+      , viewPort = Nothing
       }
-    , Effect.fromCmd <| fetchDuckDbTableRefs GotDuckDbTableRefsResponse
+    , Effect.fromCmd <|
+        Cmd.batch
+            [ fetchDuckDbTableRefs GotDuckDbTableRefsResponse
+            , Task.perform GotViewport Browser.Dom.getViewport
+            ]
     )
 
 
@@ -214,6 +206,19 @@ type DimType
 type Table
     = Fact DuckDbRef_ (List DuckDbColumnDescription)
     | Dim DuckDbRef_ (List DuckDbColumnDescription)
+
+
+type alias LayoutInfo =
+    { mainPanelWidth : Int
+    , mainPanelHeight : Int
+    , sidePanelWidth : Int
+    , canvasElementWidth : Float
+    , canvasElementHeight : Float
+    , viewBoxXMin : Float
+    , viewBoxYMin : Float
+    , viewBoxWidth : Float
+    , viewBoxHeight : Float
+    }
 
 
 type
@@ -232,17 +237,66 @@ type
     | DraggedAt Event
     | DragStoppedAt Event
     | TerminateDrags
+    | GotViewport Browser.Dom.Viewport
+    | GotResizeEvent Int Int
 
 
 type SvgViewBoxTransformation
     = Zoom Float
     | Translation Float Float
-    | Reset
 
 
 update : Msg -> Model -> ( Model, Effect Msg )
 update msg model =
     case msg of
+        GotViewport viewPort ->
+            let
+                mainPanelWidth : Int
+                mainPanelWidth =
+                    round <| (viewPort.viewport.width * 0.8)
+
+                mainPanelHeight : Int
+                mainPanelHeight =
+                    200
+
+                sidePanelWidth : Int
+                sidePanelWidth =
+                    round viewPort.viewport.width - mainPanelWidth - 1
+
+                canvasPanelWidth : Float
+                canvasPanelWidth =
+                    toFloat mainPanelWidth - 5
+
+                canvasPanelHeight : Float
+                canvasPanelHeight =
+                    viewPort.viewport.height - 85
+
+                layout : LayoutInfo
+                layout =
+                    { mainPanelWidth = mainPanelWidth
+                    , mainPanelHeight = mainPanelHeight
+                    , sidePanelWidth = sidePanelWidth
+                    , canvasElementWidth = canvasPanelWidth
+                    , canvasElementHeight = canvasPanelHeight
+                    , viewBoxXMin = 0
+                    , viewBoxYMin = 0
+                    , viewBoxWidth = canvasPanelWidth
+                    , viewBoxHeight = canvasPanelHeight
+                    }
+            in
+            ( { model
+                | viewPort = Just viewPort
+                , pageRenderStatus = Ready layout
+              }
+            , Effect.none
+            )
+
+        GotResizeEvent _ _ ->
+            -- rather than keeping two copies of this info in memory, chain a resize event
+            -- to the existing flow on first page render. This should avoid strange resizing
+            -- frames from being rendered.. at least I hope so!
+            ( { model | pageRenderStatus = AwaitingDomInfo }, Effect.fromCmd (Task.perform GotViewport Browser.Dom.getViewport) )
+
         TerminateDrags ->
             ( { model | dragState = Idle }, Effect.none )
 
@@ -316,42 +370,49 @@ update msg model =
             ( { model | dragState = Idle }, Effect.none )
 
         SvgViewBoxTransform transformation ->
-            case transformation of
-                Zoom dz ->
-                    let
-                        dx =
-                            model.svgViewBox.width * (0.5 * dz)
+            let
+                info : Maybe LayoutInfo
+                info =
+                    case model.pageRenderStatus of
+                        Ready info_ ->
+                            Just info_
 
-                        dy =
-                            model.svgViewBox.height * (0.5 * dz)
+                        AwaitingDomInfo ->
+                            Nothing
+            in
+            case info of
+                Nothing ->
+                    ( model, Effect.none )
 
-                        newViewBox =
-                            { width = model.svgViewBox.width
-                            , height = model.svgViewBox.height
-                            , viewBoxXMin = model.svgViewBox.viewBoxXMin + dx
-                            , viewBoxYMin = model.svgViewBox.viewBoxYMin + dy
-                            , viewBoxWidth = model.svgViewBox.viewBoxWidth * (1.0 - dz)
-                            , viewBoxHeight = model.svgViewBox.viewBoxHeight * (1.0 - dz)
-                            }
-                    in
-                    ( { model | svgViewBox = newViewBox }, Effect.none )
+                Just layoutInfo ->
+                    case transformation of
+                        Zoom dz ->
+                            let
+                                dx =
+                                    layoutInfo.viewBoxWidth * (0.5 * dz)
 
-                Translation dx dy ->
-                    let
-                        newViewBox =
-                            { width = model.svgViewBox.width
-                            , height = model.svgViewBox.height
-                            , viewBoxXMin = model.svgViewBox.viewBoxXMin + dx
-                            , viewBoxYMin = model.svgViewBox.viewBoxYMin + dy
-                            , viewBoxWidth = model.svgViewBox.viewBoxWidth
-                            , viewBoxHeight = model.svgViewBox.viewBoxHeight
-                            }
-                    in
-                    ( { model | svgViewBox = newViewBox }, Effect.none )
+                                dy =
+                                    layoutInfo.viewBoxHeight * (0.5 * dz)
 
-                Reset ->
-                    ( { model | svgViewBox = defaultViewBox }, Effect.none )
+                                newLayoutInfo =
+                                    { layoutInfo
+                                        | viewBoxWidth = layoutInfo.viewBoxWidth - dx
+                                        , viewBoxHeight = layoutInfo.viewBoxHeight - dy
+                                    }
+                            in
+                            ( { model | pageRenderStatus = Ready newLayoutInfo }, Effect.none )
 
+                        Translation dx dy ->
+                            let
+                                newLayoutInfo =
+                                    { layoutInfo
+                                        | viewBoxXMin = layoutInfo.viewBoxXMin + dx
+                                        , viewBoxYMin = layoutInfo.viewBoxYMin + dy
+                                    }
+                            in
+                            ( { model | pageRenderStatus = Ready newLayoutInfo }, Effect.none )
+
+        --( { model | svgViewBox = defaultViewBox }, Effect.none )
         ClearNodeHoverState ->
             ( { model | hoveredOnNodeTitle = Nothing }, Effect.none )
 
@@ -392,21 +453,28 @@ update msg model =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    case model.dragState of
-        Idle ->
-            Sub.none
+    let
+        dragSubs : List (Sub Msg)
+        dragSubs =
+            case model.dragState of
+                Idle ->
+                    []
 
-        DragInitiated _ ->
-            Sub.batch
-                [ BE.onMouseMove (JD.map DraggedAt Mouse.eventDecoder)
-                , BE.onMouseUp (JD.map DragStoppedAt Mouse.eventDecoder)
-                ]
+                DragInitiated _ ->
+                    [ BE.onMouseMove (JD.map DraggedAt Mouse.eventDecoder)
+                    , BE.onMouseUp (JD.map DragStoppedAt Mouse.eventDecoder)
+                    ]
 
-        Dragging _ _ _ _ ->
-            Sub.batch
-                [ BE.onMouseMove (JD.map DraggedAt Mouse.eventDecoder)
-                , BE.onMouseUp (JD.map DragStoppedAt Mouse.eventDecoder)
-                ]
+                Dragging _ _ _ _ ->
+                    [ BE.onMouseMove (JD.map DraggedAt Mouse.eventDecoder)
+                    , BE.onMouseUp (JD.map DragStoppedAt Mouse.eventDecoder)
+                    ]
+    in
+    -- Always listen to Browser events, but only listen to drag events if we believe we're dragging!
+    Sub.batch
+        ([ BE.onResize GotResizeEvent ]
+            ++ dragSubs
+        )
 
 
 
@@ -421,7 +489,12 @@ view model =
     in
     { title = title
     , body =
-        [ elements model
+        [ case model.pageRenderStatus of
+            AwaitingDomInfo ->
+                E.none
+
+            Ready layoutInfo ->
+                elements model layoutInfo
         ]
     }
 
@@ -570,8 +643,8 @@ viewDataSourceNode model table pos =
         [ E.layoutWith { options = [ noStaticStyleSheet ] } [ Events.onMouseLeave ClearNodeHoverState ] element ]
 
 
-viewCanvas : Model -> Element Msg
-viewCanvas model =
+viewCanvas : Model -> LayoutInfo -> Element Msg
+viewCanvas model layoutInfo =
     let
         renderHelp : Table -> Svg Msg
         renderHelp tbl =
@@ -604,9 +677,9 @@ viewCanvas model =
     <|
         E.html <|
             S.svg
-                [ SA.width (ST.px model.svgViewBox.width)
-                , SA.height (ST.px model.svgViewBox.height)
-                , SA.viewBox model.svgViewBox.viewBoxXMin model.svgViewBox.viewBoxYMin model.svgViewBox.viewBoxWidth model.svgViewBox.viewBoxHeight
+                [ SA.width (ST.px layoutInfo.canvasElementWidth)
+                , SA.height (ST.px layoutInfo.canvasElementHeight)
+                , SA.viewBox layoutInfo.viewBoxXMin layoutInfo.viewBoxYMin layoutInfo.viewBoxWidth layoutInfo.viewBoxHeight
                 ]
                 (List.map (\tbl -> renderHelp tbl) model.tables)
 
@@ -615,13 +688,15 @@ viewViewBoxControls : Model -> Element Msg
 viewViewBoxControls model =
     row
         [ width fill
-        , height (px 100)
+        , height (px 40)
         , Font.size 30
-        , spacing 4
+        , Border.width 1
+        , Background.color Palette.white
+        , Border.color Palette.darkishGrey
+        , spacing 6
         ]
         [ el [ centerX, Border.width 1, Border.color Palette.black, Events.onClick <| SvgViewBoxTransform (Zoom 0.1) ] <| E.text "+"
         , el [ centerX, Border.width 1, Border.color Palette.black, Events.onClick <| SvgViewBoxTransform (Zoom -0.1) ] <| E.text "-"
-        , el [ centerX, Border.width 1, Border.color Palette.black, Events.onClick <| SvgViewBoxTransform Reset ] <| E.text "reset"
         , el [ centerX, Border.width 1, Border.color Palette.black, Events.onClick <| SvgViewBoxTransform (Translation -20 0) ] <| E.text "ᐊ"
         , el [ centerX, Border.width 1, Border.color Palette.black, Events.onClick <| SvgViewBoxTransform (Translation 20 0) ] <| E.text "ᐅ"
         , el [ centerX, Border.width 1, Border.color Palette.black, Events.onClick <| SvgViewBoxTransform (Translation 0 -20) ] <| E.text "ᐃ"
@@ -629,24 +704,26 @@ viewViewBoxControls model =
         ]
 
 
-elements : Model -> Element Msg
-elements model =
+elements : Model -> LayoutInfo -> Element Msg
+elements model layoutInfo =
     row
         [ width fill
         , height fill
+        , centerX
+        , centerY
         ]
         [ column
             [ height fill
-            , width <| fillPortion 8
+            , width (px layoutInfo.mainPanelWidth)
             , padding 5
             , Background.color Palette.lightGrey
             ]
-            [ viewCanvas model
+            [ viewCanvas model layoutInfo
             , viewViewBoxControls model
             ]
         , column
             [ height fill
-            , width <| fillPortion 2
+            , width (px layoutInfo.sidePanelWidth)
             , Border.width 1
             , Border.color Palette.darkishGrey
             , padding 5
@@ -692,10 +769,20 @@ viewDebugPanel model =
 
                 Just event ->
                     "(" ++ String.fromFloat (Tuple.first event.clientPos) ++ ", " ++ String.fromFloat (Tuple.second event.clientPos) ++ ")"
+
+        viewPortStr : String
+        viewPortStr =
+            case model.viewPort of
+                Nothing ->
+                    "No viewport known"
+
+                Just viewPort ->
+                    "(" ++ String.fromFloat viewPort.viewport.x ++ ", " ++ String.fromFloat viewPort.viewport.y ++ ", " ++ String.fromFloat viewPort.viewport.width ++ ", " ++ String.fromFloat viewPort.viewport.height ++ ")"
     in
     column [ width fill, height fill ]
         [ E.text <| "events: " ++ mouseEventStr
         , E.text <| "drag state: " ++ dragStateStr
+        , E.text <| "veiwPort: " ++ viewPortStr
         ]
 
 

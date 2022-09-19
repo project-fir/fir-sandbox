@@ -1,8 +1,5 @@
 module Pages.Sheet exposing (Model, Msg, page)
 
---import File exposing (File)
---import File.Select as Select
-
 import Array as A
 import Array2D exposing (Array2D, ColIx, RowIx, colCount, fromListOfLists, getCol, rowCount, setValueAt)
 import Browser.Dom
@@ -413,7 +410,6 @@ update msg model =
             -- NB: We do not upload file yet, as user must fill out a small form, then click upload!
             ( { model | file = Just file }
             , Effect.none
-              --,
             )
 
         FileUpload_UserConfirmsUpload ->

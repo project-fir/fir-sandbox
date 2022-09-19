@@ -8,15 +8,18 @@ import Element as E exposing (..)
 import Element.Border as Border
 import Element.Font as Font
 import Gen.Model
+import Gen.Msg
 import Gen.Pages as Pages
 import Gen.Route as Route
 import Lamdera
+import Pages.Kimball exposing (Msg(..))
 import Palette
 import Request
 import Shared
 import Task
 import Types exposing (FrontendModel, FrontendMsg(..), ToFrontend(..))
 import Url exposing (Url)
+import Utils exposing (send)
 import View exposing (View)
 
 
@@ -136,10 +139,8 @@ update msg model =
 updateFromBackend : ToFrontend -> Model -> ( Model, Cmd FrontendMsg )
 updateFromBackend msg model =
     case msg of
-        --PageMsg pageMsg ->
-        --    update (Page pageMsg) model
-        NoOpToFrontend ->
-            ( model, Cmd.none )
+        DeliverDimensionalModelRefs refs ->
+            ( model, send <| Page (Gen.Msg.Kimball (GotDimensionalModelRefs refs)) )
 
 
 

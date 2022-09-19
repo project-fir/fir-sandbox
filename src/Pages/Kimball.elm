@@ -1,8 +1,10 @@
-module Pages.Kimball exposing (Model, Msg, page)
+module Pages.Kimball exposing (Model, Msg(..), page)
 
+import Bridge exposing (BackendData(..), ToBackend(..))
 import Browser.Dom
 import Browser.Events as BE
 import Dict exposing (Dict)
+import DimensionalModel exposing (DimensionalModelRef)
 import DuckDb exposing (ColumnName, DuckDbColumn, DuckDbColumnDescription(..), DuckDbRef, DuckDbRef_(..), fetchDuckDbTableRefs, refEquals, refToString)
 import Effect exposing (Effect)
 import Element as E exposing (..)
@@ -15,6 +17,7 @@ import Gen.Params.Kimball exposing (Params)
 import Html.Events.Extra.Mouse as Mouse exposing (Event)
 import Http
 import Json.Decode as JD
+import Lamdera exposing (sendToBackend)
 import Page
 import Palette
 import QueryBuilder exposing (Aggregation(..), ColumnRef, Granularity(..), TimeClass(..))
@@ -75,6 +78,8 @@ type alias Model =
     , dragState : DragState
     , mouseEvent : Maybe Event
     , viewPort : Maybe Browser.Dom.Viewport
+    , dimensionalModelRefs : BackendData (List DimensionalModelRef)
+    , proposedNewModelName : String
     }
 
 
@@ -188,7 +193,9 @@ init =
       , dragState = Idle
       , mouseEvent = Nothing
       , pageRenderStatus = AwaitingDomInfo
+      , dimensionalModelRefs = Fetching_
       , viewPort = Nothing
+      , proposedNewModelName = ""
       }
     , Effect.fromCmd <|
         Cmd.batch
@@ -221,10 +228,9 @@ type alias LayoutInfo =
     }
 
 
-type
-    Msg
-    --| FetchMetaDataForRef DuckDb.DuckDbRef
+type Msg
     = FetchTableRefs
+    | GotDimensionalModelRefs (List DimensionalModelRef)
     | GotDuckDbTableRefsResponse (Result Http.Error DuckDb.DuckDbRefsResponse)
     | UserSelectedTableRef DuckDb.DuckDbRef
     | UserMouseEnteredTableRef DuckDb.DuckDbRef
@@ -239,6 +245,8 @@ type
     | TerminateDrags
     | GotViewport Browser.Dom.Viewport
     | GotResizeEvent Int Int
+    | UpdatedNewDimModelName String
+    | UserCreatesNewDimensionalModel DimensionalModelRef
 
 
 type SvgViewBoxTransformation
@@ -249,6 +257,9 @@ type SvgViewBoxTransformation
 update : Msg -> Model -> ( Model, Effect Msg )
 update msg model =
     case msg of
+        GotDimensionalModelRefs refs ->
+            ( { model | dimensionalModelRefs = Success_ refs }, Effect.none )
+
         GotViewport viewPort ->
             let
                 mainPanelWidth : Int
@@ -288,7 +299,7 @@ update msg model =
                 | viewPort = Just viewPort
                 , pageRenderStatus = Ready layout
               }
-            , Effect.none
+            , Effect.fromCmd <| sendToBackend FetchDimensionalModelRefs
             )
 
         GotResizeEvent _ _ ->
@@ -388,12 +399,15 @@ update msg model =
                     case transformation of
                         Zoom dz ->
                             let
+                                dx : Float
                                 dx =
                                     layoutInfo.viewBoxWidth * (0.5 * dz)
 
+                                dy : Float
                                 dy =
                                     layoutInfo.viewBoxHeight * (0.5 * dz)
 
+                                newLayoutInfo : LayoutInfo
                                 newLayoutInfo =
                                     { layoutInfo
                                         | viewBoxWidth = layoutInfo.viewBoxWidth - dx
@@ -406,6 +420,7 @@ update msg model =
 
                         Translation dx dy ->
                             let
+                                newLayoutInfo : LayoutInfo
                                 newLayoutInfo =
                                     { layoutInfo
                                         | viewBoxXMin = layoutInfo.viewBoxXMin + dx
@@ -447,6 +462,12 @@ update msg model =
 
         UserMouseLeftTableRef ->
             ( { model | hoveredOnTableRef = Nothing }, Effect.none )
+
+        UpdatedNewDimModelName newStr ->
+            ( { model | proposedNewModelName = newStr }, Effect.none )
+
+        UserCreatesNewDimensionalModel ref ->
+            ( model, Effect.fromCmd <| sendToBackend (CreateNewDimensionalModel ref) )
 
 
 
@@ -735,7 +756,8 @@ viewElements model layoutInfo =
             , scrollbarX
             , alignRight
             ]
-            [ viewTableRefs model
+            [ viewDimensionalModelRefs model
+            , viewTableRefs model
             , viewDebugPanel model
             ]
         ]
@@ -793,50 +815,52 @@ viewDebugPanel model =
         ]
 
 
-mapToKimball : DuckDbColumnDescription -> KimballColumn
-mapToKimball r =
-    -- TODO: this function serves to be placeholder logic in lieu of persisting Kimball metadata
-    --       upon successful loading of a DuckDB Ref, columns will be mapped in a "best guess" manner
-    --       this longer term intent is for this to be a 'first pass', when persisted meta data does not exist
-    --       (which should be the case when a user is first using data!). Any user interventions should be
-    --       persisted server-side
+viewDimensionalModelRefs : Model -> Element Msg
+viewDimensionalModelRefs model =
     let
-        mapDataType : { r | dataType : String, name : ColumnName } -> KimballColumn
-        mapDataType colDesc =
-            case colDesc.dataType of
-                "VARCHAR" ->
-                    Dimension colDesc.name
+        refsElement : Element Msg
+        refsElement =
+            case model.dimensionalModelRefs of
+                NotAsked_ ->
+                    E.text "Awaiting input to fetch refs"
 
-                "DATE" ->
-                    Time (Discrete Day) colDesc.name
+                Fetching_ ->
+                    E.text "Fetching..."
 
-                "TIMESTAMP" ->
-                    Time Continuous colDesc.name
+                Success_ refs ->
+                    column [ width fill ]
+                        (List.map (\r -> E.text r) refs)
 
-                "BOOLEAN" ->
-                    Dimension colDesc.name
+                Error_ ->
+                    E.text "Error!"
 
-                "INTEGER" ->
-                    Measure Sum colDesc.name
-
-                "HUGEINT" ->
-                    Measure Sum colDesc.name
-
-                "BIGINT" ->
-                    Measure Sum colDesc.name
-
-                "DOUBLE" ->
-                    Measure Sum colDesc.name
-
-                _ ->
-                    Error colDesc.name
+        newModelForm : Element Msg
+        newModelForm =
+            row [ width fill ]
+                [ Input.text []
+                    { onChange = UpdatedNewDimModelName
+                    , text = model.proposedNewModelName
+                    , placeholder = Just <| Input.placeholder [] (E.text "4+ letters")
+                    , label = Input.labelLeft [] (E.text "Name:")
+                    }
+                , Input.button [ alignRight ]
+                    { label =
+                        el
+                            [ Border.width 1
+                            , Border.rounded 2
+                            , Border.color Palette.black
+                            , Font.size 20
+                            ]
+                            (E.text " + ")
+                    , onPress = Just <| UserCreatesNewDimensionalModel model.proposedNewModelName
+                    }
+                ]
     in
-    case r of
-        Persisted_ colDesc ->
-            mapDataType colDesc
-
-        Computed_ colDesc ->
-            mapDataType colDesc
+    column [ width fill ]
+        [ E.text "Dimensional models:"
+        , refsElement
+        , newModelForm
+        ]
 
 
 viewTableRefs : Model -> Element Msg
@@ -949,7 +973,21 @@ viewTableRefs model =
                 ]
 
         Failure err ->
-            text "Error"
+            case err of
+                Http.BadUrl string ->
+                    text <| "Bad URL: " ++ string
+
+                Http.Timeout ->
+                    text <| "Network timeout!"
+
+                Http.NetworkError ->
+                    text <| "Network error!"
+
+                Http.BadStatus int ->
+                    text <| "Bad statu: " ++ String.fromInt int
+
+                Http.BadBody string ->
+                    text <| "Error - bad body: " ++ string
 
 
 

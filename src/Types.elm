@@ -55,6 +55,8 @@ type
 
 type ToFrontend
     = DeliverDimensionalModelRefs (List DimensionalModelRef)
+    | DeliverDimensionalModel DimensionalModel
+    | Noop_Error
 
 
 type alias ToBackend =

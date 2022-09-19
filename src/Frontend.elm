@@ -142,6 +142,12 @@ updateFromBackend msg model =
         DeliverDimensionalModelRefs refs ->
             ( model, send <| Page (Gen.Msg.Kimball (GotDimensionalModelRefs refs)) )
 
+        DeliverDimensionalModel dimModel ->
+            ( model, send <| Page (Gen.Msg.Kimball (GotDimensionalModel dimModel)) )
+
+        Noop_Error ->
+            ( model, Cmd.none )
+
 
 
 -- VIEW

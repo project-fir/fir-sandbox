@@ -2,6 +2,7 @@ module DimensionalModel exposing (DimensionalModel, DimensionalModelRef, Positio
 
 import Dict exposing (Dict)
 import DuckDb exposing (DuckDbRef, DuckDbRefString)
+import Graph exposing (Graph)
 
 
 type alias PositionPx =
@@ -20,7 +21,13 @@ type alias DimensionalModelRef =
     String
 
 
+type alias Edge =
+    String
+
+
 type alias DimensionalModel =
-    { selectedTables : List DuckDbRef
+    { selectedDbRefs : List DuckDbRef
     , renderInfos : Dict DuckDbRefString TableRenderInfo
+    , graph : Graph DuckDbRef Edge
+    , ref : DimensionalModelRef
     }

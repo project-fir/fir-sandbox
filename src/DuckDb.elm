@@ -1,4 +1,4 @@
-module DuckDb exposing (ColumnName, ComputedDuckDbColumn, ComputedDuckDbColumnDescription, DuckDbColumn(..), DuckDbColumnDescription(..), DuckDbMetaResponse, DuckDbQueryResponse, DuckDbRef, DuckDbRef_(..), DuckDbRefsResponse, PersistedDuckDbColumn, PersistedDuckDbColumnDescription, Ref, SchemaName, TableName, Val(..), fetchDuckDbTableRefs, queryDuckDb, queryDuckDbMeta, refEquals, refToString, uploadFile)
+module DuckDb exposing (ColumnName, ComputedDuckDbColumn, ComputedDuckDbColumnDescription, DuckDbColumn(..), DuckDbColumnDescription(..), DuckDbMetaResponse, DuckDbQueryResponse, DuckDbRef, DuckDbRefString, DuckDbRef_(..), DuckDbRefsResponse, PersistedDuckDbColumn, PersistedDuckDbColumnDescription, Ref, SchemaName, TableName, Val(..), fetchDuckDbTableRefs, queryDuckDb, queryDuckDbMeta, refEquals, refToString, uploadFile)
 
 import Config exposing (apiHost)
 import File exposing (File)
@@ -32,7 +32,7 @@ refEquals lhs rhs =
     (lhs.schemaName == rhs.schemaName) && (lhs.tableName == rhs.tableName)
 
 
-refToString : DuckDbRef -> String
+refToString : DuckDbRef -> DuckDbRefString
 refToString ref =
     ref.schemaName ++ "." ++ ref.tableName
 
@@ -42,6 +42,10 @@ type
     -- While DuckDB supports schema-less tables, I don't =)
     = View DuckDbRef
     | Table DuckDbRef
+
+
+type alias DuckDbRefString =
+    String
 
 
 type alias SchemaName =

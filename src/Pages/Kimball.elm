@@ -4,7 +4,7 @@ import Bridge exposing (BackendData(..), ToBackend(..))
 import Browser.Dom
 import Browser.Events as BE
 import Dict exposing (Dict)
-import DimensionalModel exposing (DimensionalModelRef)
+import DimensionalModel exposing (DimensionalModelRef, PositionPx, TableRenderInfo)
 import DuckDb exposing (ColumnName, DuckDbColumn, DuckDbColumnDescription(..), DuckDbRef, DuckDbRef_(..), fetchDuckDbTableRefs, refEquals, refToString)
 import Effect exposing (Effect)
 import Element as E exposing (..)
@@ -59,12 +59,6 @@ type
 
 type alias RefString =
     String
-
-
-type alias TableRenderInfo =
-    { pos : PositionPx
-    , ref : DuckDb.DuckDbRef
-    }
 
 
 type alias Model =
@@ -364,7 +358,9 @@ update msg model =
                             model.tableRenderInfo
 
                         Just info ->
-                            Dict.insert (refToString info.ref) info model.tableRenderInfo
+                            model.tableRenderInfo
+
+                --Dict.insert (refToString info.ref) info model.tableRenderInfo
             in
             ( { model
                 | mouseEvent = Just mouseEvent
@@ -519,12 +515,6 @@ view model =
             Ready layoutInfo ->
                 viewElements model layoutInfo
         ]
-    }
-
-
-type alias PositionPx =
-    { x : Float
-    , y : Float
     }
 
 

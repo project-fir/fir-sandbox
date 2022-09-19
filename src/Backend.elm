@@ -3,9 +3,7 @@ module Backend exposing (..)
 import Bridge exposing (ToBackend(..))
 import Dict exposing (Dict)
 import DimensionalModel exposing (DimensionalModel, DimensionalModelRef)
-import Gen.Msg
 import Lamdera exposing (ClientId, SessionId, sendToFrontend)
-import Pages.Kimball
 import Types exposing (BackendModel, BackendMsg(..), FrontendMsg(..), Session, ToFrontend(..))
 
 
@@ -61,9 +59,13 @@ updateFromFrontend sessionId clientId msg model =
                 False ->
                     -- We don't, update collection with new ref, send full key list back to client
                     let
-                        newDimModels : Dict DimensionalModelRef String
+                        newDimModels : Dict DimensionalModelRef DimensionalModel
                         newDimModels =
-                            Dict.insert ref "" model.dimensionalModels
+                            Dict.insert ref
+                                { selectedTables = []
+                                , renderInfos = Dict.empty
+                                }
+                                model.dimensionalModels
 
                         newRefs : List DimensionalModelRef
                         newRefs =

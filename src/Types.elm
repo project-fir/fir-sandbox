@@ -4,6 +4,7 @@ import Bridge
 import Browser
 import Browser.Navigation exposing (Key)
 import Dict exposing (Dict)
+import DimensionalModel exposing (DimensionalModel, DimensionalModelRef)
 import Gen.Pages as Pages
 import Lamdera exposing (ClientId, SessionId)
 import Shared
@@ -42,6 +43,7 @@ type FrontendMsg
 
 type alias BackendModel =
     { sessions : Dict SessionId Session
+    , dimensionalModels : Dict DimensionalModelRef DimensionalModel
     }
 
 
@@ -51,14 +53,8 @@ type
     = NoopBackend
 
 
-type
-    ToFrontend
-    -- TODO: Replace me, Do I need Bridge.elm?
-    = NoOpToFrontend
-
-
-
---| PageMsg Pages.Msg
+type ToFrontend
+    = DeliverDimensionalModelRefs (List DimensionalModelRef)
 
 
 type alias ToBackend =

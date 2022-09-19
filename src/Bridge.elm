@@ -1,11 +1,19 @@
 module Bridge exposing (..)
 
-import Lamdera
-
-
-sendToBackend =
-    Lamdera.sendToBackend
+import DimensionalModel exposing (DimensionalModelRef)
 
 
 type ToBackend
-    = NoopToBackend
+    = FetchDimensionalModelRefs
+    | CreateNewDimensionalModel DimensionalModelRef
+
+
+
+-- NB: Naming conflicts with WebData, but this is for Lamdera data
+
+
+type BackendData data
+    = NotAsked_
+    | Fetching_
+    | Success_ data
+    | Error_

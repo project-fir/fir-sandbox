@@ -270,7 +270,7 @@ update msg model =
                         Just dimModel ->
                             case updatedTableInfo of
                                 Nothing ->
-                                    Dict.empty
+                                    dimModel.tableInfos
 
                                 Just updatedInfo_ ->
                                     case Dict.get (refToString updatedInfo_.ref) dimModel.tableInfos of
@@ -278,7 +278,7 @@ update msg model =
                                             Dict.insert (refToString renderInfo.ref) ( updatedInfo_, assignment ) dimModel.tableInfos
 
                                         Nothing ->
-                                            Dict.empty
+                                            dimModel.tableInfos
 
                 newDimModel : Maybe DimensionalModel
                 newDimModel =
@@ -301,7 +301,17 @@ update msg model =
             ( { model | dragState = DragInitiated ref }, Effect.none )
 
         DragStoppedAt _ ->
-            ( { model | dragState = Idle }, Effect.none )
+            let
+                cmd : Cmd msg
+                cmd =
+                    case model.selectedDimensionalModel of
+                        Just dimModel ->
+                            sendToBackend <| UpdateDimensionalModel dimModel
+
+                        Nothing ->
+                            Cmd.none
+            in
+            ( { model | dragState = Idle }, Effect.fromCmd cmd )
 
         SvgViewBoxTransform transformation ->
             let
@@ -546,24 +556,8 @@ viewDataSourceNode model renderInfo kimballAssignment =
 
         title : String
         title =
-            "TODO: TITLE!"
+            refToString table_
 
-        --case List.head table_ of
-        --    Nothing ->
-        --        "No Tables!"
-        --
-        --    Just col ->
-        --        case col of
-        --            Persisted_ col_ ->
-        --                case col_.parentRef of
-        --                    DuckDbTable tRef ->
-        --                        refToString tRef
-        --
-        --                    DuckDb.DuckDbView vRef ->
-        --                        refToString vRef
-        --
-        --            Computed_ col_ ->
-        --                col_.name
         viewColumn : DuckDbColumnDescription -> Element Msg
         viewColumn col =
             let

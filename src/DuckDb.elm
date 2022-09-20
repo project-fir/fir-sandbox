@@ -40,8 +40,8 @@ refToString ref =
 type
     DuckDbRef_
     -- While DuckDB supports schema-less tables, I don't =)
-    = View DuckDbRef
-    | Table DuckDbRef
+    = DuckDbView DuckDbRef
+    | DuckDbTable DuckDbRef
 
 
 type alias DuckDbRefString =
@@ -182,56 +182,56 @@ queryDuckDb query allowFallback refs onResponse =
                         "VARCHAR" ->
                             JD.map4 PersistedDuckDbColumn
                                 (JD.field "name" JD.string)
-                                (JD.field "owning_ref" (JD.map Table parentRefDecoder))
+                                (JD.field "owning_ref" (JD.map DuckDbTable parentRefDecoder))
                                 (JD.field "type" JD.string)
                                 (JD.field "values" (JD.list (JD.maybe (JD.map Varchar_ JD.string))))
 
                         "INTEGER" ->
                             JD.map4 PersistedDuckDbColumn
                                 (JD.field "name" JD.string)
-                                (JD.field "owning_ref" (JD.map Table parentRefDecoder))
+                                (JD.field "owning_ref" (JD.map DuckDbTable parentRefDecoder))
                                 (JD.field "type" JD.string)
                                 (JD.field "values" (JD.list (JD.maybe (JD.map Int_ JD.int))))
 
                         "BIGINT" ->
                             JD.map4 PersistedDuckDbColumn
                                 (JD.field "name" JD.string)
-                                (JD.field "owning_ref" (JD.map Table parentRefDecoder))
+                                (JD.field "owning_ref" (JD.map DuckDbTable parentRefDecoder))
                                 (JD.field "type" JD.string)
                                 (JD.field "values" (JD.list (JD.maybe (JD.map Int_ JD.int))))
 
                         "HUGEINT" ->
                             JD.map4 PersistedDuckDbColumn
                                 (JD.field "name" JD.string)
-                                (JD.field "owning_ref" (JD.map Table parentRefDecoder))
+                                (JD.field "owning_ref" (JD.map DuckDbTable parentRefDecoder))
                                 (JD.field "type" JD.string)
                                 (JD.field "values" (JD.list (JD.maybe (JD.map Int_ JD.int))))
 
                         "BOOLEAN" ->
                             JD.map4 PersistedDuckDbColumn
                                 (JD.field "name" JD.string)
-                                (JD.field "owning_ref" (JD.map Table parentRefDecoder))
+                                (JD.field "owning_ref" (JD.map DuckDbTable parentRefDecoder))
                                 (JD.field "type" JD.string)
                                 (JD.field "values" (JD.list (JD.maybe (JD.map Bool_ JD.bool))))
 
                         "DOUBLE" ->
                             JD.map4 PersistedDuckDbColumn
                                 (JD.field "name" JD.string)
-                                (JD.field "owning_ref" (JD.map Table parentRefDecoder))
+                                (JD.field "owning_ref" (JD.map DuckDbTable parentRefDecoder))
                                 (JD.field "type" JD.string)
                                 (JD.field "values" (JD.list (JD.maybe (JD.map Float_ JD.float))))
 
                         "DATE" ->
                             JD.map4 PersistedDuckDbColumn
                                 (JD.field "name" JD.string)
-                                (JD.field "owning_ref" (JD.map Table parentRefDecoder))
+                                (JD.field "owning_ref" (JD.map DuckDbTable parentRefDecoder))
                                 (JD.field "type" JD.string)
                                 (JD.field "values" (JD.list (JD.maybe (JD.map Varchar_ JD.string))))
 
                         "TIMESTAMP" ->
                             JD.map4 PersistedDuckDbColumn
                                 (JD.field "name" JD.string)
-                                (JD.field "owning_ref" (JD.map Table parentRefDecoder))
+                                (JD.field "owning_ref" (JD.map DuckDbTable parentRefDecoder))
                                 (JD.field "type" JD.string)
                                 (JD.field "values" (JD.list (JD.maybe (JD.map Time_ timeDecoder))))
 
@@ -240,7 +240,7 @@ queryDuckDb query allowFallback refs onResponse =
                             -- Should this fail loudly?
                             JD.map4 PersistedDuckDbColumn
                                 (JD.field "name" JD.string)
-                                (JD.field "owning_ref" (JD.map Table parentRefDecoder))
+                                (JD.field "owning_ref" (JD.map DuckDbTable parentRefDecoder))
                                 (JD.field "type" JD.string)
                                 (JD.list (JD.maybe (JD.succeed Unknown)))
             in
@@ -272,7 +272,7 @@ queryDuckDbMeta query allowFallback refs onResponse =
                 columnDescriptionDecoder =
                     JD.map3 PersistedDuckDbColumnDescription
                         (JD.field "name" JD.string)
-                        (JD.field "owning_ref" (JD.map Table parentRefDecoder))
+                        (JD.field "owning_ref" (JD.map DuckDbTable parentRefDecoder))
                         (JD.field "type" JD.string)
             in
             JD.map DuckDbMetaResponse

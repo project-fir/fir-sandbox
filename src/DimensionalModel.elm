@@ -1,7 +1,7 @@
-module DimensionalModel exposing (DimensionalModel, DimensionalModelRef, PositionPx, TableRenderInfo)
+module DimensionalModel exposing (DimensionalModel, DimensionalModelRef, KimballAssignment(..), PositionPx, TableRenderInfo)
 
 import Dict exposing (Dict)
-import DuckDb exposing (DuckDbRef, DuckDbRefString)
+import DuckDb exposing (DuckDbColumnDescription, DuckDbRef, DuckDbRefString, DuckDbRef_)
 import Graph exposing (Graph)
 
 
@@ -17,6 +17,12 @@ type alias TableRenderInfo =
     }
 
 
+type KimballAssignment ref columns
+    = Unassigned ref columns
+    | Fact ref columns
+    | Dimension ref columns
+
+
 type alias DimensionalModelRef =
     String
 
@@ -27,7 +33,7 @@ type alias Edge =
 
 type alias DimensionalModel =
     { selectedDbRefs : List DuckDbRef
-    , renderInfos : Dict DuckDbRefString TableRenderInfo
+    , tableInfos : Dict DuckDbRefString ( TableRenderInfo, KimballAssignment DuckDbRef_ (List DuckDbColumnDescription) )
     , graph : Graph DuckDbRef Edge
     , ref : DimensionalModelRef
     }

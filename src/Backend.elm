@@ -64,7 +64,7 @@ updateFromFrontend sessionId clientId msg model =
                         newDimModels =
                             Dict.insert ref
                                 { selectedDbRefs = []
-                                , renderInfos = Dict.empty
+                                , tableInfos = Dict.empty
                                 , graph = Graph.empty
                                 , ref = ref
                                 }

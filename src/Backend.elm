@@ -3,9 +3,8 @@ module Backend exposing (..)
 import Bridge exposing (ToBackend(..))
 import Dict exposing (Dict)
 import DimensionalModel exposing (DimensionalModel, DimensionalModelRef)
-import Gen.Msg
-import Lamdera exposing (ClientId, SessionId, sendToFrontend)
-import Pages.Kimball
+import Graph
+import Lamdera exposing (ClientId, SessionId, broadcast, sendToFrontend)
 import Types exposing (BackendModel, BackendMsg(..), FrontendMsg(..), Session, ToFrontend(..))
 
 
@@ -61,12 +60,43 @@ updateFromFrontend sessionId clientId msg model =
                 False ->
                     -- We don't, update collection with new ref, send full key list back to client
                     let
-                        newDimModels : Dict DimensionalModelRef String
+                        newDimModels : Dict DimensionalModelRef DimensionalModel
                         newDimModels =
-                            Dict.insert ref "" model.dimensionalModels
+                            Dict.insert ref
+                                { selectedDbRefs = []
+                                , tableInfos = Dict.empty
+                                , graph = Graph.empty
+                                , ref = ref
+                                }
+                                model.dimensionalModels
 
                         newRefs : List DimensionalModelRef
                         newRefs =
                             Dict.keys newDimModels
                     in
-                    ( { model | dimensionalModels = newDimModels }, sendToFrontend clientId (DeliverDimensionalModelRefs newRefs) )
+                    ( { model | dimensionalModels = newDimModels }, broadcast (DeliverDimensionalModelRefs newRefs) )
+
+        FetchDimensionalModel ref ->
+            case Dict.get ref model.dimensionalModels of
+                -- We do, don't overwrite data!
+                Just dimModel ->
+                    ( model, sendToFrontend clientId (DeliverDimensionalModel dimModel) )
+
+                Nothing ->
+                    -- TODO: Once I have a few more cases like this I'd like to establish a pattern for Lamdera errors
+                    ( model, Cmd.none )
+
+        UpdateDimensionalModel newDimModel ->
+            case Dict.member newDimModel.ref model.dimensionalModels of
+                True ->
+                    let
+                        updatedDimModels =
+                            Dict.insert newDimModel.ref newDimModel model.dimensionalModels
+                    in
+                    -- TODO: user-scoped broadcasting, needs auth
+                    ( { model | dimensionalModels = updatedDimModels }, sendToFrontend clientId (DeliverDimensionalModel newDimModel) )
+
+                False ->
+                    -- TODO: Once I have a few more cases like this I'd like to establish a pattern for Lamdera
+                    --      error handling, but this NoOp is safe for now
+                    ( model, sendToFrontend clientId Noop_Error )

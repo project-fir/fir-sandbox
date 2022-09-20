@@ -1,11 +1,13 @@
 module Bridge exposing (..)
 
-import DimensionalModel exposing (DimensionalModelRef)
+import DimensionalModel exposing (DimensionalModel, DimensionalModelRef)
 
 
 type ToBackend
     = FetchDimensionalModelRefs
     | CreateNewDimensionalModel DimensionalModelRef
+    | FetchDimensionalModel DimensionalModelRef
+    | UpdateDimensionalModel DimensionalModel
 
 
 

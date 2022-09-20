@@ -19,6 +19,7 @@
             "elm/time": "1.0.0",
             "elm/url": "1.0.0",
             "elm-community/graph": "6.0.0",
+            "elm-community/intdict": "3.0.0",
             "elm-community/list-extra": "8.6.0",
             "elm-community/typed-svg": "7.0.0",
             "jweir/elm-iso8601": "7.0.1",
@@ -32,8 +33,7 @@
         "indirect": {
             "avh4/elm-fifo": "1.0.4",
             "elm/bytes": "1.0.8",
-            "elm/virtual-dom": "1.0.3",
-            "elm-community/intdict": "3.0.0"
+            "elm/virtual-dom": "1.0.3"
         }
     },
     "test-dependencies": {

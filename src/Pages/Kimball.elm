@@ -396,9 +396,40 @@ update msg model =
                                         _ ->
                                             List.filter (\ref_ -> ref_ /= ref) dimModel.selectedDbRefs
 
+                                x : Float
+                                x =
+                                    100 * toFloat (Dict.size dimModel.tableInfos)
+
+                                y : Float
+                                y =
+                                    100 * toFloat (Dict.size dimModel.tableInfos)
+
+                                newTableInfos : Dict DuckDbRefString ( TableRenderInfo, KimballAssignment DuckDbRef_ (List DuckDbColumnDescription) )
+                                newTableInfos =
+                                    case Dict.get (refToString ref) dimModel.tableInfos of
+                                        Just _ ->
+                                            dimModel.tableInfos
+
+                                        Nothing ->
+                                            let
+                                                info : TableRenderInfo
+                                                info =
+                                                    { ref = ref
+                                                    , pos = { x = x, y = y }
+                                                    }
+
+                                                kimballAssignment : KimballAssignment DuckDbRef_ (List DuckDbColumnDescription)
+                                                kimballAssignment =
+                                                    Unassigned (DuckDbTable ref) []
+                                            in
+                                            Dict.insert (refToString ref) ( info, kimballAssignment ) dimModel.tableInfos
+
                                 newDimModel_ : DimensionalModel
                                 newDimModel_ =
-                                    { dimModel | selectedDbRefs = newSelection }
+                                    { dimModel
+                                        | selectedDbRefs = newSelection
+                                        , tableInfos = newTableInfos
+                                    }
                             in
                             ( Just newDimModel_, sendToBackend (UpdateDimensionalModel newDimModel_) )
             in

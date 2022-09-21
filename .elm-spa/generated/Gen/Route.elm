@@ -4,6 +4,7 @@ module Gen.Route exposing
     , toHref
     )
 
+import Gen.Params.Admin
 import Gen.Params.Home_
 import Gen.Params.Kimball
 import Gen.Params.Sheet
@@ -14,7 +15,8 @@ import Url.Parser as Parser exposing ((</>), Parser)
 
 
 type Route
-    = Home_
+    = Admin
+    | Home_
     | Kimball
     | Sheet
     | VegaLite
@@ -29,6 +31,7 @@ fromUrl =
 routes : List (Parser (Route -> a) a)
 routes =
     [ Parser.map Home_ Gen.Params.Home_.parser
+    , Parser.map Admin Gen.Params.Admin.parser
     , Parser.map Kimball Gen.Params.Kimball.parser
     , Parser.map Sheet Gen.Params.Sheet.parser
     , Parser.map VegaLite Gen.Params.VegaLite.parser
@@ -44,6 +47,9 @@ toHref route =
             "/" ++ String.join "/" segments
     in
     case route of
+        Admin ->
+            joinAsHref [ "admin" ]
+    
         Home_ ->
             joinAsHref []
     

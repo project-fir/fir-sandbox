@@ -1,4 +1,4 @@
-module DuckDb exposing (ColumnName, ComputedDuckDbColumn, ComputedDuckDbColumnDescription, DuckDbColumn(..), DuckDbColumnDescription(..), DuckDbMetaResponse, DuckDbQueryResponse, DuckDbRef, DuckDbRefString, DuckDbRef_(..), DuckDbRefsResponse, PersistedDuckDbColumn, PersistedDuckDbColumnDescription, Ref, SchemaName, TableName, Val(..), fetchDuckDbTableRefs, queryDuckDb, queryDuckDbMeta, refEquals, refToString, uploadFile)
+module DuckDb exposing (ColumnName, ComputedDuckDbColumn, ComputedDuckDbColumnDescription, DuckDbColumn(..), DuckDbColumnDescription(..), DuckDbMetaResponse, DuckDbQueryResponse, DuckDbRef, DuckDbRefString, DuckDbRef_(..), DuckDbRefsResponse, PersistedDuckDbColumn, PersistedDuckDbColumnDescription, PingResponse, Ref, SchemaName, TableName, Val(..), fetchDuckDbTableRefs, pingServer, queryDuckDb, queryDuckDbMeta, refEquals, refToString, uploadFile)
 
 import Config exposing (apiHost)
 import File exposing (File)
@@ -122,6 +122,11 @@ type
 -- begin region: fir-api DuckDb response types
 
 
+type alias PingResponse =
+    { message : String
+    }
+
+
 type alias DuckDbQueryResponse =
     { columns : List DuckDbColumn
     }
@@ -143,6 +148,20 @@ type alias DuckDbRefsResponse =
 --
 -- TODO: The two DuckDB query decoders needs to support the variants of DuckDbRef, like View
 --       currently I've hardcoded Table
+
+
+pingServer : (Result Error PingResponse -> msg) -> Cmd msg
+pingServer onResponse =
+    let
+        pingResponseDecoder : JD.Decoder PingResponse
+        pingResponseDecoder =
+            JD.map PingResponse
+                (JD.field "message" JD.string)
+    in
+    Http.get
+        { url = apiHost ++ "/ping"
+        , expect = Http.expectJson onResponse pingResponseDecoder
+        }
 
 
 queryDuckDb : String -> Bool -> List DuckDbRef -> (Result Error DuckDbQueryResponse -> msg) -> Cmd msg

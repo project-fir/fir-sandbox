@@ -12,6 +12,7 @@ import Gen.Msg
 import Gen.Pages as Pages
 import Gen.Route as Route
 import Lamdera
+import Pages.Admin exposing (Msg(..))
 import Pages.Kimball exposing (Msg(..))
 import Palette
 import Request
@@ -147,6 +148,12 @@ updateFromBackend msg model =
 
         Noop_Error ->
             ( model, Cmd.none )
+
+        Admin_DeliverAllBackendData backendModel ->
+            ( model, send <| Page (Gen.Msg.Admin (GotBackendData backendModel)) )
+
+        Admin_DeliverServerStatus statusString ->
+            ( model, send <| Page (Gen.Msg.Admin (GotProxiedServerPingStatus statusString)) )
 
 
 

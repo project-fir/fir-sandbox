@@ -8,6 +8,8 @@ type ToBackend
     | CreateNewDimensionalModel DimensionalModelRef
     | FetchDimensionalModel DimensionalModelRef
     | UpdateDimensionalModel DimensionalModel
+    | Admin_FetchAllBackendData
+    | Admin_PingServer
 
 
 

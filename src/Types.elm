@@ -5,8 +5,11 @@ import Browser
 import Browser.Navigation exposing (Key)
 import Dict exposing (Dict)
 import DimensionalModel exposing (DimensionalModel, DimensionalModelRef)
+import DuckDb exposing (DuckDbRefString, PingResponse)
 import Gen.Pages as Pages
+import Http
 import Lamdera exposing (ClientId, SessionId)
+import RemoteData exposing (WebData)
 import Shared
 import Time
 import Url exposing (Url)
@@ -41,9 +44,14 @@ type FrontendMsg
     | Noop
 
 
+type alias ServerPingStatus =
+    WebData PingResponse
+
+
 type alias BackendModel =
     { sessions : Dict SessionId Session
     , dimensionalModels : Dict DimensionalModelRef DimensionalModel
+    , serverPingStatus : ServerPingStatus
     }
 
 
@@ -51,12 +59,19 @@ type
     BackendMsg
     -- TODO: Auth, users, etc
     = NoopBackend
+    | PingServer
+    | GotPingResponse (Result Http.Error PingResponse)
 
 
 type ToFrontend
     = DeliverDimensionalModelRefs (List DimensionalModelRef)
     | DeliverDimensionalModel DimensionalModel
     | Noop_Error
+    | Admin_DeliverAllBackendData
+        { sessionIds : List SessionId
+        , dimensionalModels : Dict DimensionalModelRef DimensionalModel
+        }
+    | Admin_DeliverServerStatus String
 
 
 type alias ToBackend =

@@ -100,3 +100,17 @@ updateFromFrontend sessionId clientId msg model =
                     -- TODO: Once I have a few more cases like this I'd like to establish a pattern for Lamdera
                     --      error handling, but this NoOp is safe for now
                     ( model, sendToFrontend clientId Noop_Error )
+
+        Admin_FetchAllBackendData ->
+            let
+                sessionIds =
+                    Dict.keys model.sessions
+            in
+            ( model
+            , sendToFrontend clientId
+                (Admin_DeliverAllBackendData
+                    { sessionIds = sessionIds
+                    , dimensionalModels = model.dimensionalModels
+                    }
+                )
+            )

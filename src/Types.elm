@@ -5,6 +5,7 @@ import Browser
 import Browser.Navigation exposing (Key)
 import Dict exposing (Dict)
 import DimensionalModel exposing (DimensionalModel, DimensionalModelRef)
+import DuckDb exposing (DuckDbRefString)
 import Gen.Pages as Pages
 import Lamdera exposing (ClientId, SessionId)
 import Shared
@@ -57,6 +58,10 @@ type ToFrontend
     = DeliverDimensionalModelRefs (List DimensionalModelRef)
     | DeliverDimensionalModel DimensionalModel
     | Noop_Error
+    | Admin_DeliverAllBackendData
+        { sessionIds : List SessionId
+        , dimensionalModels : Dict DimensionalModelRef DimensionalModel
+        }
 
 
 type alias ToBackend =

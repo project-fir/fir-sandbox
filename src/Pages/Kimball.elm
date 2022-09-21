@@ -497,11 +497,7 @@ subscriptions model =
 
 view : Model -> View Msg
 view model =
-    let
-        title =
-            "Kimball Assignments"
-    in
-    { title = title
+    { title = "Kimball Assignments"
     , body =
         [ case model.pageRenderStatus of
             AwaitingDomInfo ->

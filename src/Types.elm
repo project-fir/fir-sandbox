@@ -1,6 +1,6 @@
 module Types exposing (..)
 
-import Bridge exposing (BackendData, BackendErrorMessage, DeliveryEnvelope)
+import Bridge exposing (BackendData, BackendErrorMessage, DeliveryEnvelope, DuckDbCache_)
 import Browser
 import Browser.Navigation exposing (Key)
 import Dict exposing (Dict)
@@ -52,35 +52,20 @@ type alias BackendModel =
     { sessions : Dict SessionId Session
     , dimensionalModels : Dict DimensionalModelRef DimensionalModel
     , serverPingStatus : ServerPingStatus
-    , duckDbCache : Maybe DuckDbCache
-    , partialDuckDbCacheInProgress : Maybe DuckDbCache
-    , partialRemainingRefs : Maybe (List DuckDbRef)
+    , duckDbCache : DuckDbCache_
     }
 
 
 type
     BackendMsg
     -- TODO: Auth, users, etc
-    = NoopBackend
+    = BackendNoop
     | PingServer
-    | BeginDuckDbCacheRefresh
-    | ContinueDuckDbCacheRefresh
-    | CompleteDuckDbCacheRefresh
     | GotPingResponse (Result Http.Error PingResponse)
-    | GotDuckDbRefsResponse (Result Http.Error DuckDbRefsResponse)
-    | GotDuckDbMetaDataResponse (Result Http.Error DuckDbMetaResponse)
-
-
-type alias CachedDuckDbMetaData =
-    { ref : DuckDbRef
-    , columnDescriptions : List DuckDbColumnDescription
-    }
-
-
-type alias DuckDbCache =
-    { refs : List DuckDbRef
-    , metaData : Dict DuckDbRefString CachedDuckDbMetaData
-    }
+    | Cache_BeginWarmingCycle
+    | Cache_ContinueCacheWarmingInProgress
+    | Cache_GotDuckDbRefsResponse (Result Http.Error DuckDbRefsResponse)
+    | Cache_GotDuckDbMetaDataResponse (Result Http.Error DuckDbMetaResponse)
 
 
 type ToFrontend
@@ -91,6 +76,7 @@ type ToFrontend
     | Admin_DeliverAllBackendData
         { sessionIds : List SessionId
         , dimensionalModels : Dict DimensionalModelRef DimensionalModel
+        , duckDbCache : DuckDbCache_
         }
     | Admin_DeliverServerStatus String
     | Admin_DeliverPurgeConfirmation String

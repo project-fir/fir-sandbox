@@ -1,6 +1,8 @@
 module Bridge exposing (..)
 
+import Dict exposing (Dict)
 import DimensionalModel exposing (DimensionalModel, DimensionalModelRef)
+import DuckDb exposing (DuckDbColumnDescription, DuckDbRef, DuckDbRefString)
 
 
 type ToBackend
@@ -33,3 +35,22 @@ type BackendData data
     | Fetching_
     | Success_ data
     | Error_ BackendErrorMessage
+
+
+type alias DuckDbMetaDataCacheEntry =
+    { ref : DuckDbRef
+    , columnDescriptions : List DuckDbColumnDescription
+    }
+
+
+type DuckDbCache_
+    = Cold
+    | WarmingCycleInitiated (Maybe DuckDbCache)
+    | Warming (Maybe DuckDbCache) (Maybe DuckDbCache) (List DuckDbRef)
+    | Hot (Maybe DuckDbCache)
+
+
+type alias DuckDbCache =
+    { refs : List DuckDbRef
+    , metaData : Dict DuckDbRefString DuckDbMetaDataCacheEntry
+    }

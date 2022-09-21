@@ -1,6 +1,6 @@
 module Pages.Admin exposing (Model, Msg(..), page)
 
-import Bridge exposing (ToBackend(..))
+import Bridge exposing (DuckDbCache, DuckDbCache_(..), DuckDbMetaDataCacheEntry, ToBackend(..))
 import Dict exposing (Dict)
 import DimensionalModel exposing (DimensionalModel, DimensionalModelRef)
 import DuckDb exposing (DuckDbRef)
@@ -39,6 +39,7 @@ type alias Model =
         Maybe
             { sessionIds : List SessionId
             , dimensionalModels : Dict DimensionalModelRef DimensionalModel
+            , duckDbCache : DuckDbCache_
             }
     , proxiedServerStatus : Maybe String
     , purgedDataStatus : Maybe String
@@ -72,6 +73,7 @@ type Msg
     | GotBackendData
         { sessionIds : List SessionId
         , dimensionalModels : Dict DimensionalModelRef DimensionalModel
+        , duckDbCache : DuckDbCache_
         }
 
 
@@ -116,8 +118,8 @@ subscriptions model =
 -- VIEW
 
 
-viewBackendDataManagementPanel : Model -> Element Msg
-viewBackendDataManagementPanel model =
+viewQuadrant1_BackendDataManagement : Model -> Element Msg
+viewQuadrant1_BackendDataManagement model =
     let
         viewSessionsTable : Element Msg
         viewSessionsTable =
@@ -259,8 +261,8 @@ viewBackendDataManagementPanel model =
         ]
 
 
-viewPanelQuadrant2 : Model -> Element Msg
-viewPanelQuadrant2 model =
+viewPanelQuadrant2_DimensionalModelAndDuckDbCache : Model -> Element Msg
+viewPanelQuadrant2_DimensionalModelAndDuckDbCache model =
     let
         viewDimensionalModelsTable : Element Msg
         viewDimensionalModelsTable =
@@ -405,7 +407,7 @@ viewElements model =
                 , Border.color Palette.darkishGrey
                 , Background.color Palette.white
                 ]
-                (viewBackendDataManagementPanel model)
+                (viewQuadrant1_BackendDataManagement model)
             , el
                 [ width (fillPortion 5)
                 , height fill
@@ -413,7 +415,7 @@ viewElements model =
                 , Border.rounded 3
                 , Background.color Palette.white
                 ]
-                (viewPanelQuadrant2 model)
+                (viewPanelQuadrant2_DimensionalModelAndDuckDbCache model)
             ]
         , row
             [ width fill

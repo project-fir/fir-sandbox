@@ -41,12 +41,14 @@ type alias Model =
             { sessionIds : List SessionId
             , dimensionalModels : Dict DimensionalModelRef DimensionalModel
             }
+    , proxiedServerStatus : Maybe String
     }
 
 
 init : ( Model, Effect Msg )
 init =
     ( { backendModel = Nothing
+      , proxiedServerStatus = Nothing
       }
     , Effect.fromCmd <| sendToBackend Admin_FetchAllBackendData
     )
@@ -58,6 +60,8 @@ init =
 
 type Msg
     = RefetchBackendData
+    | ProxyServerPingToBackend
+    | GotProxiedServerPingStatus String
     | GotBackendData
         { sessionIds : List SessionId
         , dimensionalModels : Dict DimensionalModelRef DimensionalModel
@@ -72,6 +76,12 @@ update msg model =
 
         GotBackendData backendModel ->
             ( { model | backendModel = Just backendModel }, Effect.none )
+
+        ProxyServerPingToBackend ->
+            ( model, Effect.fromCmd <| sendToBackend Admin_PingServer )
+
+        GotProxiedServerPingStatus statusStr ->
+            ( { model | proxiedServerStatus = Just statusStr }, Effect.none )
 
 
 
@@ -140,11 +150,25 @@ viewElements model =
                       }
                     ]
                 }
+
+        viewProxiedServerStatus : Element Msg
+        viewProxiedServerStatus =
+            let
+                str =
+                    case model.proxiedServerStatus of
+                        Nothing ->
+                            "^click above to ping"
+
+                        Just statusStr ->
+                            statusStr
+            in
+            el [ centerX ] <| E.text str
     in
     column
         [ width fill
         , height fill
         , centerX
+        , spacing 10
         ]
         [ Input.button [ centerX ]
             { onPress = Just RefetchBackendData
@@ -162,6 +186,19 @@ viewElements model =
         , viewSessionsTable
         , el [ centerX ] (E.text "Dimensional models:")
         , viewDimensionalModelsTable
+        , Input.button [ centerX ]
+            { onPress = Just ProxyServerPingToBackend
+            , label =
+                el
+                    [ Border.width 1
+                    , Border.color Palette.darkishGrey
+                    , Background.color Palette.lightGrey
+                    , Border.rounded 3
+                    , padding 5
+                    ]
+                    (E.text "Proxy ping")
+            }
+        , viewProxiedServerStatus
         ]
 
 

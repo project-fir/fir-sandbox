@@ -3,9 +3,13 @@ module Backend exposing (..)
 import Bridge exposing (ToBackend(..))
 import Dict exposing (Dict)
 import DimensionalModel exposing (DimensionalModel, DimensionalModelRef)
+import DuckDb exposing (pingServer)
 import Graph
 import Lamdera exposing (ClientId, SessionId, broadcast, sendToFrontend)
+import RemoteData exposing (RemoteData(..))
+import Task
 import Types exposing (BackendModel, BackendMsg(..), FrontendMsg(..), Session, ToFrontend(..))
+import Utils exposing (send)
 
 
 type alias Model =
@@ -25,6 +29,7 @@ init : ( Model, Cmd BackendMsg )
 init =
     ( { sessions = Dict.empty
       , dimensionalModels = Dict.empty
+      , serverPingStatus = NotAsked
       }
     , Cmd.none
     )
@@ -35,6 +40,17 @@ update msg model =
     case msg of
         NoopBackend ->
             ( model, Cmd.none )
+
+        PingServer ->
+            ( { model | serverPingStatus = Loading }, pingServer GotPingResponse )
+
+        GotPingResponse result ->
+            case result of
+                Ok value ->
+                    ( { model | serverPingStatus = Success value }, broadcast (Admin_DeliverServerStatus "OK") )
+
+                Err error ->
+                    ( { model | serverPingStatus = Failure error }, broadcast (Admin_DeliverServerStatus "ERROR!") )
 
 
 updateFromFrontend : SessionId -> ClientId -> ToBackend -> Model -> ( Model, Cmd BackendMsg )
@@ -114,3 +130,6 @@ updateFromFrontend sessionId clientId msg model =
                     }
                 )
             )
+
+        Admin_PingServer ->
+            ( model, send PingServer )

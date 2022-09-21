@@ -152,6 +152,9 @@ updateFromBackend msg model =
         Admin_DeliverAllBackendData backendModel ->
             ( model, send <| Page (Gen.Msg.Admin (GotBackendData backendModel)) )
 
+        Admin_DeliverServerStatus statusString ->
+            ( model, send <| Page (Gen.Msg.Admin (GotProxiedServerPingStatus statusString)) )
+
 
 
 -- VIEW

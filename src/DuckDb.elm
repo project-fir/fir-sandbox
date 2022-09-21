@@ -134,6 +134,7 @@ type alias DuckDbQueryResponse =
 
 type alias DuckDbMetaResponse =
     { columnDescriptions : List DuckDbColumnDescription
+    , refs : List DuckDbRef
     }
 
 
@@ -172,7 +173,7 @@ queryDuckDb query allowFallback refs onResponse =
             JE.object
                 [ ( "query_str", JE.string query )
                 , ( "allow_blob_fallback", JE.bool allowFallback )
-                , ( "fallback_table_refs", JE.list parentRefEncoder refs )
+                , ( "fallback_table_refs", JE.list refEncoder refs )
                 ]
 
         duckDbQueryResponseDecoder : JD.Decoder DuckDbQueryResponse
@@ -201,56 +202,56 @@ queryDuckDb query allowFallback refs onResponse =
                         "VARCHAR" ->
                             JD.map4 PersistedDuckDbColumn
                                 (JD.field "name" JD.string)
-                                (JD.field "owning_ref" (JD.map DuckDbTable parentRefDecoder))
+                                (JD.field "owning_ref" (JD.map DuckDbTable refDecoder))
                                 (JD.field "type" JD.string)
                                 (JD.field "values" (JD.list (JD.maybe (JD.map Varchar_ JD.string))))
 
                         "INTEGER" ->
                             JD.map4 PersistedDuckDbColumn
                                 (JD.field "name" JD.string)
-                                (JD.field "owning_ref" (JD.map DuckDbTable parentRefDecoder))
+                                (JD.field "owning_ref" (JD.map DuckDbTable refDecoder))
                                 (JD.field "type" JD.string)
                                 (JD.field "values" (JD.list (JD.maybe (JD.map Int_ JD.int))))
 
                         "BIGINT" ->
                             JD.map4 PersistedDuckDbColumn
                                 (JD.field "name" JD.string)
-                                (JD.field "owning_ref" (JD.map DuckDbTable parentRefDecoder))
+                                (JD.field "owning_ref" (JD.map DuckDbTable refDecoder))
                                 (JD.field "type" JD.string)
                                 (JD.field "values" (JD.list (JD.maybe (JD.map Int_ JD.int))))
 
                         "HUGEINT" ->
                             JD.map4 PersistedDuckDbColumn
                                 (JD.field "name" JD.string)
-                                (JD.field "owning_ref" (JD.map DuckDbTable parentRefDecoder))
+                                (JD.field "owning_ref" (JD.map DuckDbTable refDecoder))
                                 (JD.field "type" JD.string)
                                 (JD.field "values" (JD.list (JD.maybe (JD.map Int_ JD.int))))
 
                         "BOOLEAN" ->
                             JD.map4 PersistedDuckDbColumn
                                 (JD.field "name" JD.string)
-                                (JD.field "owning_ref" (JD.map DuckDbTable parentRefDecoder))
+                                (JD.field "owning_ref" (JD.map DuckDbTable refDecoder))
                                 (JD.field "type" JD.string)
                                 (JD.field "values" (JD.list (JD.maybe (JD.map Bool_ JD.bool))))
 
                         "DOUBLE" ->
                             JD.map4 PersistedDuckDbColumn
                                 (JD.field "name" JD.string)
-                                (JD.field "owning_ref" (JD.map DuckDbTable parentRefDecoder))
+                                (JD.field "owning_ref" (JD.map DuckDbTable refDecoder))
                                 (JD.field "type" JD.string)
                                 (JD.field "values" (JD.list (JD.maybe (JD.map Float_ JD.float))))
 
                         "DATE" ->
                             JD.map4 PersistedDuckDbColumn
                                 (JD.field "name" JD.string)
-                                (JD.field "owning_ref" (JD.map DuckDbTable parentRefDecoder))
+                                (JD.field "owning_ref" (JD.map DuckDbTable refDecoder))
                                 (JD.field "type" JD.string)
                                 (JD.field "values" (JD.list (JD.maybe (JD.map Varchar_ JD.string))))
 
                         "TIMESTAMP" ->
                             JD.map4 PersistedDuckDbColumn
                                 (JD.field "name" JD.string)
-                                (JD.field "owning_ref" (JD.map DuckDbTable parentRefDecoder))
+                                (JD.field "owning_ref" (JD.map DuckDbTable refDecoder))
                                 (JD.field "type" JD.string)
                                 (JD.field "values" (JD.list (JD.maybe (JD.map Time_ timeDecoder))))
 
@@ -259,7 +260,7 @@ queryDuckDb query allowFallback refs onResponse =
                             -- Should this fail loudly?
                             JD.map4 PersistedDuckDbColumn
                                 (JD.field "name" JD.string)
-                                (JD.field "owning_ref" (JD.map DuckDbTable parentRefDecoder))
+                                (JD.field "owning_ref" (JD.map DuckDbTable refDecoder))
                                 (JD.field "type" JD.string)
                                 (JD.list (JD.maybe (JD.succeed Unknown)))
             in
@@ -281,7 +282,7 @@ queryDuckDbMeta query allowFallback refs onResponse =
             JE.object
                 [ ( "query_str", JE.string query )
                 , ( "allow_blob_fallback", JE.bool allowFallback )
-                , ( "fallback_table_refs", JE.list parentRefEncoder refs )
+                , ( "fallback_table_refs", JE.list refEncoder refs )
                 ]
 
         duckDbMetaResponseDecoder : JD.Decoder DuckDbMetaResponse
@@ -291,11 +292,12 @@ queryDuckDbMeta query allowFallback refs onResponse =
                 columnDescriptionDecoder =
                     JD.map3 PersistedDuckDbColumnDescription
                         (JD.field "name" JD.string)
-                        (JD.field "owning_ref" (JD.map DuckDbTable parentRefDecoder))
+                        (JD.field "owning_ref" (JD.map DuckDbTable refDecoder))
                         (JD.field "type" JD.string)
             in
-            JD.map DuckDbMetaResponse
+            JD.map2 DuckDbMetaResponse
                 (JD.field "columns" (JD.list (JD.map Persisted_ columnDescriptionDecoder)))
+                (JD.field "refs" (JD.list refDecoder))
     in
     Http.post
         { url = apiHost ++ "/duckdb"
@@ -310,7 +312,7 @@ fetchDuckDbTableRefs onResponse =
         duckDbTableRefsResponseDecoder : JD.Decoder DuckDbRefsResponse
         duckDbTableRefsResponseDecoder =
             JD.map DuckDbRefsResponse
-                (JD.field "refs" (JD.list parentRefDecoder))
+                (JD.field "refs" (JD.list refDecoder))
     in
     Http.get
         { url = apiHost ++ "/duckdb/refs"
@@ -318,15 +320,15 @@ fetchDuckDbTableRefs onResponse =
         }
 
 
-parentRefDecoder : JD.Decoder DuckDbRef
-parentRefDecoder =
+refDecoder : JD.Decoder DuckDbRef
+refDecoder =
     JD.map2 DuckDbRef
         (JD.field "schema_name" JD.string)
         (JD.field "table_name" JD.string)
 
 
-parentRefEncoder : DuckDbRef -> JE.Value
-parentRefEncoder ref =
+refEncoder : DuckDbRef -> JE.Value
+refEncoder ref =
     JE.object
         [ ( "schema_name", JE.string ref.schemaName )
         , ( "table_name", JE.string ref.tableName )

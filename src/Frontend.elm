@@ -1,5 +1,6 @@
 module Frontend exposing (..)
 
+import Bridge exposing (DeliveryEnvelope(..))
 import Browser
 import Browser.Dom
 import Browser.Navigation as Nav exposing (Key)
@@ -154,6 +155,20 @@ updateFromBackend msg model =
 
         Admin_DeliverServerStatus statusString ->
             ( model, send <| Page (Gen.Msg.Admin (GotProxiedServerPingStatus statusString)) )
+
+        Admin_DeliverPurgeConfirmation purgeMessage ->
+            ( model, send <| Page (Gen.Msg.Admin (GotPurgeDataConfirmation purgeMessage)) )
+
+        Admin_DeliverCacheRefreshConfirmation cacheMessage ->
+            ( model, send <| Page (Gen.Msg.Admin (GotCacheRefreshConfirmation cacheMessage)) )
+
+        DeliverDuckDbRefs deliveryEnvelope ->
+            case deliveryEnvelope of
+                BackendSuccess refs ->
+                    ( model, send <| Page (Gen.Msg.Kimball (GotDuckDbTableRefsResponse refs)) )
+
+                BackendError backendErrorMessage ->
+                    ( model, Cmd.none )
 
 
 

@@ -1,11 +1,11 @@
 module Types exposing (..)
 
-import Bridge
+import Bridge exposing (BackendData, BackendErrorMessage, DeliveryEnvelope, DuckDbCache_)
 import Browser
 import Browser.Navigation exposing (Key)
 import Dict exposing (Dict)
 import DimensionalModel exposing (DimensionalModel, DimensionalModelRef)
-import DuckDb exposing (DuckDbRefString, PingResponse)
+import DuckDb exposing (DuckDbColumnDescription, DuckDbMetaResponse, DuckDbRef, DuckDbRefString, DuckDbRefsResponse, PingResponse)
 import Gen.Pages as Pages
 import Http
 import Lamdera exposing (ClientId, SessionId)
@@ -52,26 +52,35 @@ type alias BackendModel =
     { sessions : Dict SessionId Session
     , dimensionalModels : Dict DimensionalModelRef DimensionalModel
     , serverPingStatus : ServerPingStatus
+    , duckDbCache : DuckDbCache_
     }
 
 
 type
     BackendMsg
     -- TODO: Auth, users, etc
-    = NoopBackend
+    = BackendNoop
     | PingServer
     | GotPingResponse (Result Http.Error PingResponse)
+    | Cache_BeginWarmingCycle
+    | Cache_ContinueCacheWarmingInProgress
+    | Cache_GotDuckDbRefsResponse (Result Http.Error DuckDbRefsResponse)
+    | Cache_GotDuckDbMetaDataResponse (Result Http.Error DuckDbMetaResponse)
 
 
 type ToFrontend
     = DeliverDimensionalModelRefs (List DimensionalModelRef)
     | DeliverDimensionalModel DimensionalModel
+    | DeliverDuckDbRefs (DeliveryEnvelope (List DuckDbRef))
     | Noop_Error
     | Admin_DeliverAllBackendData
         { sessionIds : List SessionId
         , dimensionalModels : Dict DimensionalModelRef DimensionalModel
+        , duckDbCache : DuckDbCache_
         }
     | Admin_DeliverServerStatus String
+    | Admin_DeliverPurgeConfirmation String
+    | Admin_DeliverCacheRefreshConfirmation String
 
 
 type alias ToBackend =

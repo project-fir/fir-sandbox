@@ -1,6 +1,6 @@
 module Pages.Kimball exposing (Model, Msg(..), page)
 
-import Bridge exposing (BackendData(..), ToBackend(..))
+import Bridge exposing (BackendData(..), BackendErrorMessage(..), ToBackend(..))
 import Browser.Dom
 import Browser.Events as BE
 import Dict exposing (Dict)
@@ -30,6 +30,7 @@ import TypedSvg as S
 import TypedSvg.Attributes as SA
 import TypedSvg.Core as SC exposing (Svg)
 import TypedSvg.Types as ST
+import Utils exposing (send)
 import View exposing (View)
 
 
@@ -52,7 +53,7 @@ type alias RefString =
 
 
 type alias Model =
-    { duckDbRefs : WebData DuckDb.DuckDbRefsResponse
+    { duckDbRefs : BackendData (List DuckDb.DuckDbRef)
     , selectedTableRef : Maybe DuckDb.DuckDbRef
     , hoveredOnTableRef : Maybe DuckDb.DuckDbRef
     , pageRenderStatus : PageRenderStatus
@@ -79,7 +80,7 @@ type PageRenderStatus
 
 init : ( Model, Effect Msg )
 init =
-    ( { duckDbRefs = Loading -- Must also fetch table refs below
+    ( { duckDbRefs = NotAsked_
       , selectedTableRef = Nothing
       , hoveredOnTableRef = Nothing
       , hoveredOnNodeTitle = Nothing
@@ -93,7 +94,7 @@ init =
       }
     , Effect.fromCmd <|
         Cmd.batch
-            [ fetchDuckDbTableRefs GotDuckDbTableRefsResponse
+            [ send FetchTableRefs
             , Task.perform GotViewport Browser.Dom.getViewport
             ]
     )
@@ -121,7 +122,7 @@ type Msg
     = FetchTableRefs
     | GotDimensionalModelRefs (List DimensionalModelRef)
     | GotDimensionalModel DimensionalModel
-    | GotDuckDbTableRefsResponse (Result Http.Error DuckDb.DuckDbRefsResponse)
+    | GotDuckDbTableRefsResponse (List DuckDb.DuckDbRef)
     | UserSelectedDimensionalModel DimensionalModelRef
     | UserToggledDuckDbRefSelection DuckDb.DuckDbRef
     | UserMouseEnteredTableRef DuckDb.DuckDbRef
@@ -153,6 +154,9 @@ update msg model =
 
         GotDimensionalModel dimModel ->
             ( { model | selectedDimensionalModel = Just dimModel }, Effect.none )
+
+        GotDuckDbTableRefsResponse refs ->
+            ( { model | duckDbRefs = Success_ refs }, Effect.none )
 
         GotViewport viewPort ->
             let
@@ -377,15 +381,7 @@ update msg model =
             )
 
         FetchTableRefs ->
-            ( { model | duckDbRefs = Loading }, Effect.fromCmd <| fetchDuckDbTableRefs GotDuckDbTableRefsResponse )
-
-        GotDuckDbTableRefsResponse response ->
-            case response of
-                Ok refs ->
-                    ( { model | duckDbRefs = Success refs }, Effect.none )
-
-                Err err ->
-                    ( { model | duckDbRefs = Failure err }, Effect.none )
+            ( { model | duckDbRefs = Fetching_ }, Effect.fromCmd <| sendToBackend Kimball_FetchDuckDbRefs )
 
         UserToggledDuckDbRefSelection ref ->
             let
@@ -458,7 +454,12 @@ update msg model =
             ( model, Effect.fromCmd <| sendToBackend (CreateNewDimensionalModel ref) )
 
         UserSelectedDimensionalModel ref ->
-            ( model, Effect.fromCmd <| sendToBackend (FetchDimensionalModel ref) )
+            ( model
+            , Effect.batch
+                [ Effect.fromCmd <| sendToBackend (FetchDimensionalModel ref)
+                , Effect.fromCmd <| sendToBackend Kimball_FetchDuckDbRefs
+                ]
+            )
 
 
 
@@ -828,8 +829,10 @@ viewDimensionalModelRefs model =
                             refs
                         )
 
-                Error_ ->
-                    E.text "Error!"
+                Error_ err ->
+                    case err of
+                        PlainMessage str ->
+                            text str
 
         newModelForm : Element Msg
         newModelForm =
@@ -873,16 +876,16 @@ viewTableRefsContainer model =
 viewTableRefs : Model -> DimensionalModel -> Element Msg
 viewTableRefs model selectedDimModel =
     case model.duckDbRefs of
-        NotAsked ->
+        NotAsked_ ->
             text "Didn't request data yet"
 
-        Loading ->
-            text "Fetching..."
+        Fetching_ ->
+            text "Fetching db refs..."
 
-        Success refsResponse ->
+        Success_ refs ->
             let
                 refsSelector : List DuckDb.DuckDbRef -> Element Msg
-                refsSelector refs =
+                refsSelector refs_ =
                     let
                         backgroundColorFor : DuckDbRef -> Color
                         backgroundColorFor ref =
@@ -961,7 +964,7 @@ viewTableRefs model selectedDimModel =
                         , paddingXY 5 0
                         ]
                     <|
-                        List.map (\ref -> ui ref) refs
+                        List.map (\ref -> ui ref) refs_
             in
             column
                 [ width E.fill
@@ -976,25 +979,13 @@ viewTableRefs model selectedDimModel =
                 , scrollbarY
                 ]
                 [ text "DuckDB Refs:"
-                , refsSelector refsResponse.refs
+                , refsSelector refs
                 ]
 
-        Failure err ->
+        Error_ err ->
             case err of
-                Http.BadUrl string ->
-                    text <| "Bad URL: " ++ string
-
-                Http.Timeout ->
-                    text <| "Network timeout!"
-
-                Http.NetworkError ->
-                    text <| "Network error!"
-
-                Http.BadStatus int ->
-                    text <| "Bad status: " ++ String.fromInt int
-
-                Http.BadBody string ->
-                    text <| "Error - bad body: " ++ string
+                PlainMessage str ->
+                    text str
 
 
 

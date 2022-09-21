@@ -1,14 +1,14 @@
 module Backend exposing (..)
 
-import Bridge exposing (ToBackend(..))
+import Bridge exposing (BackendErrorMessage(..), DeliveryEnvelope(..), ToBackend(..))
 import Dict exposing (Dict)
 import DimensionalModel exposing (DimensionalModel, DimensionalModelRef)
-import DuckDb exposing (pingServer)
+import DuckDb exposing (DuckDbRef, DuckDbRefString, fetchDuckDbTableRefs, pingServer, queryDuckDbMeta, refToString)
 import Graph
 import Lamdera exposing (ClientId, SessionId, broadcast, sendToFrontend)
 import RemoteData exposing (RemoteData(..))
 import Task
-import Types exposing (BackendModel, BackendMsg(..), FrontendMsg(..), Session, ToFrontend(..))
+import Types exposing (BackendModel, BackendMsg(..), DuckDbCache, FrontendMsg(..), Session, ToFrontend(..))
 import Utils exposing (send)
 
 
@@ -30,6 +30,9 @@ init =
     ( { sessions = Dict.empty
       , dimensionalModels = Dict.empty
       , serverPingStatus = NotAsked
+      , duckDbCache = Nothing
+      , partialDuckDbCacheInProgress = Nothing
+      , partialRemainingRefs = Nothing
       }
     , Cmd.none
     )
@@ -51,6 +54,85 @@ update msg model =
 
                 Err error ->
                     ( { model | serverPingStatus = Failure error }, broadcast (Admin_DeliverServerStatus "ERROR!") )
+
+        BeginDuckDbCacheRefresh ->
+            ( model, fetchDuckDbTableRefs GotDuckDbRefsResponse )
+
+        GotDuckDbRefsResponse response ->
+            case response of
+                Ok refs ->
+                    ( { model | partialRemainingRefs = Just refs.refs }, send ContinueDuckDbCacheRefresh )
+
+                Err err ->
+                    ( model, Cmd.none )
+
+        ContinueDuckDbCacheRefresh ->
+            let
+                ( newModel, nextCmd ) =
+                    case model.partialRemainingRefs of
+                        Nothing ->
+                            ( model, Cmd.none )
+
+                        Just refs ->
+                            case refs of
+                                [] ->
+                                    ( { model | partialRemainingRefs = Nothing }, send CompleteDuckDbCacheRefresh )
+
+                                r :: rs ->
+                                    let
+                                        queryStr : String
+                                        queryStr =
+                                            "select * from " ++ refToString r
+                                    in
+                                    ( { model | partialRemainingRefs = Just rs }, queryDuckDbMeta queryStr True [ r ] GotDuckDbMetaDataResponse )
+            in
+            ( newModel, nextCmd )
+
+        CompleteDuckDbCacheRefresh ->
+            ( { model
+                | duckDbCache = model.partialDuckDbCacheInProgress
+                , partialDuckDbCacheInProgress = Nothing
+                , partialRemainingRefs = Nothing
+              }
+            , broadcast (Admin_DeliverCacheRefreshConfirmation "Cache refresh complete!")
+            )
+
+        GotDuckDbMetaDataResponse result ->
+            case result of
+                Ok metaResponse ->
+                    let
+                        ref : DuckDbRef
+                        ref =
+                            case metaResponse.refs of
+                                [] ->
+                                    { tableName = "ERROR", schemaName = "ERROR!" }
+
+                                r :: _ ->
+                                    r
+
+                        updatedCache : DuckDbCache
+                        updatedCache =
+                            case model.partialDuckDbCacheInProgress of
+                                Nothing ->
+                                    { refs = [] -- This shouldn't happen, but makes me think I want to refactor this
+                                    , metaData =
+                                        Dict.fromList
+                                            [ ( refToString ref
+                                              , { ref = ref
+                                                , columnDescriptions = metaResponse.columnDescriptions
+                                                }
+                                              )
+                                            ]
+                                    }
+
+                                Just duckDbCache ->
+                                    -- TODO: Update response
+                                    duckDbCache
+                    in
+                    ( { model | duckDbCache = Just updatedCache }, send ContinueDuckDbCacheRefresh )
+
+                Err err ->
+                    ( model, Cmd.none )
 
 
 updateFromFrontend : SessionId -> ClientId -> ToBackend -> Model -> ( Model, Cmd BackendMsg )
@@ -133,3 +215,27 @@ updateFromFrontend sessionId clientId msg model =
 
         Admin_PingServer ->
             ( model, send PingServer )
+
+        Admin_RefreshDuckDbMetaData ->
+            ( model, send BeginDuckDbCacheRefresh )
+
+        Admin_PurgeBackendData ->
+            let
+                newModel =
+                    { sessions = model.sessions -- keep active sessions, otherwise you may need to re-auth etc. That'd be weird
+                    , dimensionalModels = Dict.empty
+                    , serverPingStatus = NotAsked -- in theory there's a race condition here if a server ping is in progress, not worth doing it right
+                    , duckDbCache = Nothing
+                    , partialDuckDbCacheInProgress = Nothing
+                    , partialRemainingRefs = Nothing
+                    }
+            in
+            ( newModel, sendToFrontend clientId (Admin_DeliverPurgeConfirmation "data has been purged") )
+
+        Kimball_FetchDuckDbRefs ->
+            case model.duckDbCache of
+                Nothing ->
+                    ( model, sendToFrontend clientId (DeliverDuckDbRefs (BackendError (PlainMessage "duckdb refs cache requested, but doesn't exist"))) )
+
+                Just duckDbCache ->
+                    ( model, sendToFrontend clientId (DeliverDuckDbRefs (BackendSuccess duckDbCache.refs)) )

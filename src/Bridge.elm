@@ -12,7 +12,7 @@ type ToBackend
     | UpdateDimensionalModel DimensionalModel
     | Admin_FetchAllBackendData
     | Admin_PingServer
-    | Admin_RefreshDuckDbMetaData
+    | Admin_InitiateDuckDbCacheWarmingCycle
     | Admin_PurgeBackendData
     | Kimball_FetchDuckDbRefs
 
@@ -44,13 +44,20 @@ type alias DuckDbMetaDataCacheEntry =
 
 
 type DuckDbCache_
-    = Cold
-    | WarmingCycleInitiated (Maybe DuckDbCache)
-    | Warming (Maybe DuckDbCache) (Maybe DuckDbCache) (List DuckDbRef)
-    | Hot (Maybe DuckDbCache)
+    = Cold DuckDbCache
+    | WarmingCycleInitiated DuckDbCache
+    | Warming DuckDbCache DuckDbCache (List DuckDbRef)
+    | Hot DuckDbCache
 
 
 type alias DuckDbCache =
     { refs : List DuckDbRef
     , metaData : Dict DuckDbRefString DuckDbMetaDataCacheEntry
+    }
+
+
+defaultColdCache : DuckDbCache
+defaultColdCache =
+    { refs = []
+    , metaData = Dict.empty
     }

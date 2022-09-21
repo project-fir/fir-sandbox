@@ -1,6 +1,6 @@
 module Backend exposing (..)
 
-import Bridge exposing (BackendErrorMessage(..), DeliveryEnvelope(..), DuckDbCache, DuckDbCache_(..), ToBackend(..))
+import Bridge exposing (BackendErrorMessage(..), DeliveryEnvelope(..), DuckDbCache, DuckDbCache_(..), ToBackend(..), defaultColdCache)
 import Dict exposing (Dict)
 import DimensionalModel exposing (DimensionalModel, DimensionalModelRef)
 import DuckDb exposing (DuckDbRef, DuckDbRefString, fetchDuckDbTableRefs, pingServer, queryDuckDbMeta, refToString)
@@ -30,7 +30,7 @@ init =
     ( { sessions = Dict.empty
       , dimensionalModels = Dict.empty
       , serverPingStatus = NotAsked
-      , duckDbCache = Cold
+      , duckDbCache = Cold defaultColdCache
       }
     , Cmd.none
     )
@@ -53,13 +53,13 @@ update msg model =
         -- begin region: cache warming cycle
         Cache_BeginWarmingCycle ->
             case model.duckDbCache of
-                Cold ->
-                    ( { model | duckDbCache = WarmingCycleInitiated Nothing }, fetchDuckDbTableRefs Cache_GotDuckDbRefsResponse )
+                Cold cacheSnapshot ->
+                    ( { model | duckDbCache = WarmingCycleInitiated cacheSnapshot }, fetchDuckDbTableRefs Cache_GotDuckDbRefsResponse )
 
-                Hot duckDbCache ->
+                Hot cacheSnapshot ->
                     -- Begin warming cycle, but pass along existing cached values, so user can still read stale data
                     -- as the cache is being refreshed.
-                    ( { model | duckDbCache = WarmingCycleInitiated duckDbCache }, fetchDuckDbTableRefs Cache_GotDuckDbRefsResponse )
+                    ( { model | duckDbCache = WarmingCycleInitiated cacheSnapshot }, fetchDuckDbTableRefs Cache_GotDuckDbRefsResponse )
 
                 WarmingCycleInitiated _ ->
                     -- TODO: Race condition send to admin, cache refresh already in progress
@@ -75,15 +75,15 @@ update msg model =
                 Ok refsResponse ->
                     case model.duckDbCache of
                         WarmingCycleInitiated oldCache ->
-                            ( { model | duckDbCache = Warming oldCache Nothing refsResponse.refs }, send Cache_ContinueCacheWarmingInProgress )
+                            ( { model | duckDbCache = Warming oldCache defaultColdCache refsResponse.refs }, send Cache_ContinueCacheWarmingInProgress )
 
                         _ ->
                             -- TODO: Send error messaging to frontend
-                            ( { model | duckDbCache = Cold }, Cmd.none )
+                            ( { model | duckDbCache = Cold defaultColdCache }, Cmd.none )
 
                 Err error ->
                     -- TODO: Send error messaging to frontend
-                    ( { model | duckDbCache = Cold }, Cmd.none )
+                    ( { model | duckDbCache = Cold defaultColdCache }, Cmd.none )
 
         Cache_ContinueCacheWarmingInProgress ->
             case model.duckDbCache of
@@ -105,7 +105,7 @@ update msg model =
 
                 _ ->
                     -- TODO: Send error messaging to frontend
-                    ( { model | duckDbCache = Cold }, Cmd.none )
+                    ( { model | duckDbCache = Cold defaultColdCache }, Cmd.none )
 
         Cache_GotDuckDbMetaDataResponse response ->
             case response of
@@ -113,28 +113,22 @@ update msg model =
                     case responseData.refs of
                         [] ->
                             -- TODO: Send error messaging to frontend
-                            ( { model | duckDbCache = Cold }, Cmd.none )
+                            ( { model | duckDbCache = Cold defaultColdCache }, Cmd.none )
 
                         r :: _ ->
                             case model.duckDbCache of
                                 Warming oldCache partialCache remainingRefs ->
                                     let
-                                        updatedPartialCache : Maybe DuckDbCache
+                                        updatedPartialCache : DuckDbCache
                                         updatedPartialCache =
-                                            case partialCache of
-                                                Nothing ->
-                                                    Nothing
-
-                                                Just partialCache_ ->
-                                                    Just
-                                                        { refs = r :: partialCache_.refs
-                                                        , metaData =
-                                                            Dict.insert (refToString r)
-                                                                { ref = r
-                                                                , columnDescriptions = responseData.columnDescriptions
-                                                                }
-                                                                partialCache_.metaData
-                                                        }
+                                            { refs = r :: partialCache.refs
+                                            , metaData =
+                                                Dict.insert (refToString r)
+                                                    { ref = r
+                                                    , columnDescriptions = responseData.columnDescriptions
+                                                    }
+                                                    partialCache.metaData
+                                            }
                                     in
                                     ( { model | duckDbCache = Warming oldCache updatedPartialCache remainingRefs }
                                     , send Cache_ContinueCacheWarmingInProgress
@@ -142,11 +136,11 @@ update msg model =
 
                                 _ ->
                                     -- TODO: Send error messaging to frontend
-                                    ( { model | duckDbCache = Cold }, Cmd.none )
+                                    ( { model | duckDbCache = Cold defaultColdCache }, Cmd.none )
 
                 Err error ->
                     -- TODO: Send error messaging to frontend
-                    ( { model | duckDbCache = Cold }, Cmd.none )
+                    ( { model | duckDbCache = Cold defaultColdCache }, Cmd.none )
 
         -- end region: cache warming cycle
         BackendNoop ->
@@ -235,7 +229,7 @@ updateFromFrontend sessionId clientId msg model =
         Admin_PingServer ->
             ( model, send PingServer )
 
-        Admin_RefreshDuckDbMetaData ->
+        Admin_InitiateDuckDbCacheWarmingCycle ->
             ( model, send Cache_BeginWarmingCycle )
 
         Admin_PurgeBackendData ->
@@ -245,53 +239,23 @@ updateFromFrontend sessionId clientId msg model =
                     { sessions = model.sessions -- keep active sessions, otherwise you may need to re-auth etc. That'd be weird
                     , dimensionalModels = Dict.empty
                     , serverPingStatus = NotAsked -- in theory there's a race condition here if a server ping is in progress, not worth doing it right
-                    , duckDbCache = Cold
+                    , duckDbCache = Cold defaultColdCache
                     }
             in
             ( newModel, sendToFrontend clientId (Admin_DeliverPurgeConfirmation "All data has been purged") )
 
         Kimball_FetchDuckDbRefs ->
             case model.duckDbCache of
-                Cold ->
-                    ( model, sendToFrontend clientId (DeliverDuckDbRefs (BackendError (PlainMessage "DuckDB cache is COLD, must be refreshed!"))) )
+                Cold cache ->
+                    ( model, sendToFrontend clientId (DeliverDuckDbRefs (BackendSuccess cache.refs)) )
 
                 WarmingCycleInitiated oldDuckDbCache ->
                     -- User should't care that a cache warming cycle is in progress, return old values
-                    let
-                        cachedDuckDbRefs : List DuckDbRef
-                        cachedDuckDbRefs =
-                            case oldDuckDbCache of
-                                Nothing ->
-                                    []
-
-                                Just oldCache ->
-                                    oldCache.refs
-                    in
-                    ( model, sendToFrontend clientId (DeliverDuckDbRefs (BackendSuccess cachedDuckDbRefs)) )
+                    ( model, sendToFrontend clientId (DeliverDuckDbRefs (BackendSuccess oldDuckDbCache.refs)) )
 
                 Warming oldDuckDbCache _ _ ->
                     -- User should't care that a cache warming cycle is in progress, return old values
-                    let
-                        cachedDuckDbRefs : List DuckDbRef
-                        cachedDuckDbRefs =
-                            case oldDuckDbCache of
-                                Nothing ->
-                                    []
-
-                                Just oldCache ->
-                                    oldCache.refs
-                    in
-                    ( model, sendToFrontend clientId (DeliverDuckDbRefs (BackendSuccess cachedDuckDbRefs)) )
+                    ( model, sendToFrontend clientId (DeliverDuckDbRefs (BackendSuccess oldDuckDbCache.refs)) )
 
                 Hot cache ->
-                    let
-                        cachedDuckDbRefs : List DuckDbRef
-                        cachedDuckDbRefs =
-                            case cache of
-                                Nothing ->
-                                    []
-
-                                Just oldCache ->
-                                    oldCache.refs
-                    in
-                    ( model, sendToFrontend clientId (DeliverDuckDbRefs (BackendSuccess cachedDuckDbRefs)) )
+                    ( model, sendToFrontend clientId (DeliverDuckDbRefs (BackendSuccess cache.refs)) )

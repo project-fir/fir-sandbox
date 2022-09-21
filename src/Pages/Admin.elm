@@ -3,7 +3,7 @@ module Pages.Admin exposing (Model, Msg(..), page)
 import Bridge exposing (DuckDbCache, DuckDbCache_(..), DuckDbMetaDataCacheEntry, ToBackend(..))
 import Dict exposing (Dict)
 import DimensionalModel exposing (DimensionalModel, DimensionalModelRef)
-import DuckDb exposing (DuckDbRef)
+import DuckDb exposing (DuckDbRef, refToString)
 import Effect exposing (Effect)
 import Element as E exposing (..)
 import Element.Background as Background
@@ -65,7 +65,7 @@ init =
 type Msg
     = RefetchBackendData
     | PurgeBackendData
-    | SendCacheRefreshSignal
+    | UserClickedRefreshBackendCache
     | ProxyServerPingToBackend
     | GotPurgeDataConfirmation String
     | GotCacheRefreshConfirmation String
@@ -98,8 +98,8 @@ update msg model =
         GotPurgeDataConfirmation purgeStr ->
             ( { model | purgedDataStatus = Just purgeStr }, Effect.none )
 
-        SendCacheRefreshSignal ->
-            ( model, Effect.fromCmd <| sendToBackend Admin_RefreshDuckDbMetaData )
+        UserClickedRefreshBackendCache ->
+            ( model, Effect.fromCmd <| sendToBackend Admin_InitiateDuckDbCacheWarmingCycle )
 
         GotCacheRefreshConfirmation cacheStr ->
             ( { model | cacheRefreshStatus = Just cacheStr }, Effect.none )
@@ -209,7 +209,7 @@ viewQuadrant1_BackendDataManagement model =
         viewCacheRefreshButton : Element Msg
         viewCacheRefreshButton =
             Input.button [ centerX ]
-                { onPress = Just SendCacheRefreshSignal
+                { onPress = Just UserClickedRefreshBackendCache
                 , label =
                     el
                         [ Border.width 1
@@ -218,7 +218,7 @@ viewQuadrant1_BackendDataManagement model =
                         , Border.rounded 3
                         , padding 5
                         ]
-                        (E.text "Refresh DuckDb")
+                        (E.text "Refresh DuckDb Cache")
                 }
 
         viewCacheRefreshStatus : Element Msg
@@ -360,7 +360,58 @@ viewPanelQuadrant2_DimensionalModelAndDuckDbCache model =
 
         viewDuckDbCacheTable : Element Msg
         viewDuckDbCacheTable =
-            E.text "TODO: Fix cache!"
+            let
+                viewTableWithSummary : String -> List DuckDbRef -> Element Msg
+                viewTableWithSummary summary cachedRefs =
+                    column [ centerX, spacing 5 ]
+                        [ E.text summary
+                        , E.table
+                            [ centerX
+                            , width (px 600)
+                            ]
+                            { data = cachedRefs
+                            , columns =
+                                [ { header =
+                                        el
+                                            [ Border.color Palette.black
+                                            , Border.widthEach { top = 1, right = 1, left = 1, bottom = 3 }
+                                            , padding 3
+                                            , Background.color Palette.lightGrey
+                                            ]
+                                        <|
+                                            el [ Font.bold ] <|
+                                                E.text "ref"
+                                  , width = px 180
+                                  , view =
+                                        \ref ->
+                                            el
+                                                [ Border.color Palette.black
+                                                , Border.width 1
+                                                , padding 3
+                                                ]
+                                                (el [ Font.size 12 ] <| E.text (refToString ref))
+                                  }
+                                ]
+                            }
+                        ]
+            in
+            case model.backendModel of
+                Nothing ->
+                    viewTableWithSummary "Please refresh page to view latest data" []
+
+                Just model_ ->
+                    case model_.duckDbCache of
+                        Cold duckDbCache ->
+                            viewTableWithSummary "Cache is COLD" duckDbCache.refs
+
+                        WarmingCycleInitiated duckDbCache ->
+                            viewTableWithSummary "Cache is WARMING" duckDbCache.refs
+
+                        Warming duckDbCache _ _ ->
+                            viewTableWithSummary "Cache is WARMING" duckDbCache.refs
+
+                        Hot duckDbCache ->
+                            viewTableWithSummary "Cache is HOT" duckDbCache.refs
     in
     column
         [ width fill

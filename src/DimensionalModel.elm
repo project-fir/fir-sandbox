@@ -33,7 +33,10 @@ type alias Edge =
 
 type alias DimensionalModel =
     { selectedDbRefs : List DuckDbRef
-    , tableInfos : Dict DuckDbRefString ( TableRenderInfo, KimballAssignment DuckDbRef_ (List DuckDbColumnDescription) )
+    , tableInfos :
+        Dict
+            DuckDbRefString
+            ( TableRenderInfo, KimballAssignment DuckDbRef_ (List DuckDbColumnDescription) )
     , graph : Graph DuckDbRef Edge
     , ref : DimensionalModelRef
     }

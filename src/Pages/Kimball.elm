@@ -622,7 +622,7 @@ viewDataSourceNode model renderInfo kimballAssignment =
                 , Background.color backgroundColor
                 , Font.size 14
                 ]
-                ([ el
+                [ el
                     [ Border.widthEach { top = 0, left = 0, right = 0, bottom = 2 }
                     , Border.color Palette.black
                     , width fill
@@ -632,22 +632,30 @@ viewDataSourceNode model renderInfo kimballAssignment =
                     , Events.onMouseDown (BeginNodeDrag renderInfo.ref)
                     , paddingXY 0 5
                     ]
-                   <|
+                  <|
                     row [ width fill, paddingXY 5 0 ]
                         [ el [ alignLeft ] (E.text <| type_ ++ ":")
                         , el [ alignLeft, moveRight 10 ] (E.text title)
                         ]
-                 ]
-                    ++ List.map (\col -> viewColumn col) colDescs
-                )
+                , column
+                    [ width fill
+                    , height fill
+                    ]
+                  <|
+                    List.map (\col -> viewColumn col) colDescs
+                ]
     in
     SC.foreignObject
         [ SA.x (ST.px renderInfo.pos.x)
         , SA.y (ST.px renderInfo.pos.y)
         , SA.width (ST.px 250)
-        , SA.height (ST.px 350)
+        , SA.height (ST.px 450)
         ]
-        [ E.layoutWith { options = [ noStaticStyleSheet ] } [ Events.onMouseLeave ClearNodeHoverState ] element ]
+        [ E.layoutWith { options = [ noStaticStyleSheet ] }
+            [ Events.onMouseLeave ClearNodeHoverState
+            ]
+            element
+        ]
 
 
 viewCanvas : Model -> LayoutInfo -> Element Msg

@@ -2,8 +2,8 @@ module Backend exposing (..)
 
 import Bridge exposing (BackendErrorMessage(..), DeliveryEnvelope(..), DuckDbCache, DuckDbCache_(..), ToBackend(..), defaultColdCache)
 import Dict exposing (Dict)
-import DimensionalModel exposing (DimensionalModel, DimensionalModelRef)
-import DuckDb exposing (DuckDbRef, DuckDbRefString, fetchDuckDbTableRefs, pingServer, queryDuckDbMeta, refToString)
+import DimensionalModel exposing (DimensionalModel, DimensionalModelRef, KimballAssignment(..), PositionPx, TableRenderInfo)
+import DuckDb exposing (DuckDbColumnDescription, DuckDbRef, DuckDbRefString, DuckDbRef_(..), fetchDuckDbTableRefs, pingServer, queryDuckDbMeta, refToString)
 import Graph
 import Lamdera exposing (ClientId, SessionId, broadcast, sendToFrontend)
 import RemoteData exposing (RemoteData(..))
@@ -96,6 +96,7 @@ update msg model =
 
                         r :: rs ->
                             let
+                                queryStr : String
                                 queryStr =
                                     "select * from " ++ refToString r
                             in
@@ -174,7 +175,7 @@ updateFromFrontend sessionId clientId msg model =
                         newDimModels =
                             Dict.insert ref
                                 { selectedDbRefs = []
-                                , tableInfos = Dict.empty
+                                , tableInfos = defaultTableInfos model.duckDbCache
                                 , graph = Graph.empty
                                 , ref = ref
                                 }
@@ -200,6 +201,7 @@ updateFromFrontend sessionId clientId msg model =
             case Dict.member newDimModel.ref model.dimensionalModels of
                 True ->
                     let
+                        updatedDimModels : Dict DimensionalModelRef DimensionalModel
                         updatedDimModels =
                             Dict.insert newDimModel.ref newDimModel model.dimensionalModels
                     in
@@ -259,3 +261,37 @@ updateFromFrontend sessionId clientId msg model =
 
                 Hot cache ->
                     ( model, sendToFrontend clientId (DeliverDuckDbRefs (BackendSuccess cache.refs)) )
+
+
+defaultTableInfos :
+    DuckDbCache_
+    -> Dict DuckDbRefString ( TableRenderInfo, KimballAssignment DuckDbRef_ (List DuckDbColumnDescription) )
+defaultTableInfos cache =
+    let
+        startingPositions : DuckDbCache -> List PositionPx
+        startingPositions cache_ =
+            -- TODO: Is random better? Mod 10? This impact default layout user sees, so it might be worth spending time
+            --       here on something fancier.
+            List.map (\i -> { x = toFloat <| 100 * i, y = toFloat <| 100 * i }) (List.range 0 (List.length cache_.refs - 1))
+
+        startingKimballAssignments : DuckDbCache -> List (KimballAssignment DuckDbRef_ (List DuckDbColumnDescription))
+        startingKimballAssignments cache_ =
+            List.map (\entry -> Unassigned (DuckDbTable entry.ref) entry.columnDescriptions) (Dict.values cache_.metaData)
+
+        result : DuckDbCache -> Dict DuckDbRefString ( TableRenderInfo, KimballAssignment DuckDbRef_ (List DuckDbColumnDescription) )
+        result cache_ =
+            Dict.fromList <|
+                List.map3 (\ref pos assignment -> ( refToString ref, ( { pos = pos, ref = ref }, assignment ) )) cache_.refs (startingPositions cache_) (startingKimballAssignments cache_)
+    in
+    case cache of
+        Cold duckDbCache ->
+            result duckDbCache
+
+        WarmingCycleInitiated duckDbCache ->
+            result duckDbCache
+
+        Warming duckDbCache _ _ ->
+            result duckDbCache
+
+        Hot duckDbCache ->
+            result duckDbCache

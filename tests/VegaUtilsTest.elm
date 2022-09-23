@@ -1,6 +1,6 @@
 module VegaUtilsTest exposing (..)
 
-import DuckDb exposing (DuckDbColumn, Val(..))
+import DuckDb exposing (DuckDbColumn(..), DuckDbRef_(..), Val(..))
 import Expect exposing (Expectation)
 import Fuzz exposing (Fuzzer, int, list, string)
 import Test exposing (..)
@@ -32,14 +32,16 @@ suite =
 
 stringColumn : DuckDbColumn
 stringColumn =
-    { ref = "a string column"
-    , type_ = "VARCHAR"
-    , vals =
-        [ Just (Varchar_ "one")
-        , Just (Varchar_ "two")
-        , Just (Varchar_ "three")
-        ]
-    }
+    Persisted
+        { name = "a string column"
+        , parentRef = defaultParentRef
+        , dataType = "VARCHAR"
+        , vals =
+            [ Just (Varchar_ "one")
+            , Just (Varchar_ "two")
+            , Just (Varchar_ "three")
+            ]
+        }
 
 
 colParamedString : ColumnParamed String
@@ -51,14 +53,16 @@ colParamedString =
 
 integerColumn : DuckDbColumn
 integerColumn =
-    { ref = "an int column"
-    , type_ = "INTEGER"
-    , vals =
-        [ Just (Int_ 1)
-        , Just (Int_ 2)
-        , Just (Int_ 3)
-        ]
-    }
+    Persisted
+        { name = "an int column"
+        , parentRef = defaultParentRef
+        , dataType = "INTEGER"
+        , vals =
+            [ Just (Int_ 1)
+            , Just (Int_ 2)
+            , Just (Int_ 3)
+            ]
+        }
 
 
 colParamedInt : ColumnParamed Int
@@ -70,14 +74,16 @@ colParamedInt =
 
 floatColumn : DuckDbColumn
 floatColumn =
-    { ref = "a float column"
-    , type_ = "DOUBLE"
-    , vals =
-        [ Just (Float_ 3.1)
-        , Just (Float_ 3.14)
-        , Just (Float_ 3.2)
-        ]
-    }
+    Persisted
+        { name = "a float column"
+        , parentRef = defaultParentRef
+        , dataType = "DOUBLE"
+        , vals =
+            [ Just (Float_ 3.1)
+            , Just (Float_ 3.14)
+            , Just (Float_ 3.2)
+            ]
+        }
 
 
 colParamedFloat : ColumnParamed Float
@@ -85,3 +91,8 @@ colParamedFloat =
     { ref = "a float column"
     , vals = [ 3.1, 3.14, 3.2 ]
     }
+
+
+defaultParentRef : DuckDbRef_
+defaultParentRef =
+    DuckDbTable { schemaName = "elm_test", tableName = "a_test" }

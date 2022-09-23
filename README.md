@@ -12,7 +12,7 @@ lamdera live --port 8082
 
 Lamdera recommends `elm-test-rs`, which requires Rust to run.
 
-Instll Rust the recommended way: https://www.rust-lang.org/tools/install
+Install Rust the recommended way: https://www.rust-lang.org/tools/install
 
 Download the latest binary for your system from: https://github.com/mpizenberg/elm-test-rs/releases
 

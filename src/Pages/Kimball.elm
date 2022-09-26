@@ -54,7 +54,8 @@ type alias RefString =
 
 type alias Model =
     { duckDbRefs : BackendData (List DuckDb.DuckDbRef)
-    , duckDbRefMeta : Dict DuckDbRefString (List DuckDbColumnDescription)
+
+    --, duckDbRefMeta : Dict DuckDbRefString (List DuckDbColumnDescription)
     , selectedTableRef : Maybe DuckDb.DuckDbRef
     , hoveredOnTableRef : Maybe DuckDb.DuckDbRef
     , pageRenderStatus : PageRenderStatus
@@ -82,7 +83,8 @@ type PageRenderStatus
 init : ( Model, Effect Msg )
 init =
     ( { duckDbRefs = NotAsked_
-      , duckDbRefMeta = Dict.empty
+
+      --, duckDbRefMeta = Dict.empty
       , selectedTableRef = Nothing
       , hoveredOnTableRef = Nothing
       , hoveredOnNodeTitle = Nothing
@@ -133,7 +135,6 @@ type Msg
     | GotDimensionalModelRefs (List DimensionalModelRef)
     | GotDimensionalModel DimensionalModel
     | GotDuckDbTableRefsResponse (List DuckDb.DuckDbRef)
-    | GotDuckDbCacheEntry DuckDbMetaDataCacheEntry
     | UserSelectedDimensionalModel DimensionalModelRef
     | UserToggledDuckDbRefSelection DuckDb.DuckDbRef
     | UserMouseEnteredTableRef DuckDb.DuckDbRef
@@ -317,11 +318,28 @@ update msg model =
 
         DragStoppedAt _ ->
             let
+                ref : Maybe DuckDbRef
+                ref =
+                    case model.dragState of
+                        Idle ->
+                            Nothing
+
+                        DragInitiated duckDbRef ->
+                            Just duckDbRef
+
+                        Dragging duckDbRef _ _ _ ->
+                            Just duckDbRef
+
                 cmd : Cmd msg
                 cmd =
-                    case model.selectedDimensionalModel of
-                        Just dimModel ->
-                            sendToBackend <| UpdateDimensionalModel dimModel
+                    case ref of
+                        Just ref_ ->
+                            case model.selectedDimensionalModel of
+                                Just dimModel ->
+                                    sendToBackend <| UpdateDimensionalModel ref_ dimModel
+
+                                Nothing ->
+                                    Cmd.none
 
                         Nothing ->
                             Cmd.none
@@ -396,60 +414,19 @@ update msg model =
 
         UserToggledDuckDbRefSelection ref ->
             let
-                fetchCmd : Cmd frontendMsg
-                fetchCmd =
-                    -- fetch DuckDB metadata from the backend, if we need it client-side
-                    case Dict.get (refToString ref) model.duckDbRefMeta of
-                        Just _ ->
-                            Cmd.none
-
-                        Nothing ->
-                            sendToBackend (FetchDuckDbMetaData ref)
-
-                ( newDimModel, cmd ) =
+                cmd =
                     case model.selectedDimensionalModel of
                         Nothing ->
                             -- menu to toggle ref selection is only rendered when there exists a selected model
                             -- this shouldn't happen; issue noop
-                            ( Nothing, Cmd.none )
+                            Cmd.none
 
-                        Just dimModel ->
-                            let
-                                startingPosition : PositionPx
-                                startingPosition =
-                                    { x = 100 * toFloat (Dict.size dimModel.tableInfos)
-                                    , y = 100 * toFloat (Dict.size dimModel.tableInfos)
-                                    }
-
-                                newTableInfos : Dict DuckDbRefString ( TableRenderInfo, KimballAssignment DuckDbRef_ (List DuckDbColumnDescription) )
-                                newTableInfos =
-                                    case Dict.get (refToString ref) dimModel.tableInfos of
-                                        Just _ ->
-                                            Dict.remove (refToString ref) dimModel.tableInfos
-
-                                        Nothing ->
-                                            let
-                                                info : TableRenderInfo
-                                                info =
-                                                    { ref = ref
-                                                    , pos = startingPosition
-                                                    }
-
-                                                kimballAssignment : KimballAssignment DuckDbRef_ (List DuckDbColumnDescription)
-                                                kimballAssignment =
-                                                    Unassigned (DuckDbTable ref) []
-                                            in
-                                            Dict.insert (refToString ref) ( info, kimballAssignment ) dimModel.tableInfos
-
-                                newDimModel_ : DimensionalModel
-                                newDimModel_ =
-                                    { dimModel | tableInfos = newTableInfos }
-                            in
-                            ( Just newDimModel_, sendToBackend (UpdateDimensionalModel newDimModel_) )
+                        Just currentDimModel ->
+                            sendToBackend (UpdateDimensionalModel ref currentDimModel)
             in
             -- If there is a selectedRef, by this point we've updated it, so we also must send a msg to Backend to
             -- update its knowledge of the dimensional model
-            ( { model | selectedDimensionalModel = newDimModel }, Effect.batch <| [ Effect.fromCmd cmd, Effect.fromCmd fetchCmd ] )
+            ( model, Effect.fromCmd cmd )
 
         UserMouseEnteredTableRef ref ->
             ( { model | hoveredOnTableRef = Just ref }, Effect.none )
@@ -469,13 +446,6 @@ update msg model =
                 [ Effect.fromCmd <| sendToBackend (FetchDimensionalModel ref)
                 , Effect.fromCmd <| sendToBackend Kimball_FetchDuckDbRefs
                 ]
-            )
-
-        GotDuckDbCacheEntry entry ->
-            ( { model
-                | duckDbRefMeta = Dict.insert (refToString entry.ref) entry.columnDescriptions model.duckDbRefMeta
-              }
-            , Effect.none
             )
 
 

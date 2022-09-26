@@ -4,9 +4,10 @@ import Bridge exposing (BackendData, BackendErrorMessage, DeliveryEnvelope, Duck
 import Browser
 import Browser.Navigation exposing (Key)
 import Dict exposing (Dict)
-import DimensionalModel exposing (DimensionalModel, DimensionalModelRef)
-import DuckDb exposing (DuckDbColumnDescription, DuckDbMetaResponse, DuckDbRef, DuckDbRefString, DuckDbRefsResponse, PingResponse)
+import DimensionalModel exposing (DimensionalModel, DimensionalModelEdge, DimensionalModelRef, KimballAssignment, PositionPx)
+import DuckDb exposing (DuckDbColumnDescription, DuckDbMetaResponse, DuckDbRef, DuckDbRefString, DuckDbRef_, DuckDbRefsResponse, PingResponse)
 import Gen.Pages as Pages
+import Graph exposing (Graph)
 import Http
 import Lamdera exposing (ClientId, SessionId)
 import RemoteData exposing (WebData)
@@ -72,7 +73,6 @@ type ToFrontend
     = DeliverDimensionalModelRefs (List DimensionalModelRef)
     | DeliverDimensionalModel DimensionalModel
     | DeliverDuckDbRefs (DeliveryEnvelope (List DuckDbRef))
-    | DeliverDuckDbCacheEntry (DeliveryEnvelope DuckDbMetaDataCacheEntry)
     | Noop_Error
     | Admin_DeliverAllBackendData
         { sessionIds : List SessionId
@@ -86,3 +86,14 @@ type ToFrontend
 
 type alias ToBackend =
     Bridge.ToBackend
+
+
+
+-- TODO: Implement "dimensional model API"
+
+
+type DimensionalModelUpdate
+    = FullReplacement DimensionalModel
+    | UpdateNodePosition DuckDbRef PositionPx
+    | UpdateAssignment DuckDbRef (KimballAssignment DuckDbRef_ (List DuckDbColumnDescription))
+    | UpdateGraph (Graph DuckDbRef_ DimensionalModelEdge)

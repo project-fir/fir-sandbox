@@ -9,7 +9,6 @@ type ToBackend
     = FetchDimensionalModelRefs
     | CreateNewDimensionalModel DimensionalModelRef
     | FetchDimensionalModel DimensionalModelRef
-    | FetchDuckDbMetaData DuckDbRef
     | UpdateDimensionalModel DuckDbRef DimensionalModel
     | Admin_FetchAllBackendData
     | Admin_PingServer

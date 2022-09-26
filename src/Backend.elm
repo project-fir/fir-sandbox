@@ -234,19 +234,14 @@ updateFromFrontend sessionId clientId msg model =
 
                 newTableInfos : Dict DuckDbRefString ( TableRenderInfo, KimballAssignment DuckDbRef_ (List DuckDbColumnDescription) )
                 newTableInfos =
-                    case Dict.get (refToString newRef) oldDimModel.tableInfos of
-                        Just _ ->
-                            Dict.remove (refToString newRef) oldDimModel.tableInfos
-
-                        Nothing ->
-                            let
-                                info : TableRenderInfo
-                                info =
-                                    { ref = newRef
-                                    , pos = startingPosition
-                                    }
-                            in
-                            Dict.insert (refToString newRef) ( info, startingKimballAssignment ) oldDimModel.tableInfos
+                    let
+                        info : TableRenderInfo
+                        info =
+                            { ref = newRef
+                            , pos = startingPosition
+                            }
+                    in
+                    Dict.insert (refToString newRef) ( info, startingKimballAssignment ) oldDimModel.tableInfos
 
                 newDimModel : DimensionalModel
                 newDimModel =
@@ -260,7 +255,9 @@ updateFromFrontend sessionId clientId msg model =
                             Dict.insert newDimModel.ref newDimModel model.dimensionalModels
                     in
                     -- TODO: user-scoped broadcasting, needs auth
-                    ( { model | dimensionalModels = updatedDimModels }, sendToFrontend clientId (DeliverDimensionalModel newDimModel) )
+                    ( { model | dimensionalModels = updatedDimModels }
+                    , sendToFrontend clientId (DeliverDimensionalModel newDimModel)
+                    )
 
                 False ->
                     -- TODO: Once I have a few more cases like this I'd like to establish a pattern for Lamdera
@@ -315,27 +312,3 @@ updateFromFrontend sessionId clientId msg model =
 
                 Hot cache ->
                     ( model, sendToFrontend clientId (DeliverDuckDbRefs (BackendSuccess cache.refs)) )
-
-        FetchDuckDbMetaData ref ->
-            let
-                lookup : DuckDbCache -> DeliveryEnvelope DuckDbMetaDataCacheEntry
-                lookup cache =
-                    case Dict.get (refToString ref) cache.metaData of
-                        Just cacheEntry ->
-                            BackendSuccess cacheEntry
-
-                        Nothing ->
-                            BackendError <| PlainMessage ("ref " ++ refToString ref ++ " not known in DuckDb cache")
-            in
-            case model.duckDbCache of
-                Cold duckDbCache ->
-                    ( model, sendToFrontend clientId (DeliverDuckDbCacheEntry (lookup duckDbCache)) )
-
-                WarmingCycleInitiated duckDbCache ->
-                    ( model, sendToFrontend clientId (DeliverDuckDbCacheEntry (lookup duckDbCache)) )
-
-                Warming duckDbCache _ _ ->
-                    ( model, sendToFrontend clientId (DeliverDuckDbCacheEntry (lookup duckDbCache)) )
-
-                Hot duckDbCache ->
-                    ( model, sendToFrontend clientId (DeliverDuckDbCacheEntry (lookup duckDbCache)) )

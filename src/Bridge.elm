@@ -1,20 +1,28 @@
 module Bridge exposing (..)
 
 import Dict exposing (Dict)
-import DimensionalModel exposing (DimensionalModel, DimensionalModelRef)
-import DuckDb exposing (DuckDbColumnDescription, DuckDbRef, DuckDbRefString)
+import DimensionalModel exposing (DimensionalModel, DimensionalModelEdge, DimensionalModelRef, KimballAssignment, PositionPx)
+import DuckDb exposing (DuckDbColumnDescription, DuckDbRef, DuckDbRefString, DuckDbRef_)
+import Graph exposing (Graph)
 
 
 type ToBackend
     = FetchDimensionalModelRefs
     | CreateNewDimensionalModel DimensionalModelRef
     | FetchDimensionalModel DimensionalModelRef
-    | UpdateDimensionalModel DuckDbRef DimensionalModel
+    | UpdateDimensionalModel DimensionalModelUpdate
     | Admin_FetchAllBackendData
     | Admin_PingServer
     | Admin_InitiateDuckDbCacheWarmingCycle
     | Admin_PurgeBackendData
     | Kimball_FetchDuckDbRefs
+
+
+type DimensionalModelUpdate
+    = FullReplacement DimensionalModelRef DimensionalModel
+    | UpdateNodePosition DimensionalModelRef DuckDbRef PositionPx
+    | UpdateAssignment DimensionalModelRef DuckDbRef (KimballAssignment DuckDbRef_ (List DuckDbColumnDescription))
+    | UpdateGraph DimensionalModelRef (Graph DuckDbRef_ DimensionalModelEdge)
 
 
 

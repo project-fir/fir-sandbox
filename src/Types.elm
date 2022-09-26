@@ -90,10 +90,3 @@ type alias ToBackend =
 
 
 -- TODO: Implement "dimensional model API"
-
-
-type DimensionalModelUpdate
-    = FullReplacement DimensionalModel
-    | UpdateNodePosition DuckDbRef PositionPx
-    | UpdateAssignment DuckDbRef (KimballAssignment DuckDbRef_ (List DuckDbColumnDescription))
-    | UpdateGraph (Graph DuckDbRef_ DimensionalModelEdge)

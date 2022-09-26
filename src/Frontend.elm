@@ -170,6 +170,14 @@ updateFromBackend msg model =
                 BackendError backendErrorMessage ->
                     ( model, Cmd.none )
 
+        DeliverDuckDbCacheEntry deliveryEnvelope ->
+            case deliveryEnvelope of
+                BackendSuccess cacheEntry ->
+                    ( model, send <| Page (Gen.Msg.Kimball (GotDuckDbCacheEntry cacheEntry)) )
+
+                BackendError backendErrorMessage ->
+                    ( model, Cmd.none )
+
 
 
 -- VIEW

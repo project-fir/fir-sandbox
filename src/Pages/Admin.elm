@@ -269,8 +269,7 @@ viewPanelQuadrant2_DimensionalModelAndDuckDbCache model =
             let
                 data :
                     List
-                        { numSelectedDbRefs : Int
-                        , numTableInfos : Int
+                        { numTableInfos : Int
                         , ref : DimensionalModelRef
                         }
                 data =
@@ -281,8 +280,7 @@ viewPanelQuadrant2_DimensionalModelAndDuckDbCache model =
                         Just model_ ->
                             List.map
                                 (\dimModel ->
-                                    { numSelectedDbRefs = List.length dimModel.selectedDbRefs
-                                    , numTableInfos = Dict.size dimModel.tableInfos
+                                    { numTableInfos = Dict.size dimModel.tableInfos
                                     , ref = dimModel.ref
                                     }
                                 )
@@ -314,26 +312,6 @@ viewPanelQuadrant2_DimensionalModelAndDuckDbCache model =
                                     , padding 3
                                     ]
                                     (el [ Font.size 12 ] <| E.text dimModel.ref)
-                      }
-                    , { header =
-                            el
-                                [ Border.color Palette.black
-                                , Border.widthEach { top = 1, right = 1, left = 1, bottom = 3 }
-                                , padding 3
-                                , Background.color Palette.lightGrey
-                                ]
-                            <|
-                                el [ Font.bold ] <|
-                                    E.text "num_selected_refs"
-                      , width = px 120
-                      , view =
-                            \data_ ->
-                                el
-                                    [ Border.color Palette.black
-                                    , Border.width 1
-                                    , padding 3
-                                    ]
-                                    (el [ Font.size 12 ] <| E.text (String.fromInt data_.numSelectedDbRefs))
                       }
                     , { header =
                             el

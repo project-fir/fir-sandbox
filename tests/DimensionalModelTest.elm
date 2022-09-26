@@ -26,6 +26,8 @@ suite =
                 (\_ -> naiveColumnPairingStrategy goodModel1 |> Expect.equal (Success goodModel1_Expected))
             , test "happy path - case 2"
                 (\_ -> naiveColumnPairingStrategy goodModel2 |> Expect.equal (Success goodModel2_Expected))
+
+            -- TODO: Test case with two facts with 1 or more column names that match should NOT result in joins
             ]
         ]
 

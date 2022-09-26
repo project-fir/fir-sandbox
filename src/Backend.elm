@@ -1,6 +1,6 @@
 module Backend exposing (..)
 
-import Bridge exposing (BackendErrorMessage(..), DeliveryEnvelope(..), DuckDbCache, DuckDbCache_(..), ToBackend(..), defaultColdCache)
+import Bridge exposing (BackendErrorMessage(..), DeliveryEnvelope(..), DuckDbCache, DuckDbCache_(..), DuckDbMetaDataCacheEntry, ToBackend(..), defaultColdCache)
 import Dict exposing (Dict)
 import DimensionalModel exposing (DimensionalModel, DimensionalModelRef, KimballAssignment(..), PositionPx, TableRenderInfo)
 import DuckDb exposing (DuckDbColumnDescription, DuckDbRef, DuckDbRefString, DuckDbRef_(..), fetchDuckDbTableRefs, pingServer, queryDuckDbMeta, refToString)
@@ -174,8 +174,7 @@ updateFromFrontend sessionId clientId msg model =
                         newDimModels : Dict DimensionalModelRef DimensionalModel
                         newDimModels =
                             Dict.insert ref
-                                { selectedDbRefs = []
-                                , tableInfos = defaultTableInfos model.duckDbCache
+                                { tableInfos = Dict.empty
                                 , graph = Graph.empty
                                 , ref = ref
                                 }
@@ -189,7 +188,6 @@ updateFromFrontend sessionId clientId msg model =
 
         FetchDimensionalModel ref ->
             case Dict.get ref model.dimensionalModels of
-                -- We do, don't overwrite data!
                 Just dimModel ->
                     ( model, sendToFrontend clientId (DeliverDimensionalModel dimModel) )
 
@@ -197,7 +195,63 @@ updateFromFrontend sessionId clientId msg model =
                     -- TODO: Once I have a few more cases like this I'd like to establish a pattern for Lamdera errors
                     ( model, Cmd.none )
 
-        UpdateDimensionalModel newDimModel ->
+        UpdateDimensionalModel newRef oldDimModel ->
+            let
+                startingPosition : PositionPx
+                startingPosition =
+                    { x = 10 * toFloat (Dict.size oldDimModel.tableInfos)
+                    , y = 10 * toFloat (Dict.size oldDimModel.tableInfos)
+                    }
+
+                columns : List DuckDbColumnDescription
+                columns =
+                    let
+                        lookup : DuckDbCache -> List DuckDbColumnDescription
+                        lookup cache =
+                            case Dict.get (refToString newRef) cache.metaData of
+                                Just entry ->
+                                    entry.columnDescriptions
+
+                                Nothing ->
+                                    []
+                    in
+                    case model.duckDbCache of
+                        Cold cache ->
+                            lookup cache
+
+                        WarmingCycleInitiated cache ->
+                            lookup cache
+
+                        Warming cache _ _ ->
+                            lookup cache
+
+                        Hot cache ->
+                            lookup cache
+
+                startingKimballAssignment : KimballAssignment DuckDbRef_ (List DuckDbColumnDescription)
+                startingKimballAssignment =
+                    Unassigned (DuckDbTable newRef) columns
+
+                newTableInfos : Dict DuckDbRefString ( TableRenderInfo, KimballAssignment DuckDbRef_ (List DuckDbColumnDescription) )
+                newTableInfos =
+                    case Dict.get (refToString newRef) oldDimModel.tableInfos of
+                        Just _ ->
+                            Dict.remove (refToString newRef) oldDimModel.tableInfos
+
+                        Nothing ->
+                            let
+                                info : TableRenderInfo
+                                info =
+                                    { ref = newRef
+                                    , pos = startingPosition
+                                    }
+                            in
+                            Dict.insert (refToString newRef) ( info, startingKimballAssignment ) oldDimModel.tableInfos
+
+                newDimModel : DimensionalModel
+                newDimModel =
+                    { oldDimModel | tableInfos = newTableInfos }
+            in
             case Dict.member newDimModel.ref model.dimensionalModels of
                 True ->
                     let
@@ -262,36 +316,26 @@ updateFromFrontend sessionId clientId msg model =
                 Hot cache ->
                     ( model, sendToFrontend clientId (DeliverDuckDbRefs (BackendSuccess cache.refs)) )
 
+        FetchDuckDbMetaData ref ->
+            let
+                lookup : DuckDbCache -> DeliveryEnvelope DuckDbMetaDataCacheEntry
+                lookup cache =
+                    case Dict.get (refToString ref) cache.metaData of
+                        Just cacheEntry ->
+                            BackendSuccess cacheEntry
 
-defaultTableInfos :
-    DuckDbCache_
-    -> Dict DuckDbRefString ( TableRenderInfo, KimballAssignment DuckDbRef_ (List DuckDbColumnDescription) )
-defaultTableInfos cache =
-    let
-        startingPositions : DuckDbCache -> List PositionPx
-        startingPositions cache_ =
-            -- TODO: Is random better? Mod 10? This impact default layout user sees, so it might be worth spending time
-            --       here on something fancier.
-            List.map (\i -> { x = toFloat <| 100 * i, y = toFloat <| 100 * i }) (List.range 0 (List.length cache_.refs - 1))
+                        Nothing ->
+                            BackendError <| PlainMessage ("ref " ++ refToString ref ++ " not known in DuckDb cache")
+            in
+            case model.duckDbCache of
+                Cold duckDbCache ->
+                    ( model, sendToFrontend clientId (DeliverDuckDbCacheEntry (lookup duckDbCache)) )
 
-        startingKimballAssignments : DuckDbCache -> List (KimballAssignment DuckDbRef_ (List DuckDbColumnDescription))
-        startingKimballAssignments cache_ =
-            List.map (\entry -> Unassigned (DuckDbTable entry.ref) entry.columnDescriptions) (Dict.values cache_.metaData)
+                WarmingCycleInitiated duckDbCache ->
+                    ( model, sendToFrontend clientId (DeliverDuckDbCacheEntry (lookup duckDbCache)) )
 
-        result : DuckDbCache -> Dict DuckDbRefString ( TableRenderInfo, KimballAssignment DuckDbRef_ (List DuckDbColumnDescription) )
-        result cache_ =
-            Dict.fromList <|
-                List.map3 (\ref pos assignment -> ( refToString ref, ( { pos = pos, ref = ref }, assignment ) )) cache_.refs (startingPositions cache_) (startingKimballAssignments cache_)
-    in
-    case cache of
-        Cold duckDbCache ->
-            result duckDbCache
+                Warming duckDbCache _ _ ->
+                    ( model, sendToFrontend clientId (DeliverDuckDbCacheEntry (lookup duckDbCache)) )
 
-        WarmingCycleInitiated duckDbCache ->
-            result duckDbCache
-
-        Warming duckDbCache _ _ ->
-            result duckDbCache
-
-        Hot duckDbCache ->
-            result duckDbCache
+                Hot duckDbCache ->
+                    ( model, sendToFrontend clientId (DeliverDuckDbCacheEntry (lookup duckDbCache)) )

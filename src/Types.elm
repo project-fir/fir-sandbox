@@ -1,6 +1,6 @@
 module Types exposing (..)
 
-import Bridge exposing (BackendData, BackendErrorMessage, DeliveryEnvelope, DuckDbCache_)
+import Bridge exposing (BackendData, BackendErrorMessage, DeliveryEnvelope, DuckDbCache_, DuckDbMetaDataCacheEntry)
 import Browser
 import Browser.Navigation exposing (Key)
 import Dict exposing (Dict)
@@ -72,6 +72,7 @@ type ToFrontend
     = DeliverDimensionalModelRefs (List DimensionalModelRef)
     | DeliverDimensionalModel DimensionalModel
     | DeliverDuckDbRefs (DeliveryEnvelope (List DuckDbRef))
+    | DeliverDuckDbCacheEntry (DeliveryEnvelope DuckDbMetaDataCacheEntry)
     | Noop_Error
     | Admin_DeliverAllBackendData
         { sessionIds : List SessionId

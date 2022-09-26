@@ -1,4 +1,4 @@
-module Utils exposing (..)
+module Utils exposing (cartesian, collapseWhitespace, keyDecoder, removeNothingsFromList, send)
 
 -- miscellaneous utility functions
 
@@ -41,6 +41,13 @@ collapseWhitespace s trim =
 
                 False ->
                     Regex.replace rex (\_ -> " ") s
+
+
+cartesian : List a -> List b -> List ( a, b )
+cartesian xs ys =
+    List.concatMap
+        (\x -> List.map (\y -> ( x, y )) ys)
+        xs
 
 
 

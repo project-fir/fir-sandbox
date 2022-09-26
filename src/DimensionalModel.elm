@@ -1,8 +1,9 @@
-module DimensionalModel exposing (DimensionalModel, DimensionalModelRef, KimballAssignment(..), NaivePairingStrategyResult(..), PositionPx, Reason(..), TableRenderInfo, naiveColumnPairingStrategy)
+module DimensionalModel exposing (DimensionalModel, DimensionalModelEdge, DimensionalModelRef, KimballAssignment(..), NaivePairingStrategyResult(..), PositionPx, Reason(..), TableRenderInfo, naiveColumnPairingStrategy)
 
 import Dict exposing (Dict)
-import DuckDb exposing (DuckDbColumnDescription, DuckDbRef, DuckDbRefString, DuckDbRef_(..))
-import Graph exposing (Graph)
+import DuckDb exposing (DuckDbColumnDescription(..), DuckDbRef, DuckDbRefString, DuckDbRef_(..), refToString)
+import Graph exposing (Edge, Graph, Node, NodeId)
+import Utils exposing (cartesian)
 
 
 type alias PositionPx =
@@ -27,8 +28,8 @@ type alias DimensionalModelRef =
     String
 
 
-type alias Edge =
-    String
+type alias DimensionalModelEdge =
+    ( DuckDbColumnDescription, DuckDbColumnDescription )
 
 
 type alias DimensionalModel =
@@ -37,7 +38,7 @@ type alias DimensionalModel =
         Dict
             DuckDbRefString
             ( TableRenderInfo, KimballAssignment DuckDbRef_ (List DuckDbColumnDescription) )
-    , graph : Graph DuckDbRef Edge
+    , graph : Graph DuckDbRef_ DimensionalModelEdge
     , ref : DimensionalModelRef
     }
 
@@ -56,6 +57,8 @@ type NaivePairingStrategyResult
 naiveColumnPairingStrategy : DimensionalModel -> NaivePairingStrategyResult
 naiveColumnPairingStrategy dimModel =
     let
+        -- TODO: I can imagine some of the utility functions scoped to this let block would be useful for a broader
+        --       DimensionalModel module, but for now they only have 1 use, so I'm keeping them privately scoped
         refDrillDown : DuckDbRef_ -> Maybe DuckDbRef
         refDrillDown ref =
             case ref of
@@ -101,35 +104,106 @@ naiveColumnPairingStrategy dimModel =
                 Dimension ref _ ->
                     refDrillDown ref
 
-        unassignedTables : List DuckDbRef
-        unassignedTables =
+        unassignedSources : List DuckDbRef
+        unassignedSources =
             List.filterMap helperFilterUnassigned (Dict.values dimModel.tableInfos)
 
-        factTables : List DuckDbRef
-        factTables =
+        factSources : List DuckDbRef
+        factSources =
             List.filterMap helperFilterFact (Dict.values dimModel.tableInfos)
 
-        dimensionTables : List DuckDbRef
-        dimensionTables =
+        dimensionSources : List DuckDbRef
+        dimensionSources =
             List.filterMap helperFilterDimension (Dict.values dimModel.tableInfos)
 
-        pairColumns : DimensionalModel -> DimensionalModel
-        pairColumns dimModel_ =
-            dimModel_
+        columnsOfNode : Node DuckDbRef_ -> List ( NodeId, DuckDbColumnDescription )
+        columnsOfNode node =
+            case node.label of
+                DuckDbView _ ->
+                    List.map2 (\nid col -> ( nid, col )) (List.repeat (List.length []) node.id) []
+
+                DuckDbTable ref_ ->
+                    case Dict.get (refToString ref_) dimModel.tableInfos of
+                        Nothing ->
+                            List.map2 (\nid col -> ( nid, col )) (List.repeat (List.length []) node.id) []
+
+                        Just ( _, assignments ) ->
+                            case assignments of
+                                Unassigned _ columns ->
+                                    List.map2 (\nid col -> ( nid, col )) (List.repeat (List.length columns) node.id) columns
+
+                                Fact _ columns ->
+                                    List.map2 (\nid col -> ( nid, col )) (List.repeat (List.length columns) node.id) columns
+
+                                Dimension _ columns ->
+                                    List.map2 (\nid col -> ( nid, col )) (List.repeat (List.length columns) node.id) columns
+
+        findColumnPairings : ( Node DuckDbRef_, Node DuckDbRef_ ) -> List ( ( NodeId, NodeId ), DimensionalModelEdge )
+        findColumnPairings ( nodeLhs, nodeRhs ) =
+            let
+                combos : List ( ( NodeId, DuckDbColumnDescription ), ( NodeId, DuckDbColumnDescription ) )
+                combos =
+                    cartesian (columnsOfNode nodeLhs) (columnsOfNode nodeRhs)
+
+                nameEquals : { r | name : String } -> { r | name : String } -> Bool
+                nameEquals lhs rhs =
+                    lhs.name == rhs.name
+            in
+            List.filterMap
+                (\( lhs, rhs ) ->
+                    case lhs of
+                        ( nodeIdLhs, Persisted_ lhsDesc ) ->
+                            case rhs of
+                                ( nodeIdRhs, Persisted_ rhsDesc ) ->
+                                    case nameEquals lhsDesc rhsDesc of
+                                        True ->
+                                            Just ( ( nodeIdLhs, nodeIdRhs ), ( Persisted_ lhsDesc, Persisted_ rhsDesc ) )
+
+                                        False ->
+                                            Nothing
+
+                                ( _, Computed_ _ ) ->
+                                    -- TODO: Computed column support
+                                    Nothing
+
+                        ( _, Computed_ lhsDesc ) ->
+                            -- TODO: Computed column support
+                            Nothing
+                )
+                combos
+
+        buildGraph : Graph DuckDbRef_ DimensionalModelEdge
+        buildGraph =
+            let
+                nodes : List (Node DuckDbRef_)
+                nodes =
+                    List.map2 (\src i -> Node i (DuckDbTable src))
+                        (factSources ++ dimensionSources)
+                        (List.range 1 (List.length (factSources ++ dimensionSources) - 1))
+
+                nodePairs : List ( Node DuckDbRef_, Node DuckDbRef_ )
+                nodePairs =
+                    cartesian nodes nodes
+
+                edges : List ( ( NodeId, NodeId ), DimensionalModelEdge )
+                edges =
+                    List.concatMap findColumnPairings nodePairs
+            in
+            Graph.fromNodesAndEdges nodes (List.map (\( ( nidL, nidR ), e ) -> Edge nidL nidR e) edges)
     in
-    case List.length unassignedTables of
+    case List.length unassignedSources of
         0 ->
-            case List.length factTables of
+            case List.length factSources of
                 0 ->
                     Fail InputMustContainAtLeastOneFactTable
 
                 _ ->
-                    case List.length dimensionTables of
+                    case List.length dimensionSources of
                         0 ->
                             Fail InputMustContainAtLeastOneDimensionTable
 
                         _ ->
-                            Success (pairColumns dimModel)
+                            Success { dimModel | graph = buildGraph }
 
         _ ->
             Fail AllInputTablesMustBeAssigned

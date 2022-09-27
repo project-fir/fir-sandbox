@@ -4,7 +4,7 @@ import Bridge exposing (BackendData(..), BackendErrorMessage(..), DuckDbMetaData
 import Browser.Dom
 import Browser.Events as BE
 import Dict exposing (Dict)
-import DimensionalModel exposing (DimensionalModel, DimensionalModelRef, KimballAssignment(..), PositionPx, TableRenderInfo)
+import DimensionalModel exposing (CardRenderInfo, DimensionalModel, DimensionalModelRef, KimballAssignment(..), PositionPx)
 import DuckDb exposing (ColumnName, DuckDbColumn, DuckDbColumnDescription(..), DuckDbRef, DuckDbRefString, DuckDbRef_(..), fetchDuckDbTableRefs, refEquals, refToString)
 import Effect exposing (Effect)
 import Element as E exposing (..)
@@ -72,7 +72,7 @@ type alias Model =
 type DragState
     = Idle
     | DragInitiated DuckDb.DuckDbRef
-    | Dragging DuckDb.DuckDbRef (Maybe Event) Event TableRenderInfo
+    | Dragging DuckDb.DuckDbRef (Maybe Event) Event CardRenderInfo
 
 
 type PageRenderStatus
@@ -230,7 +230,7 @@ update msg model =
 
                         DragInitiated ref ->
                             let
-                                anchoredInfo : Maybe TableRenderInfo
+                                anchoredInfo : Maybe CardRenderInfo
                                 anchoredInfo =
                                     case model.selectedDimensionalModel of
                                         Nothing ->
@@ -266,7 +266,7 @@ update msg model =
                                         dy =
                                             Tuple.second mouseEvent.clientPos - Tuple.second firstEvent_.clientPos
 
-                                        updatedInfo : TableRenderInfo
+                                        updatedInfo : CardRenderInfo
                                         updatedInfo =
                                             { pos =
                                                 { x = anchoredInfo.pos.x + dx
@@ -277,7 +277,7 @@ update msg model =
                                     in
                                     ( Dragging ref (Just firstEvent_) mouseEvent anchoredInfo, Just updatedInfo )
 
-                newTableInfos : Dict DuckDbRefString ( TableRenderInfo, KimballAssignment DuckDbRef_ (List DuckDbColumnDescription) )
+                newTableInfos : Dict DuckDbRefString ( CardRenderInfo, KimballAssignment DuckDbRef_ (List DuckDbColumnDescription) )
                 newTableInfos =
                     case model.selectedDimensionalModel of
                         Nothing ->
@@ -291,7 +291,9 @@ update msg model =
                                 Just updatedInfo_ ->
                                     case Dict.get (refToString updatedInfo_.ref) dimModel.tableInfos of
                                         Just ( renderInfo, assignment ) ->
-                                            Dict.insert (refToString renderInfo.ref) ( updatedInfo_, assignment ) dimModel.tableInfos
+                                            Dict.insert (refToString renderInfo.ref)
+                                                ( updatedInfo_, assignment )
+                                                dimModel.tableInfos
 
                                         Nothing ->
                                             dimModel.tableInfos
@@ -412,7 +414,7 @@ update msg model =
         FetchTableRefs ->
             ( { model | duckDbRefs = Fetching_ }, Effect.fromCmd <| sendToBackend Kimball_FetchDuckDbRefs )
 
-        UserToggledDuckDbRefSelection ref ->
+        UserToggledDuckDbRefSelection duckDbRef ->
             let
                 cmd =
                     case model.selectedDimensionalModel of
@@ -422,7 +424,7 @@ update msg model =
                             Cmd.none
 
                         Just currentDimModel ->
-                            sendToBackend (UpdateDimensionalModel ref currentDimModel)
+                            sendToBackend (UpdateDimensionalModel (refToString duckDbRef) currentDimModel.ref)
             in
             -- If there is a selectedRef, by this point we've updated it, so we also must send a msg to Backend to
             -- update its knowledge of the dimensional model
@@ -497,7 +499,7 @@ view model =
     }
 
 
-viewDataSourceNode : Model -> TableRenderInfo -> KimballAssignment DuckDbRef_ (List DuckDbColumnDescription) -> Svg Msg
+viewDataSourceNode : Model -> CardRenderInfo -> KimballAssignment DuckDbRef_ (List DuckDbColumnDescription) -> Svg Msg
 viewDataSourceNode model renderInfo kimballAssignment =
     let
         ( table_, type_, backgroundColor ) =
@@ -657,7 +659,7 @@ viewCanvas model layoutInfo =
                 Just dimModel ->
                     List.map (\( renderInfo, kimballAssignments ) -> renderHelp renderInfo kimballAssignments) (Dict.values dimModel.tableInfos)
 
-        renderHelp : TableRenderInfo -> KimballAssignment DuckDbRef_ (List DuckDbColumnDescription) -> Svg Msg
+        renderHelp : CardRenderInfo -> KimballAssignment DuckDbRef_ (List DuckDbColumnDescription) -> Svg Msg
         renderHelp tblInfo assignments =
             viewDataSourceNode model tblInfo assignments
     in

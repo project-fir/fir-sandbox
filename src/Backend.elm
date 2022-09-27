@@ -2,7 +2,7 @@ module Backend exposing (..)
 
 import Bridge exposing (BackendErrorMessage(..), DeliveryEnvelope(..), DimensionalModelUpdate(..), DuckDbCache, DuckDbCache_(..), DuckDbMetaDataCacheEntry, ToBackend(..), defaultColdCache)
 import Dict exposing (Dict)
-import DimensionalModel exposing (DimensionalModel, DimensionalModelRef, KimballAssignment(..), PositionPx, TableRenderInfo)
+import DimensionalModel exposing (CardRenderInfo, DimModelDuckDbSourceInfo, DimensionalModel, DimensionalModelRef, KimballAssignment(..), PositionPx)
 import DuckDb exposing (DuckDbColumnDescription, DuckDbRef, DuckDbRefString, DuckDbRef_(..), fetchDuckDbTableRefs, pingServer, queryDuckDbMeta, refToString)
 import Graph
 import Lamdera exposing (ClientId, SessionId, broadcast, sendToFrontend)
@@ -206,15 +206,23 @@ updateFromFrontend sessionId clientId msg model =
                     case Dict.get dimRef model.dimensionalModels of
                         Just dimModel ->
                             case Dict.get (refToString duckDbRef) dimModel.tableInfos of
-                                Just ( _, assignment ) ->
+                                Just info ->
                                     let
-                                        newTableInfos : Dict DuckDbRefString ( TableRenderInfo, KimballAssignment DuckDbRef_ (List DuckDbColumnDescription) )
-                                        newTableInfos =
-                                            Dict.insert (refToString duckDbRef) ( { pos = positionPx, ref = duckDbRef }, assignment ) dimModel.tableInfos
+                                        renderInfo : CardRenderInfo
+                                        renderInfo =
+                                            info.renderInfo
+
+                                        newRenderInfo : CardRenderInfo
+                                        newRenderInfo =
+                                            { renderInfo | pos = positionPx }
+
+                                        newInfo : DimModelDuckDbSourceInfo
+                                        newInfo =
+                                            { info | renderInfo = newRenderInfo }
 
                                         newDimModel : DimensionalModel
                                         newDimModel =
-                                            { dimModel | tableInfos = newTableInfos }
+                                            { dimModel | tableInfos = Dict.insert (refToString duckDbRef) newInfo dimModel.tableInfos }
                                     in
                                     ( { model | dimensionalModels = Dict.insert dimRef newDimModel model.dimensionalModels }
                                     , sendToFrontend clientId (BackendSuccess (DeliverDimensionalModel newDimModel))
@@ -230,15 +238,19 @@ updateFromFrontend sessionId clientId msg model =
                     case Dict.get dimRef model.dimensionalModels of
                         Just dimModel ->
                             case Dict.get (refToString duckDbRef) dimModel.tableInfos of
-                                Just ( renderInfo, _ ) ->
+                                Just info ->
                                     let
-                                        newTableInfos : Dict DuckDbRefString ( TableRenderInfo, KimballAssignment DuckDbRef_ (List DuckDbColumnDescription) )
-                                        newTableInfos =
-                                            Dict.insert (refToString duckDbRef) ( renderInfo, kimballAssignment ) dimModel.tableInfos
+                                        newInfo : DimModelDuckDbSourceInfo
+                                        newInfo =
+                                            { info | assignment = kimballAssignment }
+
+                                        newInfos : Dict DuckDbRefString DimModelDuckDbSourceInfo
+                                        newInfos =
+                                            Dict.insert (refToString duckDbRef) newInfo dimModel.tableInfos
 
                                         newDimModel : DimensionalModel
                                         newDimModel =
-                                            { dimModel | tableInfos = newTableInfos }
+                                            { dimModel | tableInfos = newInfos }
                                     in
                                     ( { model | dimensionalModels = Dict.insert dimRef newDimModel model.dimensionalModels }
                                     , sendToFrontend clientId (BackendSuccess (DeliverDimensionalModel newDimModel))
@@ -265,74 +277,34 @@ updateFromFrontend sessionId clientId msg model =
                         Nothing ->
                             ( model, sendToFrontend clientId (BackendError (PlainMessage ("model of ref '" ++ dimRef ++ "' not found"))) )
 
-        --UpdateDimensionalModel newRef oldDimModel ->
-        --    let
-        --        startingPosition : PositionPx
-        --        startingPosition =
-        --            { x = 10 * toFloat (Dict.size oldDimModel.tableInfos)
-        --            , y = 10 * toFloat (Dict.size oldDimModel.tableInfos)
-        --            }
-        --
-        --        columns : List DuckDbColumnDescription
-        --        columns =
-        --            let
-        --                lookup : DuckDbCache -> List DuckDbColumnDescription
-        --                lookup cache =
-        --                    case Dict.get (refToString newRef) cache.metaData of
-        --                        Just entry ->
-        --                            entry.columnDescriptions
-        --
-        --                        Nothing ->
-        --                            []
-        --            in
-        --            case model.duckDbCache of
-        --                Cold cache ->
-        --                    lookup cache
-        --
-        --                WarmingCycleInitiated cache ->
-        --                    lookup cache
-        --
-        --                Warming cache _ _ ->
-        --                    lookup cache
-        --
-        --                Hot cache ->
-        --                    lookup cache
-        --
-        --        startingKimballAssignment : KimballAssignment DuckDbRef_ (List DuckDbColumnDescription)
-        --        startingKimballAssignment =
-        --            Unassigned (DuckDbTable newRef) columns
-        --
-        --        newTableInfos : Dict DuckDbRefString ( TableRenderInfo, KimballAssignment DuckDbRef_ (List DuckDbColumnDescription) )
-        --        newTableInfos =
-        --            let
-        --                info : TableRenderInfo
-        --                info =
-        --                    { ref = newRef
-        --                    , pos = startingPosition
-        --                    }
-        --            in
-        --            Dict.insert (refToString newRef) ( info, startingKimballAssignment ) oldDimModel.tableInfos
-        --
-        --        newDimModel : DimensionalModel
-        --        newDimModel =
-        --            { oldDimModel | tableInfos = newTableInfos }
-        --    in
-        --    case Dict.member newDimModel.ref model.dimensionalModels of
-        --        True ->
-        --            let
-        --                updatedDimModels : Dict DimensionalModelRef DimensionalModel
-        --                updatedDimModels =
-        --                    Dict.insert newDimModel.ref newDimModel model.dimensionalModels
-        --            in
-        --            -- TODO: user-scoped broadcasting, needs auth
-        --            ( { model | dimensionalModels = updatedDimModels }
-        --            , sendToFrontend clientId (DeliverDimensionalModel newDimModel)
-        --            )
-        --
-        --        False ->
-        --            -- TODO: Once I have a few more cases like this I'd like to establish a pattern for Lamdera
-        --            --      error handling, but this NoOp is safe for now
-        --            ( model, sendToFrontend clientId Noop_Error )
+                ToggleIncludedNode dimModelRef duckDbRef ->
+                    case Dict.get dimModelRef model.dimensionalModels of
+                        Just dimModel ->
+                            case Dict.get (refToString duckDbRef) dimModel.tableInfos of
+                                Just info ->
+                                    let
+                                        newInfo : DimModelDuckDbSourceInfo
+                                        newInfo =
+                                            { info | isIncluded = not info.isIncluded }
+
+                                        newInfos : Dict DuckDbRefString DimModelDuckDbSourceInfo
+                                        newInfos =
+                                            Dict.insert (refToString duckDbRef) newInfo dimModel.tableInfos
+
+                                        newDimModel : DimensionalModel
+                                        newDimModel =
+                                            { dimModel | tableInfos = newInfos }
+                                    in
+                                    ( { model | dimensionalModels = Dict.insert dimModelRef newDimModel model.dimensionalModels }
+                                    , sendToFrontend clientId (BackendSuccess (DeliverDimensionalModel newDimModel))
+                                    )
+
+                                Nothing ->
+                                    ( model, sendToFrontend clientId (BackendError (PlainMessage ("requested duckDbRef '" ++ refToString duckDbRef ++ "' not found"))) )
+
+                        Nothing ->
+                            ( model, sendToFrontend clientId (BackendError (PlainMessage ("requested dimensionalModelRef '" ++ dimModelRef ++ "' not found"))) )
+
         Admin_FetchAllBackendData ->
             let
                 sessionIds =

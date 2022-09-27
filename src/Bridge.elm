@@ -21,6 +21,7 @@ type ToBackend
 type DimensionalModelUpdate
     = FullReplacement DimensionalModelRef DimensionalModel
     | UpdateNodePosition DimensionalModelRef DuckDbRef PositionPx
+    | ToggleIncludedNode DimensionalModelRef DuckDbRef
     | UpdateAssignment DimensionalModelRef DuckDbRef (KimballAssignment DuckDbRef_ (List DuckDbColumnDescription))
     | UpdateGraph DimensionalModelRef (Graph DuckDbRef_ DimensionalModelEdge)
 

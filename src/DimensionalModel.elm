@@ -1,4 +1,4 @@
-module DimensionalModel exposing (DimensionalModel, DimensionalModelEdge, DimensionalModelRef, KimballAssignment(..), NaivePairingStrategyResult(..), PositionPx, Reason(..), TableRenderInfo, naiveColumnPairingStrategy)
+module DimensionalModel exposing (CardRenderInfo, DimModelDuckDbSourceInfo, DimensionalModel, DimensionalModelEdge, DimensionalModelRef, KimballAssignment(..), NaivePairingStrategyResult(..), PositionPx, Reason(..), naiveColumnPairingStrategy)
 
 import Dict exposing (Dict)
 import DuckDb exposing (DuckDbColumnDescription(..), DuckDbRef, DuckDbRefString, DuckDbRef_(..), refToString)
@@ -12,7 +12,7 @@ type alias PositionPx =
     }
 
 
-type alias TableRenderInfo =
+type alias CardRenderInfo =
     { pos : PositionPx
     , ref : DuckDb.DuckDbRef
     }
@@ -34,11 +34,15 @@ type alias DimensionalModelEdge =
 
 type alias DimensionalModel =
     { ref : DimensionalModelRef
-    , tableInfos :
-        Dict
-            DuckDbRefString
-            ( TableRenderInfo, KimballAssignment DuckDbRef_ (List DuckDbColumnDescription) )
+    , tableInfos : Dict DuckDbRefString DimModelDuckDbSourceInfo
     , graph : Graph DuckDbRef_ DimensionalModelEdge
+    }
+
+
+type alias DimModelDuckDbSourceInfo =
+    { renderInfo : CardRenderInfo
+    , assignment : KimballAssignment DuckDbRef_ (List DuckDbColumnDescription)
+    , isIncluded : Bool
     }
 
 
@@ -67,7 +71,7 @@ naiveColumnPairingStrategy dimModel =
                 DuckDbTable ref_ ->
                     Just ref_
 
-        helperFilterUnassigned : ( TableRenderInfo, KimballAssignment DuckDbRef_ (List DuckDbColumnDescription) ) -> Maybe DuckDbRef
+        helperFilterUnassigned : ( CardRenderInfo, KimballAssignment DuckDbRef_ (List DuckDbColumnDescription) ) -> Maybe DuckDbRef
         helperFilterUnassigned ( _, assignment ) =
             case assignment of
                 Unassigned ref _ ->
@@ -79,7 +83,7 @@ naiveColumnPairingStrategy dimModel =
                 Dimension _ _ ->
                     Nothing
 
-        helperFilterFact : ( TableRenderInfo, KimballAssignment DuckDbRef_ (List DuckDbColumnDescription) ) -> Maybe DuckDbRef
+        helperFilterFact : ( CardRenderInfo, KimballAssignment DuckDbRef_ (List DuckDbColumnDescription) ) -> Maybe DuckDbRef
         helperFilterFact ( _, assignment ) =
             case assignment of
                 Unassigned _ _ ->
@@ -91,7 +95,7 @@ naiveColumnPairingStrategy dimModel =
                 Dimension _ _ ->
                     Nothing
 
-        helperFilterDimension : ( TableRenderInfo, KimballAssignment DuckDbRef_ (List DuckDbColumnDescription) ) -> Maybe DuckDbRef
+        helperFilterDimension : ( CardRenderInfo, KimballAssignment DuckDbRef_ (List DuckDbColumnDescription) ) -> Maybe DuckDbRef
         helperFilterDimension ( _, assignment ) =
             case assignment of
                 Unassigned _ _ ->

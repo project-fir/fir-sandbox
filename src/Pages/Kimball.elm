@@ -136,7 +136,7 @@ type Msg
     | GotDimensionalModel DimensionalModel
     | GotDuckDbTableRefsResponse (List DuckDb.DuckDbRef)
     | UserSelectedDimensionalModel DimensionalModelRef
-    | UserToggledDuckDbRefSelection DuckDb.DuckDbRef
+    | UserClickedDuckDbRef DuckDb.DuckDbRef
     | UserMouseEnteredTableRef DuckDb.DuckDbRef
     | UserMouseLeftTableRef
     | UserMouseEnteredNodeTitleBar DuckDb.DuckDbRef
@@ -268,11 +268,11 @@ update msg model =
 
                                         updatedInfo : CardRenderInfo
                                         updatedInfo =
-                                            { pos =
-                                                { x = anchoredInfo.pos.x + dx
-                                                , y = anchoredInfo.pos.y + dy
-                                                }
-                                            , ref = anchoredInfo.ref
+                                            { anchoredInfo
+                                                | pos =
+                                                    { x = anchoredInfo.pos.x + dx
+                                                    , y = anchoredInfo.pos.y + dy
+                                                    }
                                             }
 
                                         -- NB: It may strike as odd that this is so nested, but think of it as the
@@ -427,7 +427,7 @@ update msg model =
         FetchTableRefs ->
             ( { model | duckDbRefs = Fetching_ }, Effect.fromCmd <| sendToBackend Kimball_FetchDuckDbRefs )
 
-        UserToggledDuckDbRefSelection duckDbRef ->
+        UserClickedDuckDbRef duckDbRef ->
             let
                 cmd =
                     case model.selectedDimensionalModel of
@@ -437,7 +437,15 @@ update msg model =
                             Cmd.none
 
                         Just currentDimModel ->
-                            sendToBackend (UpdateDimensionalModel (ToggleIncludedNode currentDimModel.ref duckDbRef))
+                            -- NB: The user action of clicking a ref may result in either 1) creation of a new
+                            -- entry in our dimensional model, or 2) toggling its presence in the model
+                            -- a sort-of soft-delete to toggle visual card without destroying any user modifications
+                            case Dict.get (refToString duckDbRef) currentDimModel.tableInfos of
+                                Just _ ->
+                                    sendToBackend (UpdateDimensionalModel (ToggleIncludedNode currentDimModel.ref duckDbRef))
+
+                                Nothing ->
+                                    sendToBackend (UpdateDimensionalModel (AddDuckDbRefToModel currentDimModel.ref duckDbRef))
             in
             -- If there is a selectedRef, by this point we've updated it, so we also must send a msg to Backend to
             -- update its knowledge of the dimensional model
@@ -670,7 +678,16 @@ viewCanvas model layoutInfo =
                     []
 
                 Just dimModel ->
-                    List.map (\info -> renderHelp info) (Dict.values dimModel.tableInfos)
+                    List.filterMap
+                        (\info ->
+                            case info.isIncluded of
+                                True ->
+                                    Just <| renderHelp info
+
+                                False ->
+                                    Nothing
+                        )
+                        (Dict.values dimModel.tableInfos)
 
         renderHelp : DimModelDuckDbSourceInfo -> Svg Msg
         renderHelp info =
@@ -936,11 +953,16 @@ viewTableRefs model selectedDimModel =
 
                         innerBlobColorFor : DuckDbRef -> Color
                         innerBlobColorFor ref =
-                            case Dict.member (refToString ref) selectedDimModel.tableInfos of
-                                True ->
-                                    Palette.green_keylime
+                            case Dict.get (refToString ref) selectedDimModel.tableInfos of
+                                Just info ->
+                                    case info.isIncluded of
+                                        True ->
+                                            Palette.green_keylime
 
-                                False ->
+                                        False ->
+                                            Palette.white
+
+                                Nothing ->
                                     Palette.white
 
                         ui : DuckDb.DuckDbRef -> Element Msg
@@ -949,7 +971,7 @@ viewTableRefs model selectedDimModel =
                                 [ width E.fill
                                 , paddingXY 0 2
                                 , spacingXY 2 0
-                                , Events.onClick <| UserToggledDuckDbRefSelection ref
+                                , Events.onClick <| UserClickedDuckDbRef ref
                                 , Events.onMouseEnter <| UserMouseEnteredTableRef ref
                                 , Events.onMouseLeave <| UserMouseLeftTableRef
                                 , Background.color (backgroundColorFor ref)

@@ -71,8 +71,8 @@ naiveColumnPairingStrategy dimModel =
                 DuckDbTable ref_ ->
                     Just ref_
 
-        helperFilterUnassigned : ( CardRenderInfo, KimballAssignment DuckDbRef_ (List DuckDbColumnDescription) ) -> Maybe DuckDbRef
-        helperFilterUnassigned ( _, assignment ) =
+        helperFilterUnassigned : KimballAssignment DuckDbRef_ (List DuckDbColumnDescription) -> Maybe DuckDbRef
+        helperFilterUnassigned assignment =
             case assignment of
                 Unassigned ref _ ->
                     refDrillDown ref
@@ -83,8 +83,8 @@ naiveColumnPairingStrategy dimModel =
                 Dimension _ _ ->
                     Nothing
 
-        helperFilterFact : ( CardRenderInfo, KimballAssignment DuckDbRef_ (List DuckDbColumnDescription) ) -> Maybe DuckDbRef
-        helperFilterFact ( _, assignment ) =
+        helperFilterFact : KimballAssignment DuckDbRef_ (List DuckDbColumnDescription) -> Maybe DuckDbRef
+        helperFilterFact assignment =
             case assignment of
                 Unassigned _ _ ->
                     Nothing
@@ -95,8 +95,8 @@ naiveColumnPairingStrategy dimModel =
                 Dimension _ _ ->
                     Nothing
 
-        helperFilterDimension : ( CardRenderInfo, KimballAssignment DuckDbRef_ (List DuckDbColumnDescription) ) -> Maybe DuckDbRef
-        helperFilterDimension ( _, assignment ) =
+        helperFilterDimension : KimballAssignment DuckDbRef_ (List DuckDbColumnDescription) -> Maybe DuckDbRef
+        helperFilterDimension assignment =
             case assignment of
                 Unassigned _ _ ->
                     Nothing
@@ -109,15 +109,15 @@ naiveColumnPairingStrategy dimModel =
 
         unassignedSources : List DuckDbRef
         unassignedSources =
-            List.filterMap helperFilterUnassigned (Dict.values dimModel.tableInfos)
+            List.filterMap helperFilterUnassigned (List.map (\info -> info.assignment) (Dict.values dimModel.tableInfos))
 
         factSources : List DuckDbRef
         factSources =
-            List.filterMap helperFilterFact (Dict.values dimModel.tableInfos)
+            List.filterMap helperFilterFact (List.map (\info -> info.assignment) (Dict.values dimModel.tableInfos))
 
         dimensionSources : List DuckDbRef
         dimensionSources =
-            List.filterMap helperFilterDimension (Dict.values dimModel.tableInfos)
+            List.filterMap helperFilterDimension (List.map (\info -> info.assignment) (Dict.values dimModel.tableInfos))
 
         columnsOfNode : Node DuckDbRef_ -> List ( NodeId, DuckDbColumnDescription )
         columnsOfNode node =
@@ -130,8 +130,8 @@ naiveColumnPairingStrategy dimModel =
                         Nothing ->
                             List.map2 (\nid col -> ( nid, col )) (List.repeat (List.length []) node.id) []
 
-                        Just ( _, assignments ) ->
-                            case assignments of
+                        Just info ->
+                            case info.assignment of
                                 Unassigned _ columns ->
                                     List.map2 (\nid col -> ( nid, col )) (List.repeat (List.length columns) node.id) columns
 

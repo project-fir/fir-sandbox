@@ -144,8 +144,13 @@ updateFromBackend msg model =
         DeliverDimensionalModelRefs refs ->
             ( model, send <| Page (Gen.Msg.Kimball (GotDimensionalModelRefs refs)) )
 
-        DeliverDimensionalModel dimModel ->
-            ( model, send <| Page (Gen.Msg.Kimball (GotDimensionalModel dimModel)) )
+        DeliverDimensionalModel env ->
+            case env of
+                BackendSuccess dimModel ->
+                    ( model, send <| Page (Gen.Msg.Kimball (GotDimensionalModel dimModel)) )
+
+                BackendError backendErrorMessage ->
+                    ( model, Cmd.none )
 
         Noop_Error ->
             ( model, Cmd.none )

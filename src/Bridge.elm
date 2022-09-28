@@ -21,6 +21,7 @@ type ToBackend
 type DimensionalModelUpdate
     = FullReplacement DimensionalModelRef DimensionalModel
     | UpdateNodePosition DimensionalModelRef DuckDbRef PositionPx
+    | AddDuckDbRefToModel DimensionalModelRef DuckDbRef
     | ToggleIncludedNode DimensionalModelRef DuckDbRef
     | UpdateAssignment DimensionalModelRef DuckDbRef (KimballAssignment DuckDbRef_ (List DuckDbColumnDescription))
     | UpdateGraph DimensionalModelRef (Graph DuckDbRef_ DimensionalModelEdge)
@@ -30,8 +31,8 @@ type DimensionalModelUpdate
 -- NB: Naming conflicts with WebData, but this is for Lamdera data
 
 
-type BackendErrorMessage
-    = PlainMessage String
+type alias BackendErrorMessage =
+    String
 
 
 type DeliveryEnvelope data

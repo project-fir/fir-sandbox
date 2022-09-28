@@ -71,7 +71,7 @@ type
 
 type ToFrontend
     = DeliverDimensionalModelRefs (List DimensionalModelRef)
-    | DeliverDimensionalModel DimensionalModel
+    | DeliverDimensionalModel (DeliveryEnvelope DimensionalModel)
     | DeliverDuckDbRefs (DeliveryEnvelope (List DuckDbRef))
     | Noop_Error
     | Admin_DeliverAllBackendData

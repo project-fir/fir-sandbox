@@ -249,12 +249,12 @@ update msg model =
                                     ( Idle, Nothing )
 
                                 Just anchoredInfo_ ->
-                                    ( Dragging ref Nothing mouseEvent anchoredInfo_, Nothing )
+                                    ( Dragging ref Nothing mouseEvent anchoredInfo_, model.selectedDimensionalModel )
 
                         Dragging ref firstEvent oldEvent anchoredInfo ->
                             case firstEvent of
                                 Nothing ->
-                                    ( Dragging ref (Just oldEvent) mouseEvent anchoredInfo, Nothing )
+                                    ( Dragging ref (Just oldEvent) mouseEvent anchoredInfo, model.selectedDimensionalModel )
 
                                 Just firstEvent_ ->
                                     let
@@ -348,6 +348,7 @@ update msg model =
                                     in
                                     case newPos of
                                         Just newPos_ ->
+                                            --Cmd.none
                                             sendToBackend <| UpdateDimensionalModel (UpdateNodePosition dimModel.ref ref_ newPos_)
 
                                         Nothing ->
@@ -410,7 +411,6 @@ update msg model =
                             in
                             ( { model | pageRenderStatus = Ready newLayoutInfo }, Effect.none )
 
-        --( { model | svgViewBox = defaultViewBox }, Effect.none )
         ClearNodeHoverState ->
             ( { model | hoveredOnNodeTitle = Nothing }, Effect.none )
 
@@ -582,13 +582,6 @@ viewDataSourceNode model renderInfo kimballAssignment =
                 , moveRight 3
                 , paddingXY 5 2
                 , spacingXY 4 0
-
-                --, Events.onClick <| UserSelectedTableRef ref
-                --, Events.onMouseEnter <| UserMouseEnteredTableRef ref
-                --, Events.onMouseLeave <| UserMouseLeftTableRef
-                --, Background.color (backgroundColorFor ref)
-                --, Border.widthEach (borderFor ref)
-                --, Border.color (borderColorFor ref)
                 ]
                 [ el
                     [ width <| px 5
@@ -821,12 +814,14 @@ viewDebugPanel model =
                 Just dimModel ->
                     dimModel.ref
     in
-    column [ width fill, height fill, Border.width 1, Border.color Palette.darkishGrey ]
-        [ E.text <| "events: " ++ mouseEventStr
-        , E.text <| "drag state: " ++ dragStateStr
-        , E.text <| "veiwPort: " ++ viewPortStr
-        , E.text <| "dim model: " ++ selectedModelStr
-        ]
+    el [ width fill, height fill, Border.width 1, Border.color Palette.darkishGrey ]
+        (paragraph []
+            [ E.text <| "events: " ++ mouseEventStr
+            , E.text <| "drag state: " ++ dragStateStr
+            , E.text <| "veiwPort: " ++ viewPortStr
+            , E.text <| "dim model: " ++ selectedModelStr
+            ]
+        )
 
 
 viewDimensionalModelRefs : Model -> Element Msg

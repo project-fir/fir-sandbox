@@ -710,8 +710,6 @@ viewDataSourceNode model dimModelRef renderInfo kimballAssignment =
                         , Background.color titleBarBackgroundColor
 
                         --, Events.onMouseEnter (UserMouseEnteredNodeTitleBar renderInfo.ref)
-                        , Events.onMouseLeave UserMouseLeftNodeTitleBar
-                        , Events.onMouseDown (BeginNodeDrag renderInfo.ref)
                         , paddingXY 0 0
                         , Events.onClick (UserToggledCardDropDown renderInfo.ref)
                         ]
@@ -750,8 +748,8 @@ viewDataSourceNode model dimModelRef renderInfo kimballAssignment =
                                                                 , spacing 3
                                                                 ]
                                                                 [ el [ width fill, height fill, Events.onClick (UserClickedKimballAssignment dimModelRef renderInfo.ref (Unassigned (DuckDbTable renderInfo.ref) colDescs)) ] <| E.text "Unassigned"
-                                                                , el [ Events.onClick (UserClickedKimballAssignment dimModelRef renderInfo.ref (Dimension (DuckDbTable renderInfo.ref) colDescs)) ] <| E.text "Dimension"
-                                                                , el [ Events.onClick (UserClickedKimballAssignment dimModelRef renderInfo.ref (Fact (DuckDbTable renderInfo.ref) colDescs)) ] <| E.text "Fact"
+                                                                , el [ width fill, height fill, Events.onClick (UserClickedKimballAssignment dimModelRef renderInfo.ref (Dimension (DuckDbTable renderInfo.ref) colDescs)) ] <| E.text "Dimension"
+                                                                , el [ width fill, height fill, Events.onClick (UserClickedKimballAssignment dimModelRef renderInfo.ref (Fact (DuckDbTable renderInfo.ref) colDescs)) ] <| E.text "Fact"
                                                                 ]
                                                             )
                                                         ]
@@ -777,6 +775,10 @@ viewDataSourceNode model dimModelRef renderInfo kimballAssignment =
                 , column
                     [ width fill
                     , height fill
+                    , Border.color Palette.red
+                    , Border.width 2
+                    , Events.onMouseLeave UserMouseLeftNodeTitleBar
+                    , Events.onMouseDown (BeginNodeDrag renderInfo.ref)
                     ]
                   <|
                     List.map (\col -> viewColumn col) colDescs

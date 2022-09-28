@@ -712,10 +712,15 @@ viewDataSourceNode model dimModelRef renderInfo kimballAssignment =
                         --, Events.onMouseEnter (UserMouseEnteredNodeTitleBar renderInfo.ref)
                         , Events.onMouseLeave UserMouseLeftNodeTitleBar
                         , Events.onMouseDown (BeginNodeDrag renderInfo.ref)
-                        , paddingXY 0 5
+                        , paddingXY 0 0
+                        , Events.onClick (UserToggledCardDropDown renderInfo.ref)
                         ]
                     <|
-                        row [ width fill, paddingXY 5 0 ]
+                        row
+                            [ width fill
+                            , height fill
+                            , paddingXY 5 0
+                            ]
                             [ el [ alignLeft ] (E.text <| type_ ++ ":")
 
                             -- some useful characters to keep handy here:
@@ -731,7 +736,7 @@ viewDataSourceNode model dimModelRef renderInfo kimballAssignment =
                                     ]
                                     (case model.dropdownState of
                                         Nothing ->
-                                            el [ Events.onClick <| UserToggledCardDropDown renderInfo.ref ] (E.text "▼")
+                                            el [] (E.text "▼")
 
                                         Just duckDbRef ->
                                             case renderInfo.ref == duckDbRef of
@@ -744,13 +749,13 @@ viewDataSourceNode model dimModelRef renderInfo kimballAssignment =
                                                                 , Background.color Palette.lightBlue
                                                                 , spacing 3
                                                                 ]
-                                                                [ el [ Events.onClick (UserClickedKimballAssignment dimModelRef renderInfo.ref (Unassigned (DuckDbTable renderInfo.ref) colDescs)) ] <| E.text "Unassigned"
+                                                                [ el [ width fill, height fill, Events.onClick (UserClickedKimballAssignment dimModelRef renderInfo.ref (Unassigned (DuckDbTable renderInfo.ref) colDescs)) ] <| E.text "Unassigned"
                                                                 , el [ Events.onClick (UserClickedKimballAssignment dimModelRef renderInfo.ref (Dimension (DuckDbTable renderInfo.ref) colDescs)) ] <| E.text "Dimension"
                                                                 , el [ Events.onClick (UserClickedKimballAssignment dimModelRef renderInfo.ref (Fact (DuckDbTable renderInfo.ref) colDescs)) ] <| E.text "Fact"
                                                                 ]
                                                             )
                                                         ]
-                                                        (el [ Events.onClick <| UserToggledCardDropDown renderInfo.ref ] <| E.text "▶")
+                                                        (el [] <| E.text "▶")
 
                                                 False ->
                                                     E.text "default elements"

@@ -71,7 +71,7 @@ type alias Model =
     --       the duckdb cache in Backend)?
     , selectedDimensionalModel : Maybe DimensionalModel
     , pairingAlgoResult : Maybe NaivePairingStrategyResult
-    , dropdownState : Maybe DropdownState
+    , dropdownState : Maybe DuckDbRef
     }
 
 
@@ -152,6 +152,7 @@ type Msg
     | UserClickedDuckDbRef DuckDb.DuckDbRef
     | UserMouseEnteredTableRef DuckDb.DuckDbRef
     | UserClickedAttemptPairing DimensionalModelRef
+    | UserToggledCardDropDown DuckDbRef
     | UserMouseLeftTableRef
     | UserMouseEnteredNodeTitleBar DuckDb.DuckDbRef
     | UserMouseLeftNodeTitleBar
@@ -165,6 +166,8 @@ type Msg
     | GotResizeEvent Int Int
     | UpdatedNewDimModelName String
     | UserCreatesNewDimensionalModel DimensionalModelRef
+    | NoopKimball
+    | UserClickedKimballAssignment DimensionalModelRef DuckDbRef (KimballAssignment DuckDbRef_ (List DuckDbColumnDescription))
 
 
 type SvgViewBoxTransformation
@@ -175,6 +178,23 @@ type SvgViewBoxTransformation
 update : Msg -> Model -> ( Model, Effect Msg )
 update msg model =
     case msg of
+        UserClickedKimballAssignment dimRef duckDbRef assignment ->
+            -- NB: We have the "side effect" of closing the dropdown menu
+            ( { model | dropdownState = Nothing }
+            , Effect.fromCmd (sendToBackend (UpdateDimensionalModel (UpdateAssignment dimRef duckDbRef assignment)))
+            )
+
+        NoopKimball ->
+            ( model, Effect.none )
+
+        UserToggledCardDropDown duckDbRef ->
+            case model.dropdownState of
+                Nothing ->
+                    ( { model | dropdownState = Just duckDbRef }, Effect.none )
+
+                Just _ ->
+                    ( { model | dropdownState = Nothing }, Effect.none )
+
         GotDimensionalModelRefs refs ->
             ( { model | dimensionalModelRefs = Success_ refs }, Effect.none )
 
@@ -584,8 +604,8 @@ view model =
     }
 
 
-viewDataSourceNode : Model -> CardRenderInfo -> KimballAssignment DuckDbRef_ (List DuckDbColumnDescription) -> Svg Msg
-viewDataSourceNode model renderInfo kimballAssignment =
+viewDataSourceNode : Model -> DimensionalModelRef -> CardRenderInfo -> KimballAssignment DuckDbRef_ (List DuckDbColumnDescription) -> Svg Msg
+viewDataSourceNode model dimModelRef renderInfo kimballAssignment =
     let
         ( table_, type_, backgroundColor ) =
             case kimballAssignment of
@@ -681,20 +701,6 @@ viewDataSourceNode model renderInfo kimballAssignment =
                             else
                                 backgroundColor
 
-                viewDropDown : Element Msg
-                viewDropDown =
-                    case model.dropdownState of
-                        Just ddState ->
-                            case ddState.duckDbRef == renderInfo.ref of
-                                True ->
-                                    el [] <| text "This is a dropdown menu"
-
-                                False ->
-                                    E.none
-
-                        Nothing ->
-                            E.none
-
                 viewTitleBar : Element Msg
                 viewTitleBar =
                     el
@@ -711,9 +717,44 @@ viewDataSourceNode model renderInfo kimballAssignment =
                         row [ width fill, paddingXY 5 0 ]
                             [ el [ alignLeft ] (E.text <| type_ ++ ":")
 
-                            -- ᐁ ᐅ
-                            , el [ alignLeft, Border.color Palette.black, Border.width 1 ] <| text "ᐁ"
-                            , viewDropDown
+                            -- some useful characters to keep handy here:
+                            -- ᐁ ᐅ ▼ ▶
+                            --
+                            , column []
+                                [ el
+                                    [ Border.width 1
+                                    , Border.color Palette.black
+                                    , padding 2
+
+                                    --, inFront
+                                    ]
+                                    (case model.dropdownState of
+                                        Nothing ->
+                                            el [ Events.onClick <| UserToggledCardDropDown renderInfo.ref ] (E.text "▼")
+
+                                        Just duckDbRef ->
+                                            case renderInfo.ref == duckDbRef of
+                                                True ->
+                                                    el
+                                                        [ E.onRight
+                                                            (column
+                                                                [ Border.color Palette.lightGrey
+                                                                , Border.width 1
+                                                                , Background.color Palette.lightBlue
+                                                                , spacing 3
+                                                                ]
+                                                                [ el [ Events.onClick (UserClickedKimballAssignment dimModelRef renderInfo.ref (Unassigned (DuckDbTable renderInfo.ref) colDescs)) ] <| E.text "Unassigned"
+                                                                , el [ Events.onClick (UserClickedKimballAssignment dimModelRef renderInfo.ref (Dimension (DuckDbTable renderInfo.ref) colDescs)) ] <| E.text "Dimension"
+                                                                , el [ Events.onClick (UserClickedKimballAssignment dimModelRef renderInfo.ref (Fact (DuckDbTable renderInfo.ref) colDescs)) ] <| E.text "Fact"
+                                                                ]
+                                                            )
+                                                        ]
+                                                        (el [ Events.onClick <| UserToggledCardDropDown renderInfo.ref ] <| E.text "▶")
+
+                                                False ->
+                                                    E.text "default elements"
+                                    )
+                                ]
                             , el [ alignLeft, moveRight 10 ] (E.text title)
                             ]
             in
@@ -762,16 +803,16 @@ viewCanvas model layoutInfo =
                         (\info ->
                             case info.isIncluded of
                                 True ->
-                                    Just <| renderHelp info
+                                    Just <| renderHelp info dimModel.ref
 
                                 False ->
                                     Nothing
                         )
                         (Dict.values dimModel.tableInfos)
 
-        renderHelp : DimModelDuckDbSourceInfo -> Svg Msg
-        renderHelp info =
-            viewDataSourceNode model info.renderInfo info.assignment
+        renderHelp : DimModelDuckDbSourceInfo -> DimensionalModelRef -> Svg Msg
+        renderHelp info dimModelRef =
+            viewDataSourceNode model dimModelRef info.renderInfo info.assignment
     in
     el
         [ Border.width 1

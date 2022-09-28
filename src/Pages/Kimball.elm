@@ -708,7 +708,8 @@ viewDataSourceNode model dimModelRef renderInfo kimballAssignment =
                         , Border.color Palette.black
                         , width fill
                         , Background.color titleBarBackgroundColor
-                        , Events.onMouseEnter (UserMouseEnteredNodeTitleBar renderInfo.ref)
+
+                        --, Events.onMouseEnter (UserMouseEnteredNodeTitleBar renderInfo.ref)
                         , Events.onMouseLeave UserMouseLeftNodeTitleBar
                         , Events.onMouseDown (BeginNodeDrag renderInfo.ref)
                         , paddingXY 0 5

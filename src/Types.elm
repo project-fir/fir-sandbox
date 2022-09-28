@@ -1,12 +1,13 @@
 module Types exposing (..)
 
-import Bridge exposing (BackendData, BackendErrorMessage, DeliveryEnvelope, DuckDbCache_)
+import Bridge exposing (BackendData, BackendErrorMessage, DeliveryEnvelope, DuckDbCache_, DuckDbMetaDataCacheEntry)
 import Browser
 import Browser.Navigation exposing (Key)
 import Dict exposing (Dict)
-import DimensionalModel exposing (DimensionalModel, DimensionalModelRef)
-import DuckDb exposing (DuckDbColumnDescription, DuckDbMetaResponse, DuckDbRef, DuckDbRefString, DuckDbRefsResponse, PingResponse)
+import DimensionalModel exposing (DimensionalModel, DimensionalModelEdge, DimensionalModelRef, KimballAssignment, PositionPx)
+import DuckDb exposing (DuckDbColumnDescription, DuckDbMetaResponse, DuckDbRef, DuckDbRefString, DuckDbRef_, DuckDbRefsResponse, PingResponse)
 import Gen.Pages as Pages
+import Graph exposing (Graph)
 import Http
 import Lamdera exposing (ClientId, SessionId)
 import RemoteData exposing (WebData)
@@ -70,7 +71,7 @@ type
 
 type ToFrontend
     = DeliverDimensionalModelRefs (List DimensionalModelRef)
-    | DeliverDimensionalModel DimensionalModel
+    | DeliverDimensionalModel (DeliveryEnvelope DimensionalModel)
     | DeliverDuckDbRefs (DeliveryEnvelope (List DuckDbRef))
     | Noop_Error
     | Admin_DeliverAllBackendData
@@ -85,3 +86,7 @@ type ToFrontend
 
 type alias ToBackend =
     Bridge.ToBackend
+
+
+
+-- TODO: Implement "dimensional model API"

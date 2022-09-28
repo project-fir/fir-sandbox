@@ -12,7 +12,6 @@ import Element as E exposing (..)
 import Request exposing (Request)
 import Task
 import Time
-import Utils exposing (fromUrl, navigate)
 import View exposing (View)
 
 

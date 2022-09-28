@@ -1,10 +1,10 @@
 module Pages.Kimball exposing (Model, Msg(..), page)
 
-import Bridge exposing (BackendData(..), BackendErrorMessage(..), ToBackend(..))
+import Bridge exposing (BackendData(..), BackendErrorMessage, DimensionalModelUpdate(..), DuckDbMetaDataCacheEntry, ToBackend(..))
 import Browser.Dom
 import Browser.Events as BE
 import Dict exposing (Dict)
-import DimensionalModel exposing (DimensionalModel, DimensionalModelRef, KimballAssignment(..), PositionPx, TableRenderInfo)
+import DimensionalModel exposing (CardRenderInfo, DimModelDuckDbSourceInfo, DimensionalModel, DimensionalModelRef, KimballAssignment(..), PositionPx)
 import DuckDb exposing (ColumnName, DuckDbColumn, DuckDbColumnDescription(..), DuckDbRef, DuckDbRefString, DuckDbRef_(..), fetchDuckDbTableRefs, refEquals, refToString)
 import Effect exposing (Effect)
 import Element as E exposing (..)
@@ -54,6 +54,8 @@ type alias RefString =
 
 type alias Model =
     { duckDbRefs : BackendData (List DuckDb.DuckDbRef)
+
+    --, duckDbRefMeta : Dict DuckDbRefString (List DuckDbColumnDescription)
     , selectedTableRef : Maybe DuckDb.DuckDbRef
     , hoveredOnTableRef : Maybe DuckDb.DuckDbRef
     , pageRenderStatus : PageRenderStatus
@@ -70,7 +72,7 @@ type alias Model =
 type DragState
     = Idle
     | DragInitiated DuckDb.DuckDbRef
-    | Dragging DuckDb.DuckDbRef (Maybe Event) Event TableRenderInfo
+    | Dragging DuckDb.DuckDbRef (Maybe Event) Event CardRenderInfo
 
 
 type PageRenderStatus
@@ -81,6 +83,8 @@ type PageRenderStatus
 init : ( Model, Effect Msg )
 init =
     ( { duckDbRefs = NotAsked_
+
+      --, duckDbRefMeta = Dict.empty
       , selectedTableRef = Nothing
       , hoveredOnTableRef = Nothing
       , hoveredOnNodeTitle = Nothing
@@ -118,13 +122,21 @@ type alias LayoutInfo =
     }
 
 
+
+-- TODO:
+-- on select, check if we have, fetch from backend if we don't
+-- fetch result from cache on backend
+-- if exists send to frontend
+-- update "Got" response
+
+
 type Msg
     = FetchTableRefs
     | GotDimensionalModelRefs (List DimensionalModelRef)
     | GotDimensionalModel DimensionalModel
     | GotDuckDbTableRefsResponse (List DuckDb.DuckDbRef)
     | UserSelectedDimensionalModel DimensionalModelRef
-    | UserToggledDuckDbRefSelection DuckDb.DuckDbRef
+    | UserClickedDuckDbRef DuckDb.DuckDbRef
     | UserMouseEnteredTableRef DuckDb.DuckDbRef
     | UserMouseLeftTableRef
     | UserMouseEnteredNodeTitleBar DuckDb.DuckDbRef
@@ -211,14 +223,14 @@ update msg model =
 
         DraggedAt mouseEvent ->
             let
-                ( newDragState, updatedTableInfo ) =
+                ( newDragState, newDimModel ) =
                     case model.dragState of
                         Idle ->
                             ( Idle, Nothing )
 
                         DragInitiated ref ->
                             let
-                                anchoredInfo : Maybe TableRenderInfo
+                                anchoredInfo : Maybe CardRenderInfo
                                 anchoredInfo =
                                     case model.selectedDimensionalModel of
                                         Nothing ->
@@ -229,20 +241,20 @@ update msg model =
                                                 Nothing ->
                                                     Nothing
 
-                                                Just ( renderInfo, _ ) ->
-                                                    Just renderInfo
+                                                Just info ->
+                                                    Just info.renderInfo
                             in
                             case anchoredInfo of
                                 Nothing ->
                                     ( Idle, Nothing )
 
                                 Just anchoredInfo_ ->
-                                    ( Dragging ref Nothing mouseEvent anchoredInfo_, Nothing )
+                                    ( Dragging ref Nothing mouseEvent anchoredInfo_, model.selectedDimensionalModel )
 
                         Dragging ref firstEvent oldEvent anchoredInfo ->
                             case firstEvent of
                                 Nothing ->
-                                    ( Dragging ref (Just oldEvent) mouseEvent anchoredInfo, Nothing )
+                                    ( Dragging ref (Just oldEvent) mouseEvent anchoredInfo, model.selectedDimensionalModel )
 
                                 Just firstEvent_ ->
                                     let
@@ -254,44 +266,42 @@ update msg model =
                                         dy =
                                             Tuple.second mouseEvent.clientPos - Tuple.second firstEvent_.clientPos
 
-                                        updatedInfo : TableRenderInfo
+                                        updatedInfo : CardRenderInfo
                                         updatedInfo =
-                                            { pos =
-                                                { x = anchoredInfo.pos.x + dx
-                                                , y = anchoredInfo.pos.y + dy
-                                                }
-                                            , ref = anchoredInfo.ref
+                                            { anchoredInfo
+                                                | pos =
+                                                    { x = anchoredInfo.pos.x + dx
+                                                    , y = anchoredInfo.pos.y + dy
+                                                    }
                                             }
+
+                                        -- NB: It may strike as odd that this is so nested, but think of it as the
+                                        --     only path that has updated CardRenderInfo computed, so is therefore
+                                        --     the only path that results in a changed DimensionalModel
+                                        updatedDimModel : Maybe DimensionalModel
+                                        updatedDimModel =
+                                            case model.selectedDimensionalModel of
+                                                Nothing ->
+                                                    Nothing
+
+                                                Just dimModel ->
+                                                    case Dict.get (refToString ref) dimModel.tableInfos of
+                                                        Just info ->
+                                                            let
+                                                                newInfo : DimModelDuckDbSourceInfo
+                                                                newInfo =
+                                                                    { info | renderInfo = updatedInfo }
+
+                                                                newTableInfos : Dict DuckDbRefString DimModelDuckDbSourceInfo
+                                                                newTableInfos =
+                                                                    Dict.insert (refToString ref) newInfo dimModel.tableInfos
+                                                            in
+                                                            Just { dimModel | tableInfos = newTableInfos }
+
+                                                        Nothing ->
+                                                            Just dimModel
                                     in
-                                    ( Dragging ref (Just firstEvent_) mouseEvent anchoredInfo, Just updatedInfo )
-
-                newTableInfos : Dict DuckDbRefString ( TableRenderInfo, KimballAssignment DuckDbRef_ (List DuckDbColumnDescription) )
-                newTableInfos =
-                    case model.selectedDimensionalModel of
-                        Nothing ->
-                            Dict.empty
-
-                        Just dimModel ->
-                            case updatedTableInfo of
-                                Nothing ->
-                                    dimModel.tableInfos
-
-                                Just updatedInfo_ ->
-                                    case Dict.get (refToString updatedInfo_.ref) dimModel.tableInfos of
-                                        Just ( renderInfo, assignment ) ->
-                                            Dict.insert (refToString renderInfo.ref) ( updatedInfo_, assignment ) dimModel.tableInfos
-
-                                        Nothing ->
-                                            dimModel.tableInfos
-
-                newDimModel : Maybe DimensionalModel
-                newDimModel =
-                    case model.selectedDimensionalModel of
-                        Nothing ->
-                            Nothing
-
-                        Just dimModel ->
-                            Just { dimModel | tableInfos = newTableInfos }
+                                    ( Dragging ref (Just firstEvent_) mouseEvent anchoredInfo, updatedDimModel )
             in
             ( { model
                 | mouseEvent = Just mouseEvent
@@ -305,12 +315,47 @@ update msg model =
             ( { model | dragState = DragInitiated ref }, Effect.none )
 
         DragStoppedAt _ ->
+            -- NB: During a drag, client-side model is updated, but since those events are so frequent, we don't
+            -- update the backend. So we update the backend from the current model data here.
             let
+                ref : Maybe DuckDbRef
+                ref =
+                    case model.dragState of
+                        Idle ->
+                            Nothing
+
+                        DragInitiated duckDbRef ->
+                            Just duckDbRef
+
+                        Dragging duckDbRef _ _ _ ->
+                            Just duckDbRef
+
                 cmd : Cmd msg
                 cmd =
-                    case model.selectedDimensionalModel of
-                        Just dimModel ->
-                            sendToBackend <| UpdateDimensionalModel dimModel
+                    case ref of
+                        Just ref_ ->
+                            case model.selectedDimensionalModel of
+                                Just dimModel ->
+                                    let
+                                        newPos : Maybe PositionPx
+                                        newPos =
+                                            case Dict.get (refToString ref_) dimModel.tableInfos of
+                                                Just info ->
+                                                    Just info.renderInfo.pos
+
+                                                Nothing ->
+                                                    Nothing
+                                    in
+                                    case newPos of
+                                        Just newPos_ ->
+                                            --Cmd.none
+                                            sendToBackend <| UpdateDimensionalModel (UpdateNodePosition dimModel.ref ref_ newPos_)
+
+                                        Nothing ->
+                                            Cmd.none
+
+                                Nothing ->
+                                    Cmd.none
 
                         Nothing ->
                             Cmd.none
@@ -366,7 +411,6 @@ update msg model =
                             in
                             ( { model | pageRenderStatus = Ready newLayoutInfo }, Effect.none )
 
-        --( { model | svgViewBox = defaultViewBox }, Effect.none )
         ClearNodeHoverState ->
             ( { model | hoveredOnNodeTitle = Nothing }, Effect.none )
 
@@ -383,63 +427,29 @@ update msg model =
         FetchTableRefs ->
             ( { model | duckDbRefs = Fetching_ }, Effect.fromCmd <| sendToBackend Kimball_FetchDuckDbRefs )
 
-        UserToggledDuckDbRefSelection ref ->
+        UserClickedDuckDbRef duckDbRef ->
             let
-                ( newDimModel, cmd ) =
+                cmd =
                     case model.selectedDimensionalModel of
                         Nothing ->
-                            ( Nothing, Cmd.none )
+                            -- menu to toggle ref selection is only rendered when there exists a selected model
+                            -- this shouldn't happen; issue noop
+                            Cmd.none
 
-                        Just dimModel ->
-                            let
-                                -- TODO: This is inefficient but Sets of records aren't allowed.
-                                newSelection : List DuckDbRef
-                                newSelection =
-                                    case List.length (List.filter (\ref_ -> refEquals ref_ ref) dimModel.selectedDbRefs) of
-                                        0 ->
-                                            ref :: dimModel.selectedDbRefs
+                        Just currentDimModel ->
+                            -- NB: The user action of clicking a ref may result in either 1) creation of a new
+                            -- entry in our dimensional model, or 2) toggling its presence in the model
+                            -- a sort-of soft-delete to toggle visual card without destroying any user modifications
+                            case Dict.get (refToString duckDbRef) currentDimModel.tableInfos of
+                                Just _ ->
+                                    sendToBackend (UpdateDimensionalModel (ToggleIncludedNode currentDimModel.ref duckDbRef))
 
-                                        _ ->
-                                            List.filter (\ref_ -> ref_ /= ref) dimModel.selectedDbRefs
-
-                                x : Float
-                                x =
-                                    100 * toFloat (Dict.size dimModel.tableInfos)
-
-                                y : Float
-                                y =
-                                    100 * toFloat (Dict.size dimModel.tableInfos)
-
-                                newTableInfos : Dict DuckDbRefString ( TableRenderInfo, KimballAssignment DuckDbRef_ (List DuckDbColumnDescription) )
-                                newTableInfos =
-                                    case Dict.get (refToString ref) dimModel.tableInfos of
-                                        Just _ ->
-                                            dimModel.tableInfos
-
-                                        Nothing ->
-                                            let
-                                                info : TableRenderInfo
-                                                info =
-                                                    { ref = ref
-                                                    , pos = { x = x, y = y }
-                                                    }
-
-                                                kimballAssignment : KimballAssignment DuckDbRef_ (List DuckDbColumnDescription)
-                                                kimballAssignment =
-                                                    Unassigned (DuckDbTable ref) []
-                                            in
-                                            Dict.insert (refToString ref) ( info, kimballAssignment ) dimModel.tableInfos
-
-                                newDimModel_ : DimensionalModel
-                                newDimModel_ =
-                                    { dimModel
-                                        | selectedDbRefs = newSelection
-                                        , tableInfos = newTableInfos
-                                    }
-                            in
-                            ( Just newDimModel_, sendToBackend (UpdateDimensionalModel newDimModel_) )
+                                Nothing ->
+                                    sendToBackend (UpdateDimensionalModel (AddDuckDbRefToModel currentDimModel.ref duckDbRef))
             in
-            ( { model | selectedDimensionalModel = newDimModel }, Effect.fromCmd cmd )
+            -- If there is a selectedRef, by this point we've updated it, so we also must send a msg to Backend to
+            -- update its knowledge of the dimensional model
+            ( model, Effect.fromCmd cmd )
 
         UserMouseEnteredTableRef ref ->
             ( { model | hoveredOnTableRef = Just ref }, Effect.none )
@@ -510,7 +520,7 @@ view model =
     }
 
 
-viewDataSourceNode : Model -> TableRenderInfo -> KimballAssignment DuckDbRef_ (List DuckDbColumnDescription) -> Svg Msg
+viewDataSourceNode : Model -> CardRenderInfo -> KimballAssignment DuckDbRef_ (List DuckDbColumnDescription) -> Svg Msg
 viewDataSourceNode model renderInfo kimballAssignment =
     let
         ( table_, type_, backgroundColor ) =
@@ -572,13 +582,6 @@ viewDataSourceNode model renderInfo kimballAssignment =
                 , moveRight 3
                 , paddingXY 5 2
                 , spacingXY 4 0
-
-                --, Events.onClick <| UserSelectedTableRef ref
-                --, Events.onMouseEnter <| UserMouseEnteredTableRef ref
-                --, Events.onMouseLeave <| UserMouseLeftTableRef
-                --, Background.color (backgroundColorFor ref)
-                --, Border.widthEach (borderFor ref)
-                --, Border.color (borderColorFor ref)
                 ]
                 [ el
                     [ width <| px 5
@@ -668,11 +671,20 @@ viewCanvas model layoutInfo =
                     []
 
                 Just dimModel ->
-                    List.map (\( renderInfo, kimballAssignments ) -> renderHelp renderInfo kimballAssignments) (Dict.values dimModel.tableInfos)
+                    List.filterMap
+                        (\info ->
+                            case info.isIncluded of
+                                True ->
+                                    Just <| renderHelp info
 
-        renderHelp : TableRenderInfo -> KimballAssignment DuckDbRef_ (List DuckDbColumnDescription) -> Svg Msg
-        renderHelp tblInfo assignments =
-            viewDataSourceNode model tblInfo assignments
+                                False ->
+                                    Nothing
+                        )
+                        (Dict.values dimModel.tableInfos)
+
+        renderHelp : DimModelDuckDbSourceInfo -> Svg Msg
+        renderHelp info =
+            viewDataSourceNode model info.renderInfo info.assignment
     in
     el
         [ Border.width 1
@@ -802,12 +814,14 @@ viewDebugPanel model =
                 Just dimModel ->
                     dimModel.ref
     in
-    column [ width fill, height fill, Border.width 1, Border.color Palette.darkishGrey ]
-        [ E.text <| "events: " ++ mouseEventStr
-        , E.text <| "drag state: " ++ dragStateStr
-        , E.text <| "veiwPort: " ++ viewPortStr
-        , E.text <| "dim model: " ++ selectedModelStr
-        ]
+    el [ width fill, height fill, Border.width 1, Border.color Palette.darkishGrey ]
+        (paragraph []
+            [ E.text <| "events: " ++ mouseEventStr
+            , E.text <| "drag state: " ++ dragStateStr
+            , E.text <| "veiwPort: " ++ viewPortStr
+            , E.text <| "dim model: " ++ selectedModelStr
+            ]
+        )
 
 
 viewDimensionalModelRefs : Model -> Element Msg
@@ -838,9 +852,7 @@ viewDimensionalModelRefs model =
                         )
 
                 Error_ err ->
-                    case err of
-                        PlainMessage str ->
-                            text str
+                    text err
 
         newModelForm : Element Msg
         newModelForm =
@@ -936,11 +948,16 @@ viewTableRefs model selectedDimModel =
 
                         innerBlobColorFor : DuckDbRef -> Color
                         innerBlobColorFor ref =
-                            case List.member ref selectedDimModel.selectedDbRefs of
-                                True ->
-                                    Palette.green_keylime
+                            case Dict.get (refToString ref) selectedDimModel.tableInfos of
+                                Just info ->
+                                    case info.isIncluded of
+                                        True ->
+                                            Palette.green_keylime
 
-                                False ->
+                                        False ->
+                                            Palette.white
+
+                                Nothing ->
                                     Palette.white
 
                         ui : DuckDb.DuckDbRef -> Element Msg
@@ -949,7 +966,7 @@ viewTableRefs model selectedDimModel =
                                 [ width E.fill
                                 , paddingXY 0 2
                                 , spacingXY 2 0
-                                , Events.onClick <| UserToggledDuckDbRefSelection ref
+                                , Events.onClick <| UserClickedDuckDbRef ref
                                 , Events.onMouseEnter <| UserMouseEnteredTableRef ref
                                 , Events.onMouseLeave <| UserMouseLeftTableRef
                                 , Background.color (backgroundColorFor ref)
@@ -991,9 +1008,7 @@ viewTableRefs model selectedDimModel =
                 ]
 
         Error_ err ->
-            case err of
-                PlainMessage str ->
-                    text str
+            text err
 
 
 

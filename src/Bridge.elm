@@ -1,15 +1,16 @@
 module Bridge exposing (..)
 
 import Dict exposing (Dict)
-import DimensionalModel exposing (DimensionalModel, DimensionalModelRef)
-import DuckDb exposing (DuckDbColumnDescription, DuckDbRef, DuckDbRefString)
+import DimensionalModel exposing (DimensionalModel, DimensionalModelEdge, DimensionalModelRef, KimballAssignment, PositionPx)
+import DuckDb exposing (DuckDbColumnDescription, DuckDbRef, DuckDbRefString, DuckDbRef_)
+import Graph exposing (Graph)
 
 
 type ToBackend
     = FetchDimensionalModelRefs
     | CreateNewDimensionalModel DimensionalModelRef
     | FetchDimensionalModel DimensionalModelRef
-    | UpdateDimensionalModel DimensionalModel
+    | UpdateDimensionalModel DimensionalModelUpdate
     | Admin_FetchAllBackendData
     | Admin_PingServer
     | Admin_InitiateDuckDbCacheWarmingCycle
@@ -17,12 +18,21 @@ type ToBackend
     | Kimball_FetchDuckDbRefs
 
 
+type DimensionalModelUpdate
+    = FullReplacement DimensionalModelRef DimensionalModel
+    | UpdateNodePosition DimensionalModelRef DuckDbRef PositionPx
+    | AddDuckDbRefToModel DimensionalModelRef DuckDbRef
+    | ToggleIncludedNode DimensionalModelRef DuckDbRef
+    | UpdateAssignment DimensionalModelRef DuckDbRef (KimballAssignment DuckDbRef_ (List DuckDbColumnDescription))
+    | UpdateGraph DimensionalModelRef (Graph DuckDbRef_ DimensionalModelEdge)
+
+
 
 -- NB: Naming conflicts with WebData, but this is for Lamdera data
 
 
-type BackendErrorMessage
-    = PlainMessage String
+type alias BackendErrorMessage =
+    String
 
 
 type DeliveryEnvelope data

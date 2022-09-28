@@ -4,7 +4,7 @@ import Bridge exposing (BackendData(..), BackendErrorMessage, DimensionalModelUp
 import Browser.Dom
 import Browser.Events as BE
 import Dict exposing (Dict)
-import DimensionalModel exposing (CardRenderInfo, DimModelDuckDbSourceInfo, DimensionalModel, DimensionalModelRef, KimballAssignment(..), PositionPx)
+import DimensionalModel exposing (CardRenderInfo, DimModelDuckDbSourceInfo, DimensionalModel, DimensionalModelRef, KimballAssignment(..), PositionPx, Reason(..), naiveColumnPairingStrategy)
 import DuckDb exposing (ColumnName, DuckDbColumn, DuckDbColumnDescription(..), DuckDbRef, DuckDbRefString, DuckDbRef_(..), fetchDuckDbTableRefs, refEquals, refToString)
 import Effect exposing (Effect)
 import Element as E exposing (..)
@@ -66,6 +66,7 @@ type alias Model =
     , dimensionalModelRefs : BackendData (List DimensionalModelRef)
     , proposedNewModelName : String
     , selectedDimensionalModel : Maybe DimensionalModel
+    , pairingAlgoStatus : Maybe String
     }
 
 
@@ -95,6 +96,7 @@ init =
       , viewPort = Nothing
       , proposedNewModelName = ""
       , selectedDimensionalModel = Nothing
+      , pairingAlgoStatus = Nothing
       }
     , Effect.fromCmd <|
         Cmd.batch
@@ -138,6 +140,7 @@ type Msg
     | UserSelectedDimensionalModel DimensionalModelRef
     | UserClickedDuckDbRef DuckDb.DuckDbRef
     | UserMouseEnteredTableRef DuckDb.DuckDbRef
+    | UserClickedAttemptPairing DimensionalModelRef
     | UserMouseLeftTableRef
     | UserMouseEnteredNodeTitleBar DuckDb.DuckDbRef
     | UserMouseLeftNodeTitleBar
@@ -471,6 +474,43 @@ update msg model =
                 ]
             )
 
+        UserClickedAttemptPairing dimRef ->
+            let
+                ( newDimModel, newPairingStatusMessage ) =
+                    case model.selectedDimensionalModel of
+                        Nothing ->
+                            ( Nothing, " " )
+
+                        Just dimModel ->
+                            case dimModel.ref == dimRef of
+                                True ->
+                                    case naiveColumnPairingStrategy dimModel of
+                                        DimensionalModel.Success pairedDimModel ->
+                                            ( Just pairedDimModel, "pairing was a success" )
+
+                                        DimensionalModel.Fail reason ->
+                                            case reason of
+                                                -- Note, we failed to pair the graph, but we still have the model
+                                                -- so just return what we already have, with the error reason message
+                                                AllInputTablesMustBeAssigned ->
+                                                    ( Just dimModel, "must assign ALL tables" )
+
+                                                InputMustContainAtLeastOneFactTable ->
+                                                    ( Just dimModel, "Need at least 1 fact table" )
+
+                                                InputMustContainAtLeastOneDimensionTable ->
+                                                    ( Just dimModel, "Need at least 1 dim table" )
+
+                                False ->
+                                    ( Nothing, " " )
+            in
+            ( { model
+                | selectedDimensionalModel = newDimModel
+                , pairingAlgoStatus = Just newPairingStatusMessage
+              }
+            , Effect.none
+            )
+
 
 
 -- SUBSCRIPTIONS
@@ -704,23 +744,76 @@ viewCanvas model layoutInfo =
                 nodesContainer
 
 
-viewViewBoxControls : Element Msg
-viewViewBoxControls =
+viewControlPanel : Model -> Element Msg
+viewControlPanel model =
+    let
+        viewViewBoxControls : Element Msg
+        viewViewBoxControls =
+            row [ centerX ]
+                [ el [ centerX, Border.width 1, Border.color Palette.black, Events.onClick <| SvgViewBoxTransform (Zoom 0.1) ] <| E.text "+"
+                , el [ centerX, Border.width 1, Border.color Palette.black, Events.onClick <| SvgViewBoxTransform (Zoom -0.1) ] <| E.text "-"
+                , el [ centerX, Border.width 1, Border.color Palette.black, Events.onClick <| SvgViewBoxTransform (Translation -20 0) ] <| E.text "ᐊ"
+                , el [ centerX, Border.width 1, Border.color Palette.black, Events.onClick <| SvgViewBoxTransform (Translation 20 0) ] <| E.text "ᐅ"
+                , el [ centerX, Border.width 1, Border.color Palette.black, Events.onClick <| SvgViewBoxTransform (Translation 0 -20) ] <| E.text "ᐃ"
+                , el [ centerX, Border.width 1, Border.color Palette.black, Events.onClick <| SvgViewBoxTransform (Translation 0 20) ] <| E.text "ᐁ"
+                ]
+
+        onPress : Maybe Msg
+        onPress =
+            case model.selectedDimensionalModel of
+                Just dimModel ->
+                    Just <| UserClickedAttemptPairing dimModel.ref
+
+                Nothing ->
+                    Nothing
+
+        viewGraphControlPanel : Element Msg
+        viewGraphControlPanel =
+            row
+                [ centerX
+                , moveRight 10
+                , height fill
+                , Border.color Palette.black
+                , paddingXY 10 0
+                , Border.width 1
+                , Font.size 12
+                ]
+                [ Input.button [ alignRight ]
+                    { label =
+                        el
+                            [ Border.width 1
+                            , Border.rounded 2
+                            , Background.color Palette.lightGrey
+                            , Border.color Palette.darkishGrey
+                            , padding 2
+                            , Font.size 14
+                            ]
+                            (E.text "Pair columns")
+                    , onPress = onPress
+                    }
+                , el []
+                    (text
+                        (case model.pairingAlgoStatus of
+                            Just message ->
+                                message
+
+                            Nothing ->
+                                " "
+                        )
+                    )
+                ]
+    in
     row
         [ width fill
         , height (px 40)
         , Font.size 30
         , Border.width 1
-        , Background.color Palette.white
         , Border.color Palette.darkishGrey
+        , Background.color Palette.white
         , spacing 6
         ]
-        [ el [ centerX, Border.width 1, Border.color Palette.black, Events.onClick <| SvgViewBoxTransform (Zoom 0.1) ] <| E.text "+"
-        , el [ centerX, Border.width 1, Border.color Palette.black, Events.onClick <| SvgViewBoxTransform (Zoom -0.1) ] <| E.text "-"
-        , el [ centerX, Border.width 1, Border.color Palette.black, Events.onClick <| SvgViewBoxTransform (Translation -20 0) ] <| E.text "ᐊ"
-        , el [ centerX, Border.width 1, Border.color Palette.black, Events.onClick <| SvgViewBoxTransform (Translation 20 0) ] <| E.text "ᐅ"
-        , el [ centerX, Border.width 1, Border.color Palette.black, Events.onClick <| SvgViewBoxTransform (Translation 0 -20) ] <| E.text "ᐃ"
-        , el [ centerX, Border.width 1, Border.color Palette.black, Events.onClick <| SvgViewBoxTransform (Translation 0 20) ] <| E.text "ᐁ"
+        [ viewViewBoxControls
+        , viewGraphControlPanel
         ]
 
 
@@ -741,7 +834,7 @@ viewElements model layoutInfo =
             , centerX
             ]
             [ viewCanvas model layoutInfo
-            , viewViewBoxControls
+            , viewControlPanel model
             ]
         , column
             [ height fill

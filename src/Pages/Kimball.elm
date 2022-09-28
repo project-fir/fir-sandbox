@@ -4,7 +4,7 @@ import Bridge exposing (BackendData(..), BackendErrorMessage, DimensionalModelUp
 import Browser.Dom
 import Browser.Events as BE
 import Dict exposing (Dict)
-import DimensionalModel exposing (CardRenderInfo, DimModelDuckDbSourceInfo, DimensionalModel, DimensionalModelRef, KimballAssignment(..), PositionPx, Reason(..), naiveColumnPairingStrategy)
+import DimensionalModel exposing (CardRenderInfo, DimModelDuckDbSourceInfo, DimensionalModel, DimensionalModelRef, KimballAssignment(..), NaivePairingStrategyResult(..), PositionPx, Reason(..), naiveColumnPairingStrategy)
 import DuckDb exposing (ColumnName, DuckDbColumn, DuckDbColumnDescription(..), DuckDbRef, DuckDbRefString, DuckDbRef_(..), fetchDuckDbTableRefs, refEquals, refToString)
 import Effect exposing (Effect)
 import Element as E exposing (..)
@@ -65,8 +65,12 @@ type alias Model =
     , viewPort : Maybe Browser.Dom.Viewport
     , dimensionalModelRefs : BackendData (List DimensionalModelRef)
     , proposedNewModelName : String
+
+    -- TODO: Having both selectedDimModel and pairingAlgoResult introduces duplicate copies of dimensionalModel
+    --       Something to think abuot, should all the actions on the dimModel be variants (similar to how I implemented
+    --       the duckdb cache in Backend.
     , selectedDimensionalModel : Maybe DimensionalModel
-    , pairingAlgoStatus : Maybe String
+    , pairingAlgoResult : Maybe NaivePairingStrategyResult
     }
 
 
@@ -96,7 +100,7 @@ init =
       , viewPort = Nothing
       , proposedNewModelName = ""
       , selectedDimensionalModel = Nothing
-      , pairingAlgoStatus = Nothing
+      , pairingAlgoResult = Nothing
       }
     , Effect.fromCmd <|
         Cmd.batch
@@ -351,7 +355,6 @@ update msg model =
                                     in
                                     case newPos of
                                         Just newPos_ ->
-                                            --Cmd.none
                                             sendToBackend <| UpdateDimensionalModel (UpdateNodePosition dimModel.ref ref_ newPos_)
 
                                         Nothing ->
@@ -476,39 +479,53 @@ update msg model =
 
         UserClickedAttemptPairing dimRef ->
             let
-                ( newDimModel, newPairingStatusMessage ) =
+                ( newDimModel, pairingStatus ) =
                     case model.selectedDimensionalModel of
                         Nothing ->
-                            ( Nothing, " " )
+                            ( Nothing, Nothing )
 
                         Just dimModel ->
                             case dimModel.ref == dimRef of
                                 True ->
                                     case naiveColumnPairingStrategy dimModel of
                                         DimensionalModel.Success pairedDimModel ->
-                                            ( Just pairedDimModel, "pairing was a success" )
+                                            ( Just pairedDimModel, Just <| DimensionalModel.Success pairedDimModel )
 
                                         DimensionalModel.Fail reason ->
                                             case reason of
                                                 -- Note, we failed to pair the graph, but we still have the model
                                                 -- so just return what we already have, with the error reason message
                                                 AllInputTablesMustBeAssigned ->
-                                                    ( Just dimModel, "must assign ALL tables" )
+                                                    ( Just dimModel, Just <| DimensionalModel.Fail AllInputTablesMustBeAssigned )
 
                                                 InputMustContainAtLeastOneFactTable ->
-                                                    ( Just dimModel, "Need at least 1 fact table" )
+                                                    ( Just dimModel, Just <| DimensionalModel.Fail InputMustContainAtLeastOneFactTable )
 
                                                 InputMustContainAtLeastOneDimensionTable ->
-                                                    ( Just dimModel, "Need at least 1 dim table" )
+                                                    ( Just dimModel, Just <| DimensionalModel.Fail InputMustContainAtLeastOneDimensionTable )
 
                                 False ->
-                                    ( Nothing, " " )
+                                    ( Nothing, Nothing )
+
+                cmd : Cmd msg
+                cmd =
+                    case pairingStatus of
+                        Just status ->
+                            case status of
+                                DimensionalModel.Success pairedDimModel ->
+                                    sendToBackend <| UpdateDimensionalModel (FullReplacement pairedDimModel.ref pairedDimModel)
+
+                                DimensionalModel.Fail _ ->
+                                    Cmd.none
+
+                        Nothing ->
+                            Cmd.none
             in
             ( { model
                 | selectedDimensionalModel = newDimModel
-                , pairingAlgoStatus = Just newPairingStatusMessage
+                , pairingAlgoResult = pairingStatus
               }
-            , Effect.none
+            , Effect.fromCmd cmd
             )
 
 
@@ -793,9 +810,22 @@ viewControlPanel model =
                     }
                 , el []
                     (text
-                        (case model.pairingAlgoStatus of
-                            Just message ->
-                                message
+                        (case model.pairingAlgoResult of
+                            Just pairingResult ->
+                                case pairingResult of
+                                    DimensionalModel.Success _ ->
+                                        "pairing was a success!"
+
+                                    Fail reason ->
+                                        case reason of
+                                            AllInputTablesMustBeAssigned ->
+                                                "all tables must be given an assignment"
+
+                                            InputMustContainAtLeastOneFactTable ->
+                                                "there must be at least one fact table"
+
+                                            InputMustContainAtLeastOneDimensionTable ->
+                                                "there must be at least one dimension table"
 
                             Nothing ->
                                 " "

@@ -4,7 +4,7 @@ import Bridge exposing (BackendData(..), BackendErrorMessage, DimensionalModelUp
 import Browser.Dom
 import Browser.Events as BE
 import Dict exposing (Dict)
-import DimensionalModel exposing (CardRenderInfo, DimModelDuckDbSourceInfo, DimensionalModel, DimensionalModelRef, KimballAssignment(..), PositionPx)
+import DimensionalModel exposing (CardRenderInfo, DimModelDuckDbSourceInfo, DimensionalModel, DimensionalModelRef, KimballAssignment(..), NaivePairingStrategyResult(..), PositionPx, Reason(..), naiveColumnPairingStrategy)
 import DuckDb exposing (ColumnName, DuckDbColumn, DuckDbColumnDescription(..), DuckDbRef, DuckDbRefString, DuckDbRef_(..), fetchDuckDbTableRefs, refEquals, refToString)
 import Effect exposing (Effect)
 import Element as E exposing (..)
@@ -65,7 +65,18 @@ type alias Model =
     , viewPort : Maybe Browser.Dom.Viewport
     , dimensionalModelRefs : BackendData (List DimensionalModelRef)
     , proposedNewModelName : String
+
+    -- TODO: Having both selectedDimModel and pairingAlgoResult introduces duplicate copies of dimensionalModel
+    --       Something to think about.. should all possible actions on dimModels be dimModel variants (similar to how I implemented
+    --       the duckdb cache in Backend)?
     , selectedDimensionalModel : Maybe DimensionalModel
+    , pairingAlgoResult : Maybe NaivePairingStrategyResult
+    , dropdownState : Maybe DuckDbRef
+    }
+
+
+type alias DropdownState =
+    { duckDbRef : DuckDbRef
     }
 
 
@@ -95,6 +106,8 @@ init =
       , viewPort = Nothing
       , proposedNewModelName = ""
       , selectedDimensionalModel = Nothing
+      , pairingAlgoResult = Nothing
+      , dropdownState = Nothing
       }
     , Effect.fromCmd <|
         Cmd.batch
@@ -138,6 +151,8 @@ type Msg
     | UserSelectedDimensionalModel DimensionalModelRef
     | UserClickedDuckDbRef DuckDb.DuckDbRef
     | UserMouseEnteredTableRef DuckDb.DuckDbRef
+    | UserClickedAttemptPairing DimensionalModelRef
+    | UserToggledCardDropDown DuckDbRef
     | UserMouseLeftTableRef
     | UserMouseEnteredNodeTitleBar DuckDb.DuckDbRef
     | UserMouseLeftNodeTitleBar
@@ -151,6 +166,8 @@ type Msg
     | GotResizeEvent Int Int
     | UpdatedNewDimModelName String
     | UserCreatesNewDimensionalModel DimensionalModelRef
+    | NoopKimball
+    | UserClickedKimballAssignment DimensionalModelRef DuckDbRef (KimballAssignment DuckDbRef_ (List DuckDbColumnDescription))
 
 
 type SvgViewBoxTransformation
@@ -161,6 +178,23 @@ type SvgViewBoxTransformation
 update : Msg -> Model -> ( Model, Effect Msg )
 update msg model =
     case msg of
+        UserClickedKimballAssignment dimRef duckDbRef assignment ->
+            -- NB: We have the "side effect" of closing the dropdown menu
+            ( { model | dropdownState = Nothing }
+            , Effect.fromCmd (sendToBackend (UpdateDimensionalModel (UpdateAssignment dimRef duckDbRef assignment)))
+            )
+
+        NoopKimball ->
+            ( model, Effect.none )
+
+        UserToggledCardDropDown duckDbRef ->
+            case model.dropdownState of
+                Nothing ->
+                    ( { model | dropdownState = Just duckDbRef }, Effect.none )
+
+                Just _ ->
+                    ( { model | dropdownState = Nothing }, Effect.none )
+
         GotDimensionalModelRefs refs ->
             ( { model | dimensionalModelRefs = Success_ refs }, Effect.none )
 
@@ -348,7 +382,6 @@ update msg model =
                                     in
                                     case newPos of
                                         Just newPos_ ->
-                                            --Cmd.none
                                             sendToBackend <| UpdateDimensionalModel (UpdateNodePosition dimModel.ref ref_ newPos_)
 
                                         Nothing ->
@@ -471,6 +504,57 @@ update msg model =
                 ]
             )
 
+        UserClickedAttemptPairing dimRef ->
+            let
+                ( newDimModel, pairingStatus ) =
+                    case model.selectedDimensionalModel of
+                        Nothing ->
+                            ( Nothing, Nothing )
+
+                        Just dimModel ->
+                            case dimModel.ref == dimRef of
+                                True ->
+                                    case naiveColumnPairingStrategy dimModel of
+                                        DimensionalModel.Success pairedDimModel ->
+                                            ( Just pairedDimModel, Just <| DimensionalModel.Success pairedDimModel )
+
+                                        DimensionalModel.Fail reason ->
+                                            case reason of
+                                                -- Note, we failed to pair the graph, but we still have the model
+                                                -- so just return what we already have, with the error reason message
+                                                AllInputTablesMustBeAssigned ->
+                                                    ( Just dimModel, Just <| DimensionalModel.Fail AllInputTablesMustBeAssigned )
+
+                                                InputMustContainAtLeastOneFactTable ->
+                                                    ( Just dimModel, Just <| DimensionalModel.Fail InputMustContainAtLeastOneFactTable )
+
+                                                InputMustContainAtLeastOneDimensionTable ->
+                                                    ( Just dimModel, Just <| DimensionalModel.Fail InputMustContainAtLeastOneDimensionTable )
+
+                                False ->
+                                    ( Nothing, Nothing )
+
+                cmd : Cmd msg
+                cmd =
+                    case pairingStatus of
+                        Just status ->
+                            case status of
+                                DimensionalModel.Success pairedDimModel ->
+                                    sendToBackend <| UpdateDimensionalModel (FullReplacement pairedDimModel.ref pairedDimModel)
+
+                                DimensionalModel.Fail _ ->
+                                    Cmd.none
+
+                        Nothing ->
+                            Cmd.none
+            in
+            ( { model
+                | selectedDimensionalModel = newDimModel
+                , pairingAlgoResult = pairingStatus
+              }
+            , Effect.fromCmd cmd
+            )
+
 
 
 -- SUBSCRIPTIONS
@@ -520,8 +604,8 @@ view model =
     }
 
 
-viewDataSourceNode : Model -> CardRenderInfo -> KimballAssignment DuckDbRef_ (List DuckDbColumnDescription) -> Svg Msg
-viewDataSourceNode model renderInfo kimballAssignment =
+viewDataSourceNode : Model -> DimensionalModelRef -> CardRenderInfo -> KimballAssignment DuckDbRef_ (List DuckDbColumnDescription) -> Svg Msg
+viewDataSourceNode model dimModelRef renderInfo kimballAssignment =
     let
         ( table_, type_, backgroundColor ) =
             case kimballAssignment of
@@ -601,9 +685,10 @@ viewDataSourceNode model renderInfo kimballAssignment =
                     E.none
                 ]
 
-        element : Element Msg
-        element =
+        viewCardElements : Element Msg
+        viewCardElements =
             let
+                titleBarBackgroundColor : Color
                 titleBarBackgroundColor =
                     case model.hoveredOnNodeTitle of
                         Nothing ->
@@ -615,31 +700,74 @@ viewDataSourceNode model renderInfo kimballAssignment =
 
                             else
                                 backgroundColor
+
+                viewTitleBar : Element Msg
+                viewTitleBar =
+                    el
+                        [ Border.widthEach { top = 0, left = 0, right = 0, bottom = 2 }
+                        , Border.color Palette.black
+                        , width fill
+                        , Background.color titleBarBackgroundColor
+                        , Events.onMouseEnter (UserMouseEnteredNodeTitleBar renderInfo.ref)
+                        , Events.onMouseLeave UserMouseLeftNodeTitleBar
+                        , Events.onMouseDown (BeginNodeDrag renderInfo.ref)
+                        , paddingXY 0 5
+                        ]
+                    <|
+                        row [ width fill, paddingXY 5 0 ]
+                            [ el [ alignLeft ] (E.text <| type_ ++ ":")
+
+                            -- some useful characters to keep handy here:
+                            -- ᐁ ᐅ ▼ ▶
+                            --
+                            , column []
+                                [ el
+                                    [ Border.width 1
+                                    , Border.color Palette.black
+                                    , padding 2
+
+                                    --, inFront
+                                    ]
+                                    (case model.dropdownState of
+                                        Nothing ->
+                                            el [ Events.onClick <| UserToggledCardDropDown renderInfo.ref ] (E.text "▼")
+
+                                        Just duckDbRef ->
+                                            case renderInfo.ref == duckDbRef of
+                                                True ->
+                                                    el
+                                                        [ E.onRight
+                                                            (column
+                                                                [ Border.color Palette.lightGrey
+                                                                , Border.width 1
+                                                                , Background.color Palette.lightBlue
+                                                                , spacing 3
+                                                                ]
+                                                                [ el [ Events.onClick (UserClickedKimballAssignment dimModelRef renderInfo.ref (Unassigned (DuckDbTable renderInfo.ref) colDescs)) ] <| E.text "Unassigned"
+                                                                , el [ Events.onClick (UserClickedKimballAssignment dimModelRef renderInfo.ref (Dimension (DuckDbTable renderInfo.ref) colDescs)) ] <| E.text "Dimension"
+                                                                , el [ Events.onClick (UserClickedKimballAssignment dimModelRef renderInfo.ref (Fact (DuckDbTable renderInfo.ref) colDescs)) ] <| E.text "Fact"
+                                                                ]
+                                                            )
+                                                        ]
+                                                        (el [ Events.onClick <| UserToggledCardDropDown renderInfo.ref ] <| E.text "▶")
+
+                                                False ->
+                                                    E.text "default elements"
+                                    )
+                                ]
+                            , el [ alignLeft, moveRight 10 ] (E.text title)
+                            ]
             in
             column
                 [ width fill
                 , height fill
                 , Border.color Palette.black
-                , Border.width 2
+                , Border.width 1
                 , padding 2
                 , Background.color backgroundColor
                 , Font.size 14
                 ]
-                [ el
-                    [ Border.widthEach { top = 0, left = 0, right = 0, bottom = 2 }
-                    , Border.color Palette.black
-                    , width fill
-                    , Background.color titleBarBackgroundColor
-                    , Events.onMouseEnter (UserMouseEnteredNodeTitleBar renderInfo.ref)
-                    , Events.onMouseLeave UserMouseLeftNodeTitleBar
-                    , Events.onMouseDown (BeginNodeDrag renderInfo.ref)
-                    , paddingXY 0 5
-                    ]
-                  <|
-                    row [ width fill, paddingXY 5 0 ]
-                        [ el [ alignLeft ] (E.text <| type_ ++ ":")
-                        , el [ alignLeft, moveRight 10 ] (E.text title)
-                        ]
+                [ viewTitleBar
                 , column
                     [ width fill
                     , height fill
@@ -657,7 +785,7 @@ viewDataSourceNode model renderInfo kimballAssignment =
         [ E.layoutWith { options = [ noStaticStyleSheet ] }
             [ Events.onMouseLeave ClearNodeHoverState
             ]
-            element
+            viewCardElements
         ]
 
 
@@ -675,16 +803,16 @@ viewCanvas model layoutInfo =
                         (\info ->
                             case info.isIncluded of
                                 True ->
-                                    Just <| renderHelp info
+                                    Just <| renderHelp info dimModel.ref
 
                                 False ->
                                     Nothing
                         )
                         (Dict.values dimModel.tableInfos)
 
-        renderHelp : DimModelDuckDbSourceInfo -> Svg Msg
-        renderHelp info =
-            viewDataSourceNode model info.renderInfo info.assignment
+        renderHelp : DimModelDuckDbSourceInfo -> DimensionalModelRef -> Svg Msg
+        renderHelp info dimModelRef =
+            viewDataSourceNode model dimModelRef info.renderInfo info.assignment
     in
     el
         [ Border.width 1
@@ -704,23 +832,98 @@ viewCanvas model layoutInfo =
                 nodesContainer
 
 
-viewViewBoxControls : Element Msg
-viewViewBoxControls =
+viewControlPanel : Model -> Element Msg
+viewControlPanel model =
+    let
+        viewViewBoxControls : Element Msg
+        viewViewBoxControls =
+            row
+                [ centerX
+                , Border.width 1
+                , Border.color Palette.black
+                , height fill
+                , paddingXY 5 0
+                , Font.size 24
+                , spacing 5
+                ]
+                [ el [ centerX, Border.width 1, Border.color Palette.black, Events.onClick <| SvgViewBoxTransform (Zoom 0.1) ] <| E.text "+"
+                , el [ centerX, Border.width 1, Border.color Palette.black, Events.onClick <| SvgViewBoxTransform (Zoom -0.1) ] <| E.text "-"
+                , el [ centerX, Border.width 1, Border.color Palette.black, Events.onClick <| SvgViewBoxTransform (Translation -20 0) ] <| E.text "ᐊ"
+                , el [ centerX, Border.width 1, Border.color Palette.black, Events.onClick <| SvgViewBoxTransform (Translation 20 0) ] <| E.text "ᐅ"
+                , el [ centerX, Border.width 1, Border.color Palette.black, Events.onClick <| SvgViewBoxTransform (Translation 0 -20) ] <| E.text "ᐃ"
+                , el [ centerX, Border.width 1, Border.color Palette.black, Events.onClick <| SvgViewBoxTransform (Translation 0 20) ] <| E.text "ᐁ"
+                ]
+
+        onPress : Maybe Msg
+        onPress =
+            case model.selectedDimensionalModel of
+                Just dimModel ->
+                    Just <| UserClickedAttemptPairing dimModel.ref
+
+                Nothing ->
+                    Nothing
+
+        viewGraphControlPanel : Element Msg
+        viewGraphControlPanel =
+            row
+                [ centerX
+                , moveRight 10
+                , height fill
+                , Border.color Palette.black
+                , paddingXY 10 0
+                , Border.width 1
+                , Font.size 12
+                , spacing 10
+                ]
+                [ Input.button [ alignRight ]
+                    { label =
+                        el
+                            [ Border.width 1
+                            , Border.rounded 2
+                            , Background.color Palette.lightGrey
+                            , Border.color Palette.darkishGrey
+                            , padding 2
+                            , Font.size 14
+                            ]
+                            (E.text "Pair columns")
+                    , onPress = onPress
+                    }
+                , el []
+                    (text
+                        (case model.pairingAlgoResult of
+                            Just pairingResult ->
+                                case pairingResult of
+                                    DimensionalModel.Success _ ->
+                                        "pairing was a success!"
+
+                                    Fail reason ->
+                                        case reason of
+                                            AllInputTablesMustBeAssigned ->
+                                                "all tables must be given an assignment"
+
+                                            InputMustContainAtLeastOneFactTable ->
+                                                "there must be at least one fact table"
+
+                                            InputMustContainAtLeastOneDimensionTable ->
+                                                "there must be at least one dimension table"
+
+                            Nothing ->
+                                " "
+                        )
+                    )
+                ]
+    in
     row
         [ width fill
         , height (px 40)
         , Font.size 30
         , Border.width 1
-        , Background.color Palette.white
         , Border.color Palette.darkishGrey
+        , Background.color Palette.white
         , spacing 6
         ]
-        [ el [ centerX, Border.width 1, Border.color Palette.black, Events.onClick <| SvgViewBoxTransform (Zoom 0.1) ] <| E.text "+"
-        , el [ centerX, Border.width 1, Border.color Palette.black, Events.onClick <| SvgViewBoxTransform (Zoom -0.1) ] <| E.text "-"
-        , el [ centerX, Border.width 1, Border.color Palette.black, Events.onClick <| SvgViewBoxTransform (Translation -20 0) ] <| E.text "ᐊ"
-        , el [ centerX, Border.width 1, Border.color Palette.black, Events.onClick <| SvgViewBoxTransform (Translation 20 0) ] <| E.text "ᐅ"
-        , el [ centerX, Border.width 1, Border.color Palette.black, Events.onClick <| SvgViewBoxTransform (Translation 0 -20) ] <| E.text "ᐃ"
-        , el [ centerX, Border.width 1, Border.color Palette.black, Events.onClick <| SvgViewBoxTransform (Translation 0 20) ] <| E.text "ᐁ"
+        [ viewViewBoxControls
+        , viewGraphControlPanel
         ]
 
 
@@ -741,7 +944,7 @@ viewElements model layoutInfo =
             , centerX
             ]
             [ viewCanvas model layoutInfo
-            , viewViewBoxControls
+            , viewControlPanel model
             ]
         , column
             [ height fill

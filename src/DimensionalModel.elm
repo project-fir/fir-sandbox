@@ -107,17 +107,35 @@ naiveColumnPairingStrategy dimModel =
                 Dimension ref _ ->
                     refDrillDown ref
 
+        includedSources : List DimModelDuckDbSourceInfo
+        includedSources =
+            -- TODO: Forgetting to filter out excluded source was a bug I missed, should really have test coverage on this
+            --       see ticket FIR-39
+            List.filterMap
+                (\sourceInfo ->
+                    case sourceInfo.isIncluded of
+                        True ->
+                            Just sourceInfo
+
+                        False ->
+                            Nothing
+                )
+                (Dict.values dimModel.tableInfos)
+
         unassignedSources : List DuckDbRef
         unassignedSources =
-            List.filterMap helperFilterUnassigned (List.map (\info -> info.assignment) (Dict.values dimModel.tableInfos))
+            -- NB: We filter on includedSources, not all source in this dimensional model!
+            List.filterMap helperFilterUnassigned (List.map (\info -> info.assignment) includedSources)
 
         factSources : List DuckDbRef
         factSources =
-            List.filterMap helperFilterFact (List.map (\info -> info.assignment) (Dict.values dimModel.tableInfos))
+            -- NB: We filter on includedSources, not all source in this dimensional model!
+            List.filterMap helperFilterFact (List.map (\info -> info.assignment) includedSources)
 
         dimensionSources : List DuckDbRef
         dimensionSources =
-            List.filterMap helperFilterDimension (List.map (\info -> info.assignment) (Dict.values dimModel.tableInfos))
+            -- NB: We filter on includedSources, not all source in this dimensional model!
+            List.filterMap helperFilterDimension (List.map (\info -> info.assignment) includedSources)
 
         columnsOfNode : Node DuckDbRef_ -> List ( NodeId, DuckDbColumnDescription )
         columnsOfNode node =

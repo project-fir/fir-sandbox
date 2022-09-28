@@ -67,10 +67,16 @@ type alias Model =
     , proposedNewModelName : String
 
     -- TODO: Having both selectedDimModel and pairingAlgoResult introduces duplicate copies of dimensionalModel
-    --       Something to think abuot, should all the actions on the dimModel be variants (similar to how I implemented
-    --       the duckdb cache in Backend.
+    --       Something to think about.. should all possible actions on dimModels be dimModel variants (similar to how I implemented
+    --       the duckdb cache in Backend)?
     , selectedDimensionalModel : Maybe DimensionalModel
     , pairingAlgoResult : Maybe NaivePairingStrategyResult
+    , dropdownState : Maybe DropdownState
+    }
+
+
+type alias DropdownState =
+    { duckDbRef : DuckDbRef
     }
 
 
@@ -101,6 +107,7 @@ init =
       , proposedNewModelName = ""
       , selectedDimensionalModel = Nothing
       , pairingAlgoResult = Nothing
+      , dropdownState = Nothing
       }
     , Effect.fromCmd <|
         Cmd.batch
@@ -658,9 +665,10 @@ viewDataSourceNode model renderInfo kimballAssignment =
                     E.none
                 ]
 
-        element : Element Msg
-        element =
+        viewCardElements : Element Msg
+        viewCardElements =
             let
+                titleBarBackgroundColor : Color
                 titleBarBackgroundColor =
                     case model.hoveredOnNodeTitle of
                         Nothing ->
@@ -672,31 +680,53 @@ viewDataSourceNode model renderInfo kimballAssignment =
 
                             else
                                 backgroundColor
+
+                viewDropDown : Element Msg
+                viewDropDown =
+                    case model.dropdownState of
+                        Just ddState ->
+                            case ddState.duckDbRef == renderInfo.ref of
+                                True ->
+                                    el [] <| text "This is a dropdown menu"
+
+                                False ->
+                                    E.none
+
+                        Nothing ->
+                            E.none
+
+                viewTitleBar : Element Msg
+                viewTitleBar =
+                    el
+                        [ Border.widthEach { top = 0, left = 0, right = 0, bottom = 2 }
+                        , Border.color Palette.black
+                        , width fill
+                        , Background.color titleBarBackgroundColor
+                        , Events.onMouseEnter (UserMouseEnteredNodeTitleBar renderInfo.ref)
+                        , Events.onMouseLeave UserMouseLeftNodeTitleBar
+                        , Events.onMouseDown (BeginNodeDrag renderInfo.ref)
+                        , paddingXY 0 5
+                        ]
+                    <|
+                        row [ width fill, paddingXY 5 0 ]
+                            [ el [ alignLeft ] (E.text <| type_ ++ ":")
+
+                            -- ᐁ ᐅ
+                            , el [ alignLeft, Border.color Palette.black, Border.width 1 ] <| text "ᐁ"
+                            , viewDropDown
+                            , el [ alignLeft, moveRight 10 ] (E.text title)
+                            ]
             in
             column
                 [ width fill
                 , height fill
                 , Border.color Palette.black
-                , Border.width 2
+                , Border.width 1
                 , padding 2
                 , Background.color backgroundColor
                 , Font.size 14
                 ]
-                [ el
-                    [ Border.widthEach { top = 0, left = 0, right = 0, bottom = 2 }
-                    , Border.color Palette.black
-                    , width fill
-                    , Background.color titleBarBackgroundColor
-                    , Events.onMouseEnter (UserMouseEnteredNodeTitleBar renderInfo.ref)
-                    , Events.onMouseLeave UserMouseLeftNodeTitleBar
-                    , Events.onMouseDown (BeginNodeDrag renderInfo.ref)
-                    , paddingXY 0 5
-                    ]
-                  <|
-                    row [ width fill, paddingXY 5 0 ]
-                        [ el [ alignLeft ] (E.text <| type_ ++ ":")
-                        , el [ alignLeft, moveRight 10 ] (E.text title)
-                        ]
+                [ viewTitleBar
                 , column
                     [ width fill
                     , height fill
@@ -714,7 +744,7 @@ viewDataSourceNode model renderInfo kimballAssignment =
         [ E.layoutWith { options = [ noStaticStyleSheet ] }
             [ Events.onMouseLeave ClearNodeHoverState
             ]
-            element
+            viewCardElements
         ]
 
 
@@ -766,7 +796,15 @@ viewControlPanel model =
     let
         viewViewBoxControls : Element Msg
         viewViewBoxControls =
-            row [ centerX ]
+            row
+                [ centerX
+                , Border.width 1
+                , Border.color Palette.black
+                , height fill
+                , paddingXY 5 0
+                , Font.size 24
+                , spacing 5
+                ]
                 [ el [ centerX, Border.width 1, Border.color Palette.black, Events.onClick <| SvgViewBoxTransform (Zoom 0.1) ] <| E.text "+"
                 , el [ centerX, Border.width 1, Border.color Palette.black, Events.onClick <| SvgViewBoxTransform (Zoom -0.1) ] <| E.text "-"
                 , el [ centerX, Border.width 1, Border.color Palette.black, Events.onClick <| SvgViewBoxTransform (Translation -20 0) ] <| E.text "ᐊ"
@@ -794,6 +832,7 @@ viewControlPanel model =
                 , paddingXY 10 0
                 , Border.width 1
                 , Font.size 12
+                , spacing 10
                 ]
                 [ Input.button [ alignRight ]
                     { label =

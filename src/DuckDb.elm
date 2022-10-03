@@ -1,4 +1,4 @@
-module DuckDb exposing (ColumnName, ComputedDuckDbColumn, ComputedDuckDbColumnDescription, DuckDbColumn(..), DuckDbColumnDescription(..), DuckDbMetaResponse, DuckDbQueryResponse, DuckDbRef, DuckDbRefString, DuckDbRef_(..), DuckDbRefsResponse, PersistedDuckDbColumn, PersistedDuckDbColumnDescription, PingResponse, Ref, SchemaName, TableName, Val(..), fetchDuckDbTableRefs, pingServer, queryDuckDb, queryDuckDbMeta, refEquals, refToString, uploadFile)
+module DuckDb exposing (ColumnName, ComputedDuckDbColumn, ComputedDuckDbColumnDescription, DuckDbColumn(..), DuckDbColumnDescription(..), DuckDbMetaResponse, DuckDbQueryResponse, DuckDbRef, DuckDbRefString, DuckDbRef_(..), DuckDbRefsResponse, PersistedDuckDbColumn, PersistedDuckDbColumnDescription, PingResponse, Ref, SchemaName, TableName, Val(..), fetchDuckDbTableRefs, pingServer, queryDuckDb, queryDuckDbMeta, refEquals, refToString, taskBuildDateDimTable, uploadFile)
 
 import Config exposing (apiHost)
 import File exposing (File)
@@ -127,6 +127,11 @@ type alias PingResponse =
     }
 
 
+type alias TaskResponse =
+    { message : String
+    }
+
+
 type alias DuckDbQueryResponse =
     { columns : List DuckDbColumn
     }
@@ -162,6 +167,29 @@ pingServer onResponse =
     Http.get
         { url = apiHost ++ "/ping"
         , expect = Http.expectJson onResponse pingResponseDecoder
+        }
+
+
+taskBuildDateDimTable : String -> String -> DuckDbRef -> (Result Error TaskResponse -> msg) -> Cmd msg
+taskBuildDateDimTable startDate endDate ref onResponse =
+    let
+        duckDbQueryEncoder : JE.Value
+        duckDbQueryEncoder =
+            JE.object
+                [ ( "start_date", JE.string startDate )
+                , ( "end_date", JE.string endDate )
+                , ( "ref", refEncoder ref )
+                ]
+
+        taskResponseDecoder : JD.Decoder TaskResponse
+        taskResponseDecoder =
+            JD.map TaskResponse
+                (JD.field "message" JD.string)
+    in
+    Http.post
+        { url = apiHost ++ "/tasks/generate_date_dim"
+        , expect = Http.expectJson onResponse taskResponseDecoder
+        , body = Http.jsonBody duckDbQueryEncoder
         }
 
 

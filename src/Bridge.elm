@@ -13,6 +13,7 @@ type ToBackend
     | UpdateDimensionalModel DimensionalModelUpdate
     | Admin_FetchAllBackendData
     | Admin_PingServer
+    | Admin_Task_BuildDateDimTable String String
     | Admin_InitiateDuckDbCacheWarmingCycle
     | Admin_PurgeBackendData
     | Kimball_FetchDuckDbRefs

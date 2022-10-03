@@ -3,9 +3,10 @@ module Backend exposing (..)
 import Bridge exposing (BackendErrorMessage, DeliveryEnvelope(..), DimensionalModelUpdate(..), DuckDbCache, DuckDbCache_(..), DuckDbMetaDataCacheEntry, ToBackend(..), defaultColdCache)
 import Dict exposing (Dict)
 import DimensionalModel exposing (CardRenderInfo, DimModelDuckDbSourceInfo, DimensionalModel, DimensionalModelRef, KimballAssignment(..), PositionPx)
-import DuckDb exposing (DuckDbColumnDescription, DuckDbRef, DuckDbRefString, DuckDbRef_(..), fetchDuckDbTableRefs, pingServer, queryDuckDbMeta, refToString)
+import DuckDb exposing (DuckDbColumnDescription, DuckDbRef, DuckDbRefString, DuckDbRef_(..), fetchDuckDbTableRefs, pingServer, queryDuckDbMeta, refToString, taskBuildDateDimTable)
 import Graph
 import Lamdera exposing (ClientId, SessionId, broadcast, sendToFrontend)
+import Pages.Admin exposing (Msg(..))
 import RemoteData exposing (RemoteData(..))
 import Task
 import Types exposing (BackendModel, BackendMsg(..), FrontendMsg(..), Session, ToFrontend(..))
@@ -36,9 +37,25 @@ init =
     )
 
 
+defaultDateDimRef : DuckDbRef
+defaultDateDimRef =
+    { schemaName = "dwtk", tableName = "date_dim" }
+
+
 update : BackendMsg -> Model -> ( Model, Cmd BackendMsg )
 update msg model =
     case msg of
+        BeginTask_BuildDateDim startDate endDate ->
+            ( model, taskBuildDateDimTable startDate endDate defaultDateDimRef GotTaskResponse )
+
+        GotTaskResponse result ->
+            case result of
+                Ok response ->
+                    ( model, broadcast (Admin_DeliverTaskDateDimResponse response.message) )
+
+                Err err ->
+                    ( model, Cmd.none )
+
         PingServer ->
             ( { model | serverPingStatus = Loading }, pingServer GotPingResponse )
 
@@ -377,6 +394,9 @@ updateFromFrontend sessionId clientId msg model =
                     }
                 )
             )
+
+        Admin_Task_BuildDateDimTable startDate endDate ->
+            ( model, send <| BeginTask_BuildDateDim startDate endDate )
 
         Admin_PingServer ->
             ( model, send PingServer )

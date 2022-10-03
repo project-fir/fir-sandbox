@@ -44,8 +44,7 @@ defaultRef =
 
 emptyModel : DimensionalModel
 emptyModel =
-    { selectedDbRefs = []
-    , tableInfos = Dict.empty
+    { tableInfos = Dict.empty
     , graph = Graph.empty
     , ref = "empty_model"
     }
@@ -54,8 +53,7 @@ emptyModel =
 badModel1 : DimensionalModel
 badModel1 =
     -- This model has an Unassigned table in it
-    { selectedDbRefs = []
-    , tableInfos =
+    { tableInfos =
         Dict.fromList
             [ ( refToString defaultRef, ( { pos = defaultPos, ref = defaultRef }, Unassigned (DuckDbTable defaultRef) [] ) )
             ]
@@ -67,8 +65,7 @@ badModel1 =
 badModel2 : DimensionalModel
 badModel2 =
     -- This model is missing a Dimension table
-    { selectedDbRefs = []
-    , tableInfos =
+    { tableInfos =
         Dict.fromList
             [ ( refToString defaultRef, ( { pos = defaultPos, ref = defaultRef }, Fact (DuckDbTable defaultRef) [] ) )
             ]
@@ -80,8 +77,7 @@ badModel2 =
 badModel3 : DimensionalModel
 badModel3 =
     -- This model is missing a Fact table
-    { selectedDbRefs = []
-    , tableInfos =
+    { tableInfos =
         Dict.fromList
             [ ( refToString defaultRef, ( { pos = defaultPos, ref = defaultRef }, Dimension (DuckDbTable defaultRef) [] ) )
             ]
@@ -99,8 +95,7 @@ goodModel1 =
         fact1Ref =
             { schemaName = "good1", tableName = "fact1" }
     in
-    { selectedDbRefs = []
-    , tableInfos =
+    { tableInfos =
         Dict.fromList
             [ ( refToString dim1Ref, ( { pos = defaultPos, ref = dim1Ref }, Dimension (DuckDbTable dim1Ref) [] ) )
             , ( refToString fact1Ref, ( { pos = defaultPos, ref = fact1Ref }, Fact (DuckDbTable fact1Ref) [] ) )
@@ -119,8 +114,7 @@ goodModel1_Expected =
         fact1Ref =
             { schemaName = "good1", tableName = "fact1" }
     in
-    { selectedDbRefs = []
-    , tableInfos =
+    { tableInfos =
         Dict.fromList
             [ ( refToString dim1Ref, ( { pos = defaultPos, ref = dim1Ref }, Dimension (DuckDbTable dim1Ref) [] ) )
             , ( refToString fact1Ref, ( { pos = defaultPos, ref = fact1Ref }, Fact (DuckDbTable fact1Ref) [] ) )
@@ -149,8 +143,7 @@ goodModel2 =
     in
     -- Many of the values below exist purely to make the compiler happy, but some impact the behavior we're testing
     -- The fact table must join to each dimension table, col_b -> col_b, and col_d -> col_d
-    { selectedDbRefs = []
-    , tableInfos =
+    { tableInfos =
         Dict.fromList
             [ ( refToString fact1Ref
               , ( { pos = defaultPos, ref = fact1Ref }

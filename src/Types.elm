@@ -63,6 +63,8 @@ type
     = BackendNoop
     | PingServer
     | GotPingResponse (Result Http.Error PingResponse)
+    | BeginTask_BuildDateDim String String
+    | GotTaskResponse (Result Http.Error PingResponse)
     | Cache_BeginWarmingCycle
     | Cache_ContinueCacheWarmingInProgress
     | Cache_GotDuckDbRefsResponse (Result Http.Error DuckDbRefsResponse)
@@ -82,6 +84,7 @@ type ToFrontend
     | Admin_DeliverServerStatus String
     | Admin_DeliverPurgeConfirmation String
     | Admin_DeliverCacheRefreshConfirmation String
+    | Admin_DeliverTaskDateDimResponse String
 
 
 type alias ToBackend =

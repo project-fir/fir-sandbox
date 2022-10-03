@@ -167,6 +167,9 @@ updateFromBackend msg model =
         Admin_DeliverCacheRefreshConfirmation cacheMessage ->
             ( model, send <| Page (Gen.Msg.Admin (GotCacheRefreshConfirmation cacheMessage)) )
 
+        Admin_DeliverTaskDateDimResponse taskMessage ->
+            ( model, send <| Page (Gen.Msg.Admin (GotTask_DateDimResponse taskMessage)) )
+
         DeliverDuckDbRefs deliveryEnvelope ->
             case deliveryEnvelope of
                 BackendSuccess refs ->

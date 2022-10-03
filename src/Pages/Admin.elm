@@ -12,6 +12,7 @@ import Element.Events as Events
 import Element.Font as Font
 import Element.Input as Input
 import Gen.Params.Admin exposing (Params)
+import Graph
 import Lamdera exposing (SessionId, sendToBackend)
 import Page
 import Palette
@@ -41,9 +42,13 @@ type alias Model =
             , dimensionalModels : Dict DimensionalModelRef DimensionalModel
             , duckDbCache : DuckDbCache_
             }
+    , dateDimStartDate : String
+    , dateDimEndDate : String
     , proxiedServerStatus : Maybe String
     , purgedDataStatus : Maybe String
     , cacheRefreshStatus : Maybe String
+    , selectedDimModel : Maybe DimensionalModel
+    , dateDimTaskResponse : Maybe String
     }
 
 
@@ -53,6 +58,10 @@ init =
       , proxiedServerStatus = Nothing
       , purgedDataStatus = Nothing
       , cacheRefreshStatus = Nothing
+      , selectedDimModel = Nothing
+      , dateDimStartDate = ""
+      , dateDimEndDate = ""
+      , dateDimTaskResponse = Nothing
       }
     , Effect.fromCmd <| sendToBackend Admin_FetchAllBackendData
     )
@@ -62,14 +71,23 @@ init =
 -- UPDATE
 
 
+type DateDimFormField
+    = StartDate
+    | EndDate
+
+
 type Msg
     = RefetchBackendData
     | PurgeBackendData
     | UserClickedRefreshBackendCache
     | ProxyServerPingToBackend
+    | UserChangedDateDimForm DateDimFormField String
+    | ProxyTask_DateDimTable String String
+    | GotTask_DateDimResponse String
     | GotPurgeDataConfirmation String
     | GotCacheRefreshConfirmation String
     | GotProxiedServerPingStatus String
+    | UserClickedDimModelRow DimensionalModelRef
     | GotBackendData
         { sessionIds : List SessionId
         , dimensionalModels : Dict DimensionalModelRef DimensionalModel
@@ -80,6 +98,17 @@ type Msg
 update : Msg -> Model -> ( Model, Effect Msg )
 update msg model =
     case msg of
+        UserChangedDateDimForm field val ->
+            case field of
+                StartDate ->
+                    ( { model | dateDimStartDate = val }, Effect.none )
+
+                EndDate ->
+                    ( { model | dateDimEndDate = val }, Effect.none )
+
+        ProxyTask_DateDimTable startDate endDate ->
+            ( { model | dateDimTaskResponse = Nothing }, Effect.fromCmd (sendToBackend (Admin_Task_BuildDateDimTable startDate endDate)) )
+
         RefetchBackendData ->
             ( model, Effect.fromCmd <| sendToBackend Admin_FetchAllBackendData )
 
@@ -104,6 +133,27 @@ update msg model =
         GotCacheRefreshConfirmation cacheStr ->
             ( { model | cacheRefreshStatus = Just cacheStr }, Effect.none )
 
+        UserClickedDimModelRow dimModelRef ->
+            let
+                selectedDimModel : Maybe DimensionalModel
+                selectedDimModel =
+                    case model.backendModel of
+                        Just beModel_ ->
+                            case Dict.get dimModelRef beModel_.dimensionalModels of
+                                Just dimModel ->
+                                    Just dimModel
+
+                                Nothing ->
+                                    Nothing
+
+                        Nothing ->
+                            Nothing
+            in
+            ( { model | selectedDimModel = selectedDimModel }, Effect.none )
+
+        GotTask_DateDimResponse taskMessage ->
+            ( { model | dateDimTaskResponse = Just taskMessage }, Effect.none )
+
 
 
 -- SUBSCRIPTIONS
@@ -116,6 +166,52 @@ subscriptions model =
 
 
 -- VIEW
+
+
+viewQuadrant4_Tasks : Model -> Element Msg
+viewQuadrant4_Tasks model =
+    column [ padding 10, width fill, height fill, Background.color Palette.white ]
+        [ row
+            [ width fill
+            , height (px 40)
+            , alignLeft
+            , Border.color Palette.black
+            , Border.width 1
+            , paddingXY 10 5
+            ]
+            [ Input.text [ padding 5, width (px 100), alignLeft ]
+                { onChange = UserChangedDateDimForm StartDate
+                , text = model.dateDimStartDate
+                , placeholder = Just <| Input.placeholder [] (E.text "YYYY-MM-DD")
+                , label = Input.labelLeft [] (E.text "Start:")
+                }
+            , Input.text [ padding 5, width (px 100), alignLeft ]
+                { onChange = UserChangedDateDimForm EndDate
+                , text = model.dateDimEndDate
+                , placeholder = Just <| Input.placeholder [] (E.text "YYYY-MM-DD")
+                , label = Input.labelLeft [] (E.text "End:")
+                }
+            , case model.dateDimTaskResponse of
+                Nothing ->
+                    E.none
+
+                Just message ->
+                    E.text message
+            , Input.button
+                []
+                { onPress = Just (ProxyTask_DateDimTable model.dateDimStartDate model.dateDimEndDate)
+                , label =
+                    el
+                        [ Border.width 1
+                        , Border.color Palette.darkishGrey
+                        , Background.color Palette.lightGrey
+                        , Border.rounded 3
+                        , padding 5
+                        ]
+                        (E.text "Build dwtk.date_dim")
+                }
+            ]
+        ]
 
 
 viewQuadrant1_BackendDataManagement : Model -> Element Msg
@@ -264,78 +360,6 @@ viewQuadrant1_BackendDataManagement model =
 viewPanelQuadrant2_DimensionalModelAndDuckDbCache : Model -> Element Msg
 viewPanelQuadrant2_DimensionalModelAndDuckDbCache model =
     let
-        viewDimensionalModelsTable : Element Msg
-        viewDimensionalModelsTable =
-            let
-                data :
-                    List
-                        { numTableInfos : Int
-                        , ref : DimensionalModelRef
-                        }
-                data =
-                    case model.backendModel of
-                        Nothing ->
-                            []
-
-                        Just model_ ->
-                            List.map
-                                (\dimModel ->
-                                    { numTableInfos = Dict.size dimModel.tableInfos
-                                    , ref = dimModel.ref
-                                    }
-                                )
-                                (Dict.values model_.dimensionalModels)
-            in
-            E.table
-                [ centerX
-                , padding 5
-                , width (px 600)
-                ]
-                { data = data
-                , columns =
-                    [ { header =
-                            el
-                                [ Border.color Palette.black
-                                , Border.widthEach { top = 1, right = 1, left = 1, bottom = 3 }
-                                , padding 3
-                                , Background.color Palette.lightGrey
-                                ]
-                            <|
-                                el [ Font.bold ] <|
-                                    E.text "ref"
-                      , width = px 80
-                      , view =
-                            \dimModel ->
-                                el
-                                    [ Border.color Palette.black
-                                    , Border.width 1
-                                    , padding 3
-                                    ]
-                                    (el [ Font.size 12 ] <| E.text dimModel.ref)
-                      }
-                    , { header =
-                            el
-                                [ Border.color Palette.black
-                                , Border.widthEach { top = 1, right = 1, left = 1, bottom = 3 }
-                                , padding 3
-                                , Background.color Palette.lightGrey
-                                ]
-                            <|
-                                el [ Font.bold ] <|
-                                    E.text "num_table_infos"
-                      , width = px 120
-                      , view =
-                            \data_ ->
-                                el
-                                    [ Border.color Palette.black
-                                    , Border.width 1
-                                    , padding 3
-                                    ]
-                                    (el [ Font.size 12 ] <| E.text (String.fromInt data_.numTableInfos))
-                      }
-                    ]
-                }
-
         viewDuckDbCacheTable : Element Msg
         viewDuckDbCacheTable =
             let
@@ -398,13 +422,203 @@ viewPanelQuadrant2_DimensionalModelAndDuckDbCache model =
         , spacing 10
         ]
         [ column [ padding 5, spacing 5, width fill, Border.width 1, Border.color Palette.black ]
-            [ E.text "Dimensional models stored in Lamdera backend:"
-            , viewDimensionalModelsTable
-            ]
-        , column [ padding 5, spacing 5, width fill, Border.width 1, Border.color Palette.black ]
             [ E.text "DuckDbRefs cached in Lamdera backend:"
             , viewDuckDbCacheTable
             ]
+        ]
+
+
+viewQuadrant3_DimensionalModelAndGraph : Model -> Element Msg
+viewQuadrant3_DimensionalModelAndGraph model =
+    let
+        viewDimensionalModelsTable : Element Msg
+        viewDimensionalModelsTable =
+            let
+                data :
+                    List
+                        { numTableInfos : Int
+                        , ref : DimensionalModelRef
+                        }
+                data =
+                    case model.backendModel of
+                        Nothing ->
+                            []
+
+                        Just model_ ->
+                            List.map
+                                (\dimModel ->
+                                    { numTableInfos = Dict.size dimModel.tableInfos
+                                    , ref = dimModel.ref
+                                    }
+                                )
+                                (Dict.values model_.dimensionalModels)
+            in
+            E.table
+                [ padding 5
+                , width fill
+                ]
+                { data = data
+                , columns =
+                    [ { header =
+                            el
+                                [ Border.color Palette.black
+                                , Border.widthEach { top = 1, right = 1, left = 1, bottom = 3 }
+                                , padding 3
+                                , Background.color Palette.lightGrey
+                                ]
+                            <|
+                                el [ Font.bold ] <|
+                                    E.text "dim_ref"
+                      , width = px 80
+                      , view =
+                            \dimModel ->
+                                el
+                                    [ Border.color Palette.black
+                                    , Border.width 1
+                                    , padding 3
+                                    , Events.onClick <| UserClickedDimModelRow dimModel.ref
+                                    ]
+                                    (el [ Font.size 12 ] <| E.text dimModel.ref)
+                      }
+                    , { header =
+                            el
+                                [ Border.color Palette.black
+                                , Border.widthEach { top = 1, right = 1, left = 1, bottom = 3 }
+                                , padding 3
+                                , Background.color Palette.lightGrey
+                                ]
+                            <|
+                                el [ Font.bold ] <|
+                                    E.text "num_table_infos"
+                      , width = px 120
+                      , view =
+                            \data_ ->
+                                el
+                                    [ Border.color Palette.black
+                                    , Border.width 1
+                                    , padding 3
+                                    ]
+                                    (el [ Font.size 12 ] <| E.text (String.fromInt data_.numTableInfos))
+                      }
+                    ]
+                }
+
+        viewGraphTables : Element Msg
+        viewGraphTables =
+            case model.selectedDimModel of
+                Just dimModel ->
+                    let
+                        nodes : List { nodeId : Int }
+                        nodes =
+                            List.map (\node -> { nodeId = node.id }) (Graph.nodes dimModel.graph)
+
+                        edges : List { from : Int, to : Int }
+                        edges =
+                            List.map (\edge -> { from = edge.from, to = edge.to }) (Graph.edges dimModel.graph)
+
+                        nodeTable : Element Msg
+                        nodeTable =
+                            E.table
+                                [ padding 5
+                                , width fill
+                                ]
+                                { data = nodes
+                                , columns =
+                                    [ { header =
+                                            el
+                                                [ Border.color Palette.black
+                                                , Border.widthEach { top = 1, right = 1, left = 1, bottom = 3 }
+                                                , padding 3
+                                                , Background.color Palette.lightGrey
+                                                ]
+                                            <|
+                                                el [ Font.bold ] <|
+                                                    E.text "node_id"
+                                      , width = px 80
+                                      , view =
+                                            \nodeRecord ->
+                                                el
+                                                    [ Border.color Palette.black
+                                                    , Border.width 1
+                                                    , padding 3
+                                                    ]
+                                                    (el [ Font.size 12 ] <| E.text (String.fromInt nodeRecord.nodeId))
+                                      }
+                                    ]
+                                }
+
+                        edgeTable : Element Msg
+                        edgeTable =
+                            E.table
+                                [ padding 5
+                                , width fill
+                                ]
+                                { data = edges
+                                , columns =
+                                    [ { header =
+                                            el
+                                                [ Border.color Palette.black
+                                                , Border.widthEach { top = 1, right = 1, left = 1, bottom = 3 }
+                                                , padding 3
+                                                , Background.color Palette.lightGrey
+                                                ]
+                                            <|
+                                                el [ Font.bold ] <|
+                                                    E.text "from"
+                                      , width = px 80
+                                      , view =
+                                            \edgeRecord ->
+                                                el
+                                                    [ Border.color Palette.black
+                                                    , Border.width 1
+                                                    , padding 3
+                                                    ]
+                                                    (el [ Font.size 12 ] <| E.text (String.fromInt edgeRecord.from))
+                                      }
+                                    , { header =
+                                            el
+                                                [ Border.color Palette.black
+                                                , Border.widthEach { top = 1, right = 1, left = 1, bottom = 3 }
+                                                , padding 3
+                                                , Background.color Palette.lightGrey
+                                                ]
+                                            <|
+                                                el [ Font.bold ] <|
+                                                    E.text "to"
+                                      , width = px 80
+                                      , view =
+                                            \edgeRecord ->
+                                                el
+                                                    [ Border.color Palette.black
+                                                    , Border.width 1
+                                                    , padding 3
+                                                    ]
+                                                    (el [ Font.size 12 ] <| E.text (String.fromInt edgeRecord.to))
+                                      }
+                                    ]
+                                }
+                    in
+                    column [ height fill, width fill, spacing 10 ]
+                        [ E.text <| "Graph view of dim_ref: " ++ dimModel.ref
+                        , nodeTable
+                        , edgeTable
+                        ]
+
+                Nothing ->
+                    E.text "Click a dim_ref on the left-side table"
+    in
+    row
+        [ padding 5
+        , spacing 5
+        , width fill
+        , height fill
+        , Background.color Palette.white
+        ]
+        [ column [ height fill, width (fillPortion 1), alignTop ]
+            [ E.text "Dimensional models stored in Lamdera backend:"
+            , viewDimensionalModelsTable
+            ]
+        , column [ height fill, width (fillPortion 2), alignTop ] [ viewGraphTables ]
         ]
 
 
@@ -441,6 +655,7 @@ viewElements model =
                 [ width (fillPortion 5)
                 , height fill
                 , Border.width 1
+                , Border.color Palette.darkishGrey
                 , Border.rounded 3
                 , Background.color Palette.white
                 ]
@@ -458,7 +673,7 @@ viewElements model =
                 , Border.rounded 3
                 , Border.color Palette.darkishGrey
                 ]
-                (E.text "Q III - Quadrant reserved for future use")
+                (viewQuadrant3_DimensionalModelAndGraph model)
             , el
                 [ width (fillPortion 5)
                 , height fill
@@ -466,24 +681,9 @@ viewElements model =
                 , Border.rounded 3
                 , Border.color Palette.darkishGrey
                 ]
-                (E.text "Q IV - Quadrant reserved for future use")
+                (viewQuadrant4_Tasks model)
             ]
         ]
-
-
-
---[ viewFetchBackendData
---, el [ centerX ] (E.text "Session ids:")
---, viewSessionsTable
---, el [ centerX ] (E.text "Dimensional models:")
---, viewDimensionalModelsTable
---, viewPingButton
---, viewProxiedServerStatus
---, viewPurgeButton
---, viewPurgeStatus
---, viewCacheRefreshButton
---, viewCacheRefreshStatus
---]
 
 
 view : Model -> View Msg

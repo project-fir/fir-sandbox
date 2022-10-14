@@ -1,8 +1,9 @@
-module DimensionalModel exposing (CardRenderInfo, ColumnGraph, CommonRefEdge, DimModelDuckDbSourceInfo, DimensionalModel, DimensionalModelRef, EdgeLabel(..), JoinableEdge, KimballAssignment(..), NaivePairingStrategyResult(..), PositionPx, Reason(..), naiveColumnPairingStrategy)
+module DimensionalModel exposing (CardRenderInfo, ColumnGraph, CommonRefEdge, DimModelDuckDbSourceInfo, DimensionalModel, DimensionalModelRef, EdgeLabel(..), JoinableEdge, KimballAssignment(..), NaivePairingStrategyResult(..), PositionPx, Reason(..), columnGraph2DotString, naiveColumnPairingStrategy)
 
 import Dict exposing (Dict)
 import DuckDb exposing (DuckDbColumnDescription(..), DuckDbRef, DuckDbRefString, DuckDbRef_(..), refToString)
 import Graph exposing (Edge, Graph, Node, NodeId)
+import Graph.DOT
 import Utils exposing (cartesian)
 
 
@@ -240,15 +241,6 @@ type alias JoinableEdge =
     Edge ()
 
 
-
---type alias CommonRef =
---    ()
---
---
---type alias Joinable =
---    ()
-
-
 type EdgeLabel
     = CommonRef
     | Joinable
@@ -256,3 +248,33 @@ type EdgeLabel
 
 type alias ColumnGraph =
     Graph DuckDbColumnDescription EdgeLabel
+
+
+columnGraph2DotString : ColumnGraph -> String
+columnGraph2DotString graph =
+    let
+        nodeHelper : DuckDbColumnDescription -> Maybe String
+        nodeHelper n =
+            case n of
+                Persisted_ persistedDuckDbColumnDescription ->
+                    case persistedDuckDbColumnDescription.parentRef of
+                        DuckDbView ref ->
+                            Just (refToString ref)
+
+                        DuckDbTable ref ->
+                            Just (refToString ref)
+
+                Computed_ _ ->
+                    -- TODO: Computed column support
+                    Nothing
+
+        edgeHelper : EdgeLabel -> Maybe String
+        edgeHelper e =
+            case e of
+                CommonRef ->
+                    Just "common-ref"
+
+                Joinable ->
+                    Just "joinable"
+    in
+    Graph.DOT.output nodeHelper edgeHelper graph

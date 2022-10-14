@@ -2,7 +2,7 @@ module Pages.Admin exposing (Model, Msg(..), page)
 
 import Bridge exposing (DuckDbCache, DuckDbCache_(..), DuckDbMetaDataCacheEntry, ToBackend(..))
 import Dict exposing (Dict)
-import DimensionalModel exposing (DimensionalModel, DimensionalModelRef)
+import DimensionalModel exposing (DimensionalModel, DimensionalModelRef, columnGraph2DotString)
 import DuckDb exposing (DuckDbRef, refToString)
 import Effect exposing (Effect)
 import Element as E exposing (..)
@@ -503,105 +503,13 @@ viewQuadrant3_DimensionalModelAndGraph model =
                     ]
                 }
 
-        viewGraphTables : Element Msg
-        viewGraphTables =
+        viewGraphDotString : Element Msg
+        viewGraphDotString =
             case model.selectedDimModel of
                 Just dimModel ->
-                    let
-                        nodes : List { nodeId : Int }
-                        nodes =
-                            List.map (\node -> { nodeId = node.id }) (Graph.nodes dimModel.graph)
-
-                        edges : List { from : Int, to : Int }
-                        edges =
-                            List.map (\edge -> { from = edge.from, to = edge.to }) (Graph.edges dimModel.graph)
-
-                        nodeTable : Element Msg
-                        nodeTable =
-                            E.table
-                                [ padding 5
-                                , width fill
-                                ]
-                                { data = nodes
-                                , columns =
-                                    [ { header =
-                                            el
-                                                [ Border.color Palette.black
-                                                , Border.widthEach { top = 1, right = 1, left = 1, bottom = 3 }
-                                                , padding 3
-                                                , Background.color Palette.lightGrey
-                                                ]
-                                            <|
-                                                el [ Font.bold ] <|
-                                                    E.text "node_id"
-                                      , width = px 80
-                                      , view =
-                                            \nodeRecord ->
-                                                el
-                                                    [ Border.color Palette.black
-                                                    , Border.width 1
-                                                    , padding 3
-                                                    ]
-                                                    (el [ Font.size 12 ] <| E.text (String.fromInt nodeRecord.nodeId))
-                                      }
-                                    ]
-                                }
-
-                        edgeTable : Element Msg
-                        edgeTable =
-                            E.table
-                                [ padding 5
-                                , width fill
-                                ]
-                                { data = edges
-                                , columns =
-                                    [ { header =
-                                            el
-                                                [ Border.color Palette.black
-                                                , Border.widthEach { top = 1, right = 1, left = 1, bottom = 3 }
-                                                , padding 3
-                                                , Background.color Palette.lightGrey
-                                                ]
-                                            <|
-                                                el [ Font.bold ] <|
-                                                    E.text "from"
-                                      , width = px 80
-                                      , view =
-                                            \edgeRecord ->
-                                                el
-                                                    [ Border.color Palette.black
-                                                    , Border.width 1
-                                                    , padding 3
-                                                    ]
-                                                    (el [ Font.size 12 ] <| E.text (String.fromInt edgeRecord.from))
-                                      }
-                                    , { header =
-                                            el
-                                                [ Border.color Palette.black
-                                                , Border.widthEach { top = 1, right = 1, left = 1, bottom = 3 }
-                                                , padding 3
-                                                , Background.color Palette.lightGrey
-                                                ]
-                                            <|
-                                                el [ Font.bold ] <|
-                                                    E.text "to"
-                                      , width = px 80
-                                      , view =
-                                            \edgeRecord ->
-                                                el
-                                                    [ Border.color Palette.black
-                                                    , Border.width 1
-                                                    , padding 3
-                                                    ]
-                                                    (el [ Font.size 12 ] <| E.text (String.fromInt edgeRecord.to))
-                                      }
-                                    ]
-                                }
-                    in
                     column [ height fill, width fill, spacing 10 ]
                         [ E.text <| "Graph view of dim_ref: " ++ dimModel.ref
-                        , nodeTable
-                        , edgeTable
+                        , E.paragraph [] [ E.text (columnGraph2DotString dimModel.graph) ]
                         ]
 
                 Nothing ->
@@ -618,7 +526,7 @@ viewQuadrant3_DimensionalModelAndGraph model =
             [ E.text "Dimensional models stored in Lamdera backend:"
             , viewDimensionalModelsTable
             ]
-        , column [ height fill, width (fillPortion 2), alignTop ] [ viewGraphTables ]
+        , column [ height fill, width (fillPortion 2), alignTop ] [ viewGraphDotString ]
         ]
 
 

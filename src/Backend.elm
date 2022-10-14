@@ -115,7 +115,7 @@ update msg model =
                             let
                                 queryStr : String
                                 queryStr =
-                                    "select * from " ++ refToString r
+                                    "select * from " ++ refToString r ++ " limit 0"
                             in
                             ( { model | duckDbCache = Warming oldCache partialInProgressCache rs }
                             , queryDuckDbMeta queryStr True [ r ] Cache_GotDuckDbMetaDataResponse

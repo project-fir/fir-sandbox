@@ -304,6 +304,10 @@ queryDuckDb query allowFallback refs onResponse =
 
 queryDuckDbMeta : String -> Bool -> List DuckDbRef -> (Result Error DuckDbMetaResponse -> msg) -> Cmd msg
 queryDuckDbMeta query allowFallback refs onResponse =
+    -- NB: Fetching metadata is essentially a query with 'LIMIT 0' implied.
+    --     Here, we're assuming the caller of this function is supplying such a query
+    --     This is in-lieu of SQL parsing, which when complete, can be used to enforce such
+    --     a constraint server-side.
     let
         duckDbQueryEncoder : JE.Value
         duckDbQueryEncoder =

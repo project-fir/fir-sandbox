@@ -1,4 +1,4 @@
-module DimensionalModel exposing (CardRenderInfo, DimModelDuckDbSourceInfo, DimensionalModel, DimensionalModelEdge, DimensionalModelRef, KimballAssignment(..), NaivePairingStrategyResult(..), PositionPx, Reason(..), naiveColumnPairingStrategy)
+module DimensionalModel exposing (CardRenderInfo, ColumnGraph, CommonRefEdge, DimModelDuckDbSourceInfo, DimensionalModel, DimensionalModelRef, EdgeLabel(..), JoinableEdge, KimballAssignment(..), NaivePairingStrategyResult(..), PositionPx, Reason(..), naiveColumnPairingStrategy)
 
 import Dict exposing (Dict)
 import DuckDb exposing (DuckDbColumnDescription(..), DuckDbRef, DuckDbRefString, DuckDbRef_(..), refToString)
@@ -28,14 +28,10 @@ type alias DimensionalModelRef =
     String
 
 
-type alias DimensionalModelEdge =
-    ( DuckDbColumnDescription, DuckDbColumnDescription )
-
-
 type alias DimensionalModel =
     { ref : DimensionalModelRef
     , tableInfos : Dict DuckDbRefString DimModelDuckDbSourceInfo
-    , graph : Graph DuckDbRef_ DimensionalModelEdge
+    , graph : ColumnGraph
     }
 
 
@@ -55,6 +51,11 @@ type Reason
 type NaivePairingStrategyResult
     = Success DimensionalModel
     | Fail Reason
+
+
+assembleCommonRefSubGraph : DimensionalModel -> DimensionalModel
+assembleCommonRefSubGraph dimModel =
+    dimModel
 
 
 naiveColumnPairingStrategy : DimensionalModel -> NaivePairingStrategyResult
@@ -159,58 +160,58 @@ naiveColumnPairingStrategy dimModel =
                                 Dimension _ columns ->
                                     List.map2 (\nid col -> ( nid, col )) (List.repeat (List.length columns) node.id) columns
 
-        findColumnPairings : ( Node DuckDbRef_, Node DuckDbRef_ ) -> List ( ( NodeId, NodeId ), DimensionalModelEdge )
-        findColumnPairings ( nodeLhs, nodeRhs ) =
-            let
-                combos : List ( ( NodeId, DuckDbColumnDescription ), ( NodeId, DuckDbColumnDescription ) )
-                combos =
-                    cartesian (columnsOfNode nodeLhs) (columnsOfNode nodeRhs)
-
-                nameEquals : { r | name : String } -> { r | name : String } -> Bool
-                nameEquals lhs rhs =
-                    lhs.name == rhs.name
-            in
-            List.filterMap
-                (\( lhs, rhs ) ->
-                    case lhs of
-                        ( nodeIdLhs, Persisted_ lhsDesc ) ->
-                            case rhs of
-                                ( nodeIdRhs, Persisted_ rhsDesc ) ->
-                                    case nameEquals lhsDesc rhsDesc of
-                                        True ->
-                                            Just ( ( nodeIdLhs, nodeIdRhs ), ( Persisted_ lhsDesc, Persisted_ rhsDesc ) )
-
-                                        False ->
-                                            Nothing
-
-                                ( _, Computed_ _ ) ->
-                                    -- TODO: Computed column support
-                                    Nothing
-
-                        ( _, Computed_ lhsDesc ) ->
-                            -- TODO: Computed column support
-                            Nothing
-                )
-                combos
-
-        buildGraph : Graph DuckDbRef_ DimensionalModelEdge
-        buildGraph =
-            let
-                nodes : List (Node DuckDbRef_)
-                nodes =
-                    List.map2 (\src i -> Node i (DuckDbTable src))
-                        (factSources ++ dimensionSources)
-                        (List.range 1 (List.length (factSources ++ dimensionSources) - 1))
-
-                nodePairs : List ( Node DuckDbRef_, Node DuckDbRef_ )
-                nodePairs =
-                    cartesian nodes nodes
-
-                edges : List ( ( NodeId, NodeId ), DimensionalModelEdge )
-                edges =
-                    List.concatMap findColumnPairings nodePairs
-            in
-            Graph.fromNodesAndEdges nodes (List.map (\( ( nidL, nidR ), e ) -> Edge nidL nidR e) edges)
+        --findColumnPairings : ( Node DuckDbRef_, Node DuckDbRef_ ) -> List ( ( NodeId, NodeId ), EdgeLabel )
+        --findColumnPairings ( nodeLhs, nodeRhs ) =
+        --    let
+        --        combos : List ( ( NodeId, DuckDbColumnDescription ), ( NodeId, DuckDbColumnDescription ) )
+        --        combos =
+        --            cartesian (columnsOfNode nodeLhs) (columnsOfNode nodeRhs)
+        --
+        --        nameEquals : { r | name : String } -> { r | name : String } -> Bool
+        --        nameEquals lhs rhs =
+        --            lhs.name == rhs.name
+        --    in
+        --    List.filterMap
+        --        (\( lhs, rhs ) ->
+        --            case lhs of
+        --                ( nodeIdLhs, Persisted_ lhsDesc ) ->
+        --                    case rhs of
+        --                        ( nodeIdRhs, Persisted_ rhsDesc ) ->
+        --                            case nameEquals lhsDesc rhsDesc of
+        --                                True ->
+        --                                    Just ( ( nodeIdLhs, nodeIdRhs ), ( Persisted_ lhsDesc, Persisted_ rhsDesc ) )
+        --
+        --                                False ->
+        --                                    Nothing
+        --
+        --                        ( _, Computed_ _ ) ->
+        --                            -- TODO: Computed column support
+        --                            Nothing
+        --
+        --                ( _, Computed_ lhsDesc ) ->
+        --                    -- TODO: Computed column support
+        --                    Nothing
+        --        )
+        --        combos
+        --
+        --buildGraph : ColumnGraph
+        --buildGraph =
+        --    let
+        --        nodes : List (Node DuckDbRef_)
+        --        nodes =
+        --            List.map2 (\src i -> Node i (DuckDbTable src))
+        --                (factSources ++ dimensionSources)
+        --                (List.range 1 (List.length (factSources ++ dimensionSources) - 1))
+        --
+        --        nodePairs : List ( Node DuckDbRef_, Node DuckDbRef_ )
+        --        nodePairs =
+        --            cartesian nodes nodes
+        --
+        --        edges : List ( ( NodeId, NodeId ), EdgeLabel )
+        --        edges =
+        --            List.concatMap findColumnPairings nodePairs
+        --    in
+        --    Graph.fromNodesAndEdges nodes (List.map (\( ( nidL, nidR ), e ) -> Edge nidL nidR e) edges)
     in
     case List.length unassignedSources of
         0 ->
@@ -224,7 +225,34 @@ naiveColumnPairingStrategy dimModel =
                             Fail InputMustContainAtLeastOneDimensionTable
 
                         _ ->
-                            Success { dimModel | graph = buildGraph }
+                            --Success { dimModel | graph = buildGraph }
+                            Success { dimModel | graph = Graph.empty }
 
         _ ->
             Fail AllInputTablesMustBeAssigned
+
+
+type alias CommonRefEdge =
+    Edge DuckDbRef
+
+
+type alias JoinableEdge =
+    Edge ()
+
+
+
+--type alias CommonRef =
+--    ()
+--
+--
+--type alias Joinable =
+--    ()
+
+
+type EdgeLabel
+    = CommonRef
+    | Joinable
+
+
+type alias ColumnGraph =
+    Graph DuckDbColumnDescription EdgeLabel

@@ -1,7 +1,7 @@
 module Bridge exposing (..)
 
 import Dict exposing (Dict)
-import DimensionalModel exposing (DimensionalModel, DimensionalModelEdge, DimensionalModelRef, KimballAssignment, PositionPx)
+import DimensionalModel exposing (ColumnGraph, DimensionalModel, DimensionalModelRef, KimballAssignment, PositionPx)
 import DuckDb exposing (DuckDbColumnDescription, DuckDbRef, DuckDbRefString, DuckDbRef_)
 import Graph exposing (Graph)
 
@@ -25,7 +25,7 @@ type DimensionalModelUpdate
     | AddDuckDbRefToModel DimensionalModelRef DuckDbRef
     | ToggleIncludedNode DimensionalModelRef DuckDbRef
     | UpdateAssignment DimensionalModelRef DuckDbRef (KimballAssignment DuckDbRef_ (List DuckDbColumnDescription))
-    | UpdateGraph DimensionalModelRef (Graph DuckDbRef_ DimensionalModelEdge)
+    | UpdateGraph DimensionalModelRef ColumnGraph
 
 
 

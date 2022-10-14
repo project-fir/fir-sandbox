@@ -4,7 +4,7 @@ import Bridge exposing (BackendData, BackendErrorMessage, DeliveryEnvelope, Duck
 import Browser
 import Browser.Navigation exposing (Key)
 import Dict exposing (Dict)
-import DimensionalModel exposing (DimensionalModel, DimensionalModelEdge, DimensionalModelRef, KimballAssignment, PositionPx)
+import DimensionalModel exposing (DimensionalModel, DimensionalModelRef, KimballAssignment, PositionPx)
 import DuckDb exposing (DuckDbColumnDescription, DuckDbMetaResponse, DuckDbRef, DuckDbRefString, DuckDbRef_, DuckDbRefsResponse, PingResponse)
 import Gen.Pages as Pages
 import Graph exposing (Graph)

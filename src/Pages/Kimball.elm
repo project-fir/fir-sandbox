@@ -14,6 +14,7 @@ import Element.Events as Events
 import Element.Font as Font
 import Element.Input as Input
 import Gen.Params.Kimball exposing (Params)
+import Graph
 import Html.Events.Extra.Mouse as Mouse exposing (Event)
 import Http
 import Json.Decode as JD
@@ -30,7 +31,7 @@ import TypedSvg as S
 import TypedSvg.Attributes as SA
 import TypedSvg.Core as SC exposing (Svg)
 import TypedSvg.Types as ST
-import Utils exposing (send)
+import Utils exposing (KeyCode, keyDecoder, send)
 import View exposing (View)
 
 
@@ -54,8 +55,6 @@ type alias RefString =
 
 type alias Model =
     { duckDbRefs : BackendData (List DuckDb.DuckDbRef)
-
-    --, duckDbRefMeta : Dict DuckDbRefString (List DuckDbColumnDescription)
     , selectedTableRef : Maybe DuckDb.DuckDbRef
     , hoveredOnTableRef : Maybe DuckDb.DuckDbRef
     , pageRenderStatus : PageRenderStatus
@@ -72,6 +71,9 @@ type alias Model =
     , selectedDimensionalModel : Maybe DimensionalModel
     , pairingAlgoResult : Maybe NaivePairingStrategyResult
     , dropdownState : Maybe DuckDbRef
+    , inspectedColumn : Maybe DuckDbColumnDescription
+    , columnPairingOperation : ColumnPairingOperation
+    , downKeys : Set KeyCode
     }
 
 
@@ -108,6 +110,9 @@ init =
       , selectedDimensionalModel = Nothing
       , pairingAlgoResult = Nothing
       , dropdownState = Nothing
+      , inspectedColumn = Nothing
+      , downKeys = Set.empty
+      , columnPairingOperation = ColumnPairingIdle
       }
     , Effect.fromCmd <|
         Cmd.batch
@@ -167,7 +172,10 @@ type Msg
     | UpdatedNewDimModelName String
     | UserCreatesNewDimensionalModel DimensionalModelRef
     | NoopKimball
+    | UserClickedColumnRow DuckDbColumnDescription
     | UserClickedKimballAssignment DimensionalModelRef DuckDbRef (KimballAssignment DuckDbRef_ (List DuckDbColumnDescription))
+    | KeyWentDown KeyCode
+    | KeyReleased KeyCode
 
 
 type SvgViewBoxTransformation
@@ -175,9 +183,102 @@ type SvgViewBoxTransformation
     | Translation Float Float
 
 
+type ColumnPairingOperation
+    = ColumnPairingIdle
+    | ColumnPairingListening
+    | OriginSelected DuckDbColumnDescription
+    | DestinationSelected DuckDbColumnDescription DuckDbColumnDescription
+
+
 update : Msg -> Model -> ( Model, Effect Msg )
 update msg model =
     case msg of
+        KeyWentDown keyCode ->
+            let
+                newKeys : Set KeyCode
+                newKeys =
+                    -- NB: To avoid complexity re: caps-lock/shift, always save lower-case letters
+                    Set.insert (String.toLower keyCode) model.downKeys
+
+                newColumnPairingState : ColumnPairingOperation
+                newColumnPairingState =
+                    case Set.member "c" newKeys of
+                        True ->
+                            ColumnPairingListening
+
+                        False ->
+                            -- Do nothing, we may already be listening
+                            model.columnPairingOperation
+            in
+            ( { model
+                | downKeys = newKeys
+                , columnPairingOperation = newColumnPairingState
+              }
+            , Effect.none
+            )
+
+        KeyReleased keyCode ->
+            let
+                newKeys : Set KeyCode
+                newKeys =
+                    -- NB: To avoid complexity re: caps-lock/shift, always remove lower-case letters
+                    Set.remove (String.toLower keyCode) model.downKeys
+
+                newColumnPairingState : ColumnPairingOperation
+                newColumnPairingState =
+                    case Set.member "c" newKeys of
+                        True ->
+                            -- Do nothing, we may already be listening
+                            model.columnPairingOperation
+
+                        False ->
+                            -- keep as-is, or terminate in-progress column operation
+                            ColumnPairingIdle
+            in
+            ( { model
+                | downKeys = newKeys
+                , columnPairingOperation = newColumnPairingState
+              }
+            , Effect.none
+            )
+
+        UserClickedColumnRow colDesc ->
+            let
+                newPairingOp : ColumnPairingOperation
+                newPairingOp =
+                    case model.columnPairingOperation of
+                        ColumnPairingIdle ->
+                            ColumnPairingIdle
+
+                        ColumnPairingListening ->
+                            OriginSelected colDesc
+
+                        OriginSelected origin ->
+                            DestinationSelected origin colDesc
+
+                        DestinationSelected _ _ ->
+                            ColumnPairingIdle
+
+                newDimModel =
+                    case model.selectedDimensionalModel of
+                        Just dimModel ->
+                            let
+                                newGraph =
+                                    Graph.insert
+                            in
+                            Just dimModel
+
+                        Nothing ->
+                            Nothing
+            in
+            ( { model
+                | inspectedColumn = Just colDesc
+                , columnPairingOperation = newPairingOp
+                , selectedDimensionalModel = newDimModel
+              }
+            , Effect.none
+            )
+
         UserClickedKimballAssignment dimRef duckDbRef assignment ->
             -- NB: We have the "side effect" of closing the dropdown menu
             ( { model | dropdownState = Nothing }
@@ -579,9 +680,12 @@ subscriptions model =
                     , BE.onMouseUp (JD.map DragStoppedAt Mouse.eventDecoder)
                     ]
     in
-    -- Always listen to Browser events, but only listen to drag events if we believe we're dragging!
+    -- Always listen to Browser events, and key strokes, but only listen to drag events if we believe we're dragging!
     Sub.batch
-        ([ BE.onResize GotResizeEvent ]
+        ([ BE.onResize GotResizeEvent
+         , BE.onKeyDown (JD.map KeyWentDown keyDecoder)
+         , BE.onKeyUp (JD.map KeyReleased keyDecoder)
+         ]
             ++ dragSubs
         )
 
@@ -666,6 +770,7 @@ viewDataSourceNode model dimModelRef renderInfo kimballAssignment =
                 , moveRight 3
                 , paddingXY 5 2
                 , spacingXY 4 0
+                , Events.onClick (UserClickedColumnRow col)
                 ]
                 [ el
                     [ width <| px 5
@@ -775,8 +880,6 @@ viewDataSourceNode model dimModelRef renderInfo kimballAssignment =
                 , column
                     [ width fill
                     , height fill
-                    , Border.color Palette.red
-                    , Border.width 2
                     , Events.onMouseLeave UserMouseLeftNodeTitleBar
                     , Events.onMouseDown (BeginNodeDrag renderInfo.ref)
                     ]
@@ -966,13 +1069,52 @@ viewElements model layoutInfo =
             ]
             [ viewDimensionalModelRefs model
             , viewTableRefsContainer model
-            , viewDebugPanel model
+            , viewColumnInspectorPanel model
+            , viewMouseEventsDebugInfo model
             ]
         ]
 
 
-viewDebugPanel : Model -> Element Msg
-viewDebugPanel model =
+viewColumnInspectorPanel : Model -> Element Msg
+viewColumnInspectorPanel model =
+    let
+        text : Maybe String
+        text =
+            case model.inspectedColumn of
+                Just colDesc ->
+                    case colDesc of
+                        Persisted_ colDesc_ ->
+                            case colDesc_.parentRef of
+                                DuckDbView ref ->
+                                    Just <| refToString ref ++ "::" ++ colDesc_.name
+
+                                DuckDbTable ref ->
+                                    Just <| refToString ref ++ "::" ++ colDesc_.name
+
+                        Computed_ computedDuckDbColumnDescription ->
+                            -- TODO: Computed support
+                            Nothing
+
+                Nothing ->
+                    Nothing
+
+        info : Element Msg
+        info =
+            case text of
+                Nothing ->
+                    E.none
+
+                Just t ->
+                    E.text t
+    in
+    column [ width fill, height fill, Border.width 1, Border.color Palette.darkishGrey, spacing 5 ]
+        [ E.text "Column Inspector:"
+        , info
+        ]
+
+
+viewMouseEventsDebugInfo : Model -> Element Msg
+viewMouseEventsDebugInfo model =
     let
         dragStateStr : String
         dragStateStr =
@@ -1025,14 +1167,15 @@ viewDebugPanel model =
                 Just dimModel ->
                     dimModel.ref
     in
-    el [ width fill, height fill, Border.width 1, Border.color Palette.darkishGrey ]
-        (paragraph []
+    column [ width fill, height fill, Border.width 1, Border.color Palette.darkishGrey, spacing 5 ]
+        [ E.text <| "Mouse events debug info:"
+        , paragraph []
             [ E.text <| "events: " ++ mouseEventStr
             , E.text <| "drag state: " ++ dragStateStr
             , E.text <| "veiwPort: " ++ viewPortStr
             , E.text <| "dim model: " ++ selectedModelStr
             ]
-        )
+        ]
 
 
 viewDimensionalModelRefs : Model -> Element Msg

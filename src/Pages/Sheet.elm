@@ -32,7 +32,7 @@ import SheetModel exposing (Cell, CellCoords, CellElement(..), ColumnLabel, RawP
 import String exposing (fromInt)
 import Task
 import Time exposing (Posix)
-import Utils exposing (keyDecoder, send)
+import Utils exposing (KeyCode, keyDecoder, send)
 import View exposing (View)
 
 
@@ -290,13 +290,6 @@ init =
 
 
 -- UPDATE
-
-
-type alias KeyCode =
-    String
-
-
-
 --| Task_This
 --| NewTime Time.Posix
 

@@ -1,4 +1,4 @@
-module Utils exposing (cartesian, collapseWhitespace, keyDecoder, removeNothingsFromList, send)
+module Utils exposing (KeyCode, cartesian, collapseWhitespace, keyDecoder, removeNothingsFromList, send)
 
 -- miscellaneous utility functions
 
@@ -13,6 +13,10 @@ import Url exposing (Url)
 removeNothingsFromList : List (Maybe a) -> List a
 removeNothingsFromList list =
     List.filterMap identity list
+
+
+type alias KeyCode =
+    String
 
 
 keyDecoder : JD.Decoder String

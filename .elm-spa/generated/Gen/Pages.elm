@@ -6,6 +6,7 @@ import ElmSpa.Page
 import Gen.Params.Admin
 import Gen.Params.Home_
 import Gen.Params.Kimball
+import Gen.Params.KimballBasicUi
 import Gen.Params.Sheet
 import Gen.Params.VegaLite
 import Gen.Params.NotFound
@@ -16,6 +17,7 @@ import Page exposing (Page)
 import Pages.Admin
 import Pages.Home_
 import Pages.Kimball
+import Pages.KimballBasicUi
 import Pages.Sheet
 import Pages.VegaLite
 import Pages.NotFound
@@ -45,6 +47,9 @@ init route =
     
         Route.Kimball ->
             pages.kimball.init ()
+    
+        Route.KimballBasicUi ->
+            pages.kimballBasicUi.init ()
     
         Route.Sheet ->
             pages.sheet.init ()
@@ -90,6 +95,9 @@ view model_ =
         Model.Kimball params model ->
             pages.kimball.view params model
     
+        Model.KimballBasicUi params ->
+            pages.kimballBasicUi.view params ()
+    
         Model.Sheet params model ->
             pages.sheet.view params model
     
@@ -115,6 +123,9 @@ subscriptions model_ =
         Model.Kimball params model ->
             pages.kimball.subscriptions params model
     
+        Model.KimballBasicUi params ->
+            pages.kimballBasicUi.subscriptions params ()
+    
         Model.Sheet params model ->
             pages.sheet.subscriptions params model
     
@@ -133,6 +144,7 @@ pages :
     { admin : Bundle Gen.Params.Admin.Params Pages.Admin.Model Pages.Admin.Msg
     , home_ : Static Gen.Params.Home_.Params
     , kimball : Bundle Gen.Params.Kimball.Params Pages.Kimball.Model Pages.Kimball.Msg
+    , kimballBasicUi : Static Gen.Params.KimballBasicUi.Params
     , sheet : Bundle Gen.Params.Sheet.Params Pages.Sheet.Model Pages.Sheet.Msg
     , vegaLite : Bundle Gen.Params.VegaLite.Params Pages.VegaLite.Model Pages.VegaLite.Msg
     , notFound : Static Gen.Params.NotFound.Params
@@ -141,6 +153,7 @@ pages =
     { admin = bundle Pages.Admin.page Model.Admin Msg.Admin
     , home_ = static Pages.Home_.view Model.Home_
     , kimball = bundle Pages.Kimball.page Model.Kimball Msg.Kimball
+    , kimballBasicUi = static Pages.KimballBasicUi.view Model.KimballBasicUi
     , sheet = bundle Pages.Sheet.page Model.Sheet Msg.Sheet
     , vegaLite = bundle Pages.VegaLite.page Model.VegaLite Msg.VegaLite
     , notFound = static Pages.NotFound.view Model.NotFound

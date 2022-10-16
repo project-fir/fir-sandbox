@@ -7,6 +7,7 @@ module Gen.Route exposing
 import Gen.Params.Admin
 import Gen.Params.Home_
 import Gen.Params.Kimball
+import Gen.Params.KimballBasicUi
 import Gen.Params.Sheet
 import Gen.Params.VegaLite
 import Gen.Params.NotFound
@@ -18,6 +19,7 @@ type Route
     = Admin
     | Home_
     | Kimball
+    | KimballBasicUi
     | Sheet
     | VegaLite
     | NotFound
@@ -33,6 +35,7 @@ routes =
     [ Parser.map Home_ Gen.Params.Home_.parser
     , Parser.map Admin Gen.Params.Admin.parser
     , Parser.map Kimball Gen.Params.Kimball.parser
+    , Parser.map KimballBasicUi Gen.Params.KimballBasicUi.parser
     , Parser.map Sheet Gen.Params.Sheet.parser
     , Parser.map VegaLite Gen.Params.VegaLite.parser
     , Parser.map NotFound Gen.Params.NotFound.parser
@@ -55,6 +58,9 @@ toHref route =
     
         Kimball ->
             joinAsHref [ "kimball" ]
+    
+        KimballBasicUi ->
+            joinAsHref [ "kimball-basic-ui" ]
     
         Sheet ->
             joinAsHref [ "sheet" ]

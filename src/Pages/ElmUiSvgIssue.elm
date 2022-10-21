@@ -175,6 +175,5 @@ view : Model -> View Msg
 view model =
     { title = "elm-ui / svg issue"
     , body =
-        [ viewElements model
-        ]
+        viewElements model
     }

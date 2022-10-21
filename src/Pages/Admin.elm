@@ -597,5 +597,5 @@ viewElements model =
 view : Model -> View Msg
 view model =
     { title = "Admin"
-    , body = [ viewElements model ]
+    , body = viewElements model
     }

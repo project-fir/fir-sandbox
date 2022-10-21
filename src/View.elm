@@ -5,14 +5,14 @@ import Element as E exposing (..)
 
 type alias View msg =
     { title : String
-    , body : List (Element msg)
+    , body : Element msg
     }
 
 
 placeholder : String -> View msg
 placeholder str =
     { title = str
-    , body = [ E.text str ]
+    , body = E.text str
     }
 
 
@@ -24,7 +24,7 @@ none =
 map : (a -> b) -> View a -> View b
 map fn view =
     { title = view.title
-    , body = List.map (E.map fn) view.body
+    , body = E.map fn view.body
     }
 
 

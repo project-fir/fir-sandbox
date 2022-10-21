@@ -698,13 +698,12 @@ view : Model -> View Msg
 view model =
     { title = "Kimball Assignments"
     , body =
-        [ case model.pageRenderStatus of
+        case model.pageRenderStatus of
             AwaitingDomInfo ->
                 E.none
 
             Ready layoutInfo ->
                 viewElements model layoutInfo
-        ]
     }
 
 

@@ -206,7 +206,7 @@ elements model =
                 }
                 model.shared
     in
-    E.column
+    el
         [ width fill
         , height fill
         , padding 3

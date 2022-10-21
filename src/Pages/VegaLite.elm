@@ -317,8 +317,7 @@ view model =
     in
     { title = title
     , body =
-        [ elements model
-        ]
+        elements model
     }
 
 

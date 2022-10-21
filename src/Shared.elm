@@ -73,23 +73,15 @@ sharedView req { page, toMsg } model =
         else
             page.title ++ " | Fir"
     , body =
-        [ elements req { page = page, toMsg = toMsg } model
-        ]
+        elements req { page = page, toMsg = toMsg } model
     }
 
 
 elements : Request -> { page : View msg, toMsg : Msg -> msg } -> Model -> Element msg
 elements req { page, toMsg } model =
-    column
+    el
         [ width fill
         , height fill
         , centerX
         ]
-        [ -- TODO: Navbar component goes here, if I want one.
-          -- navBar
-          column
-            [ width fill
-            , height fill
-            ]
-            page.body
-        ]
+        page.body

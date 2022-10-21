@@ -201,9 +201,7 @@ elements model =
         pageElements : View Msg
         pageElements =
             Shared.sharedView (Request.create () model.url model.key)
-                { page =
-                    Pages.view model.page model.shared model.url model.key
-                        |> View.map Page
+                { page = Pages.view model.page model.shared model.url model.key |> View.map Page
                 , toMsg = Shared
                 }
                 model.shared

@@ -8,8 +8,7 @@ view : View msg
 view =
     { title = "Homepage"
     , body =
-        [ elements
-        ]
+        elements
     }
 
 

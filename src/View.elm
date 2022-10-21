@@ -5,7 +5,7 @@ import Element as E exposing (..)
 
 type alias View msg =
     { title : String
-    , body : List (Element msg)
+    , body : Element msg
     }
 
 

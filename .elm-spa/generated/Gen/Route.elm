@@ -5,6 +5,7 @@ module Gen.Route exposing
     )
 
 import Gen.Params.Admin
+import Gen.Params.ElmUiSvgIssue
 import Gen.Params.Home_
 import Gen.Params.Kimball
 import Gen.Params.Sheet
@@ -16,6 +17,7 @@ import Url.Parser as Parser exposing ((</>), Parser)
 
 type Route
     = Admin
+    | ElmUiSvgIssue
     | Home_
     | Kimball
     | Sheet
@@ -32,6 +34,7 @@ routes : List (Parser (Route -> a) a)
 routes =
     [ Parser.map Home_ Gen.Params.Home_.parser
     , Parser.map Admin Gen.Params.Admin.parser
+    , Parser.map ElmUiSvgIssue Gen.Params.ElmUiSvgIssue.parser
     , Parser.map Kimball Gen.Params.Kimball.parser
     , Parser.map Sheet Gen.Params.Sheet.parser
     , Parser.map VegaLite Gen.Params.VegaLite.parser
@@ -49,6 +52,9 @@ toHref route =
     case route of
         Admin ->
             joinAsHref [ "admin" ]
+    
+        ElmUiSvgIssue ->
+            joinAsHref [ "elm-ui-svg-issue" ]
     
         Home_ ->
             joinAsHref []

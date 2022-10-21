@@ -4,6 +4,7 @@ import Browser.Navigation exposing (Key)
 import Effect exposing (Effect)
 import ElmSpa.Page
 import Gen.Params.Admin
+import Gen.Params.ElmUiSvgIssue
 import Gen.Params.Home_
 import Gen.Params.Kimball
 import Gen.Params.Sheet
@@ -14,6 +15,7 @@ import Gen.Msg as Msg
 import Gen.Route as Route exposing (Route)
 import Page exposing (Page)
 import Pages.Admin
+import Pages.ElmUiSvgIssue
 import Pages.Home_
 import Pages.Kimball
 import Pages.Sheet
@@ -40,6 +42,9 @@ init route =
         Route.Admin ->
             pages.admin.init ()
     
+        Route.ElmUiSvgIssue ->
+            pages.elmUiSvgIssue.init ()
+    
         Route.Home_ ->
             pages.home_.init ()
     
@@ -62,6 +67,9 @@ update msg_ model_ =
         ( Msg.Admin msg, Model.Admin params model ) ->
             pages.admin.update params msg model
     
+        ( Msg.ElmUiSvgIssue msg, Model.ElmUiSvgIssue params model ) ->
+            pages.elmUiSvgIssue.update params msg model
+    
         ( Msg.Kimball msg, Model.Kimball params model ) ->
             pages.kimball.update params msg model
     
@@ -83,6 +91,9 @@ view model_ =
     
         Model.Admin params model ->
             pages.admin.view params model
+    
+        Model.ElmUiSvgIssue params model ->
+            pages.elmUiSvgIssue.view params model
     
         Model.Home_ params ->
             pages.home_.view params ()
@@ -109,6 +120,9 @@ subscriptions model_ =
         Model.Admin params model ->
             pages.admin.subscriptions params model
     
+        Model.ElmUiSvgIssue params model ->
+            pages.elmUiSvgIssue.subscriptions params model
+    
         Model.Home_ params ->
             pages.home_.subscriptions params ()
     
@@ -131,6 +145,7 @@ subscriptions model_ =
 
 pages :
     { admin : Bundle Gen.Params.Admin.Params Pages.Admin.Model Pages.Admin.Msg
+    , elmUiSvgIssue : Bundle Gen.Params.ElmUiSvgIssue.Params Pages.ElmUiSvgIssue.Model Pages.ElmUiSvgIssue.Msg
     , home_ : Static Gen.Params.Home_.Params
     , kimball : Bundle Gen.Params.Kimball.Params Pages.Kimball.Model Pages.Kimball.Msg
     , sheet : Bundle Gen.Params.Sheet.Params Pages.Sheet.Model Pages.Sheet.Msg
@@ -139,6 +154,7 @@ pages :
     }
 pages =
     { admin = bundle Pages.Admin.page Model.Admin Msg.Admin
+    , elmUiSvgIssue = bundle Pages.ElmUiSvgIssue.page Model.ElmUiSvgIssue Msg.ElmUiSvgIssue
     , home_ = static Pages.Home_.view Model.Home_
     , kimball = bundle Pages.Kimball.page Model.Kimball Msg.Kimball
     , sheet = bundle Pages.Sheet.page Model.Sheet Msg.Sheet

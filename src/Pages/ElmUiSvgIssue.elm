@@ -133,6 +133,7 @@ viewElements model =
                 , el [ centerX, centerY, Events.onMouseEnter (MouseEnteredFish 2), Background.color <| backgroundColor 2 ] <| text "Two fish"
                 , el [ centerX, centerY, Events.onMouseEnter (MouseEnteredFish 3), Background.color <| backgroundColor 3 ] <| text "Three fish"
                 , el [ centerX, centerY, Events.onMouseEnter (MouseEnteredFish 4), Background.color <| backgroundColor 4 ] <| text "Four fish"
+                , el [ centerX, centerY, Events.onMouseEnter (MouseEnteredFish 5), Background.color <| backgroundColor 5 ] <| text "Five fish"
                 ]
 
         svgNodes : Svg Msg

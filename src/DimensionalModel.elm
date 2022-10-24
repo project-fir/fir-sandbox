@@ -316,7 +316,9 @@ computeNodeId node =
     --       so I export to string and back to int *shrug*
     case String.toInt <| Hash.toString (hashColDesc node) of
         Just hash ->
-            Just <| modBy 1000000 hash
+            -- HACK: The DOT web viewer doesn't support Elm's scientific notation for large Ints represented as Strings
+            --       so, modBy a ten million to avoid that. This is for `/admin` page viewing only, so I think I can live with this
+            Just <| modBy 10000000 hash
 
         Nothing ->
             Nothing

@@ -1,10 +1,11 @@
-module DimensionalModel exposing (CardRenderInfo, ColumnGraph, CommonRefEdge, DimModelDuckDbSourceInfo, DimensionalModel, DimensionalModelRef, EdgeLabel(..), JoinableEdge, KimballAssignment(..), NaivePairingStrategyResult(..), PositionPx, Reason(..), columnGraph2DotString, naiveColumnPairingStrategy)
+module DimensionalModel exposing (CardRenderInfo, ColumnGraph, CommonRefEdge, DimModelDuckDbSourceInfo, DimensionalModel, DimensionalModelRef, EdgeLabel(..), JoinableEdge, KimballAssignment(..), NaivePairingStrategyResult(..), PositionPx, Reason(..), addNode, addNodes, columnGraph2DotString, naiveColumnPairingStrategy)
 
 import Dict exposing (Dict)
-import DuckDb exposing (DuckDbColumnDescription(..), DuckDbRef, DuckDbRefString, DuckDbRef_(..), refToString)
+import DuckDb exposing (DuckDbColumnDescription(..), DuckDbRef, DuckDbRefString, DuckDbRef_(..), refToString, ref_ToString)
 import Graph exposing (Edge, Graph, Node, NodeId)
 import Graph.DOT
-import Utils exposing (cartesian)
+import Hash exposing (Hash)
+import IntDict
 
 
 type alias PositionPx =
@@ -259,10 +260,10 @@ columnGraph2DotString graph =
                 Persisted_ persistedDuckDbColumnDescription ->
                     case persistedDuckDbColumnDescription.parentRef of
                         DuckDbView ref ->
-                            Just (refToString ref)
+                            Just <| refToString ref ++ ":" ++ persistedDuckDbColumnDescription.name
 
                         DuckDbTable ref ->
-                            Just (refToString ref)
+                            Just <| refToString ref ++ ":" ++ persistedDuckDbColumnDescription.name
 
                 Computed_ _ ->
                     -- TODO: Computed column support
@@ -278,3 +279,64 @@ columnGraph2DotString graph =
                     Just "joinable"
     in
     Graph.DOT.output nodeHelper edgeHelper graph
+
+
+addNode : ColumnGraph -> DuckDbColumnDescription -> ColumnGraph
+addNode graph node =
+    let
+        nodeId =
+            computeNodeId node
+    in
+    case nodeId of
+        Nothing ->
+            graph
+
+        Just nodeId_ ->
+            Graph.insert
+                { node = Node nodeId_ node
+                , incoming = IntDict.empty
+                , outgoing = IntDict.empty
+                }
+                graph
+
+
+addNodes : ColumnGraph -> List DuckDbColumnDescription -> ColumnGraph
+addNodes graph nodes =
+    List.foldl (\node acc -> addNode acc node) graph nodes
+
+
+
+--removeNode : ColumnGraph -> DuckDbColumnDescription -> ColumnGraph
+-- begin region: graph utils
+
+
+computeNodeId : DuckDbColumnDescription -> Maybe NodeId
+computeNodeId node =
+    -- TODO: I find it odd I can't unwrap Hash.Hash, but the constructors aren't exposed,
+    --       so I export to string and back to int *shrug*
+    case String.toInt <| Hash.toString (hashColDesc node) of
+        Just hash ->
+            Just <| modBy 1000000 hash
+
+        Nothing ->
+            Nothing
+
+
+hashColDesc : DuckDbColumnDescription -> Hash
+hashColDesc colDesc =
+    case colDesc of
+        Persisted_ perCol ->
+            Hash.dependent
+                (Hash.dependent (Hash.fromString <| ref_ToString perCol.parentRef)
+                    (Hash.fromString <| perCol.name)
+                )
+                (Hash.fromString perCol.dataType)
+
+        --(Hash.fromString <| perCol.dataType)
+        Computed_ _ ->
+            -- TODO: computed support
+            Hash.fromInt 0
+
+
+
+-- end region: graph utils

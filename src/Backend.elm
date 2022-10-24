@@ -2,7 +2,7 @@ module Backend exposing (..)
 
 import Bridge exposing (BackendErrorMessage, DeliveryEnvelope(..), DimensionalModelUpdate(..), DuckDbCache, DuckDbCache_(..), DuckDbMetaDataCacheEntry, ToBackend(..), defaultColdCache)
 import Dict exposing (Dict)
-import DimensionalModel exposing (CardRenderInfo, DimModelDuckDbSourceInfo, DimensionalModel, DimensionalModelRef, KimballAssignment(..), PositionPx)
+import DimensionalModel exposing (CardRenderInfo, DimModelDuckDbSourceInfo, DimensionalModel, DimensionalModelRef, KimballAssignment(..), PositionPx, addNodes)
 import DuckDb exposing (DuckDbColumnDescription, DuckDbRef, DuckDbRefString, DuckDbRef_(..), fetchDuckDbTableRefs, pingServer, queryDuckDbMeta, refToString, taskBuildDateDimTable)
 import Graph
 import Lamdera exposing (ClientId, SessionId, broadcast, sendToFrontend)
@@ -268,7 +268,10 @@ updateFromFrontend sessionId clientId msg model =
 
                                         newDimModel : DimensionalModel
                                         newDimModel =
-                                            { dimModel | tableInfos = Dict.insert (refToString duckDbRef) defaultInfo dimModel.tableInfos }
+                                            { dimModel
+                                                | tableInfos = Dict.insert (refToString duckDbRef) defaultInfo dimModel.tableInfos
+                                                , graph = addNodes dimModel.graph colDescs
+                                            }
                                     in
                                     ( { model | dimensionalModels = Dict.insert dimRef newDimModel model.dimensionalModels }
                                     , sendToFrontend clientId (DeliverDimensionalModel (BackendSuccess newDimModel))

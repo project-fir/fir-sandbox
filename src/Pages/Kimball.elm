@@ -577,14 +577,29 @@ update msg model =
                                                     ( Nothing, Cmd.none )
 
                                                 False ->
-                                                    -- User clicked another nub, reset partial selection to Nothing
-                                                    -- but Fire event to backend, updating graph
-                                                    ( Nothing, Cmd.none )
+                                                    case model.selectedDimensionalModel of
+                                                        -- User clicked another nub, reset partial selection to Nothing
+                                                        -- but Fire event to backend, updating graph
+                                                        Just dimModel ->
+                                                            let
+                                                                newEdge =
+                                                                    ( colDesc_, colDesc )
+
+                                                                newGraph =
+                                                                    dimModel.graph
+                                                            in
+                                                            ( Nothing, sendToBackend (UpdateDimensionalModel (UpdateGraph dimModel.ref newGraph)) )
+
+                                                        Nothing ->
+                                                            -- degenerate case, we should never get here without having a dim model selected
+                                                            ( Nothing, Cmd.none )
 
                                         Computed_ _ ->
+                                            -- TODO: Computed column support
                                             ( Just colDesc, Cmd.none )
 
                                 Computed_ _ ->
+                                    -- TODO: Computed column support
                                     ( Just colDesc, Cmd.none )
 
                         Nothing ->

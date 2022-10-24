@@ -3,7 +3,6 @@ module Bridge exposing (..)
 import Dict exposing (Dict)
 import DimensionalModel exposing (ColumnGraph, DimensionalModel, DimensionalModelRef, KimballAssignment, PositionPx)
 import DuckDb exposing (DuckDbColumnDescription, DuckDbRef, DuckDbRefString, DuckDbRef_)
-import Graph exposing (Graph)
 
 
 type ToBackend

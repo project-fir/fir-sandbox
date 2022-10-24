@@ -1,7 +1,7 @@
 module Palette exposing (..)
 
 import Color as CColor
-import Element exposing (rgb255)
+import Element exposing (rgb255, rgba255)
 
 
 blue =
@@ -22,6 +22,14 @@ lightGrey =
 
 white =
     rgb255 0xFF 0xFF 0xFF
+
+
+transparent =
+    rgba255 0xFF 0xFF 0xFF 0x00
+
+
+darken =
+    rgba255 0x80 0x80 0x80 0x80
 
 
 black =

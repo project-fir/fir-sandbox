@@ -5,7 +5,7 @@ import Browser.Dom
 import Browser.Events as BE
 import Dict exposing (Dict)
 import DimensionalModel exposing (CardRenderInfo, DimModelDuckDbSourceInfo, DimensionalModel, DimensionalModelRef, KimballAssignment(..), NaivePairingStrategyResult(..), PositionPx, Reason(..), naiveColumnPairingStrategy)
-import DuckDb exposing (ColumnName, DuckDbColumn, DuckDbColumnDescription(..), DuckDbRef, DuckDbRefString, DuckDbRef_(..), fetchDuckDbTableRefs, refEquals, refToString)
+import DuckDb exposing (ColumnName, DuckDbColumn, DuckDbColumnDescription(..), DuckDbRef, DuckDbRefString, DuckDbRef_(..), PersistedDuckDbColumnDescription, fetchDuckDbTableRefs, refEquals, refToString)
 import Effect exposing (Effect)
 import Element as E exposing (..)
 import Element.Background as Background
@@ -59,6 +59,8 @@ type alias Model =
     , hoveredOnTableRef : Maybe DuckDb.DuckDbRef
     , pageRenderStatus : PageRenderStatus
     , hoveredOnNodeTitle : Maybe DuckDb.DuckDbRef
+    , hoveredOnColumnWithinCard : Maybe DuckDbColumnDescription
+    , partialEdgeInProgress : Maybe DuckDbColumnDescription
     , dragState : DragState
     , mouseEvent : Maybe Event
     , viewPort : Maybe Browser.Dom.Viewport
@@ -101,6 +103,8 @@ init =
       , selectedTableRef = Nothing
       , hoveredOnTableRef = Nothing
       , hoveredOnNodeTitle = Nothing
+      , hoveredOnColumnWithinCard = Nothing
+      , partialEdgeInProgress = Nothing
       , dragState = Idle
       , mouseEvent = Nothing
       , pageRenderStatus = AwaitingDomInfo
@@ -160,6 +164,8 @@ type Msg
     | UserToggledCardDropDown DuckDbRef
     | UserMouseLeftTableRef
     | UserMouseEnteredNodeTitleBar DuckDb.DuckDbRef
+    | UserMouseEnteredColumnDescRow DuckDbColumnDescription
+    | UserClickedColumnRow DuckDbColumnDescription
     | UserMouseLeftNodeTitleBar
     | ClearNodeHoverState
     | SvgViewBoxTransform SvgViewBoxTransformation
@@ -172,8 +178,8 @@ type Msg
     | UpdatedNewDimModelName String
     | UserCreatesNewDimensionalModel DimensionalModelRef
     | NoopKimball
-    | UserClickedColumnRow DuckDbColumnDescription
     | UserClickedKimballAssignment DimensionalModelRef DuckDbRef (KimballAssignment DuckDbRef_ (List DuckDbColumnDescription))
+    | UserClickedNub DuckDbColumnDescription
     | KeyWentDown KeyCode
     | KeyReleased KeyCode
 
@@ -546,7 +552,45 @@ update msg model =
                             ( { model | pageRenderStatus = Ready newLayoutInfo }, Effect.none )
 
         ClearNodeHoverState ->
-            ( { model | hoveredOnNodeTitle = Nothing }, Effect.none )
+            ( { model
+                | hoveredOnNodeTitle = Nothing
+                , hoveredOnColumnWithinCard = Nothing
+              }
+            , Effect.none
+            )
+
+        UserMouseEnteredColumnDescRow colDesc ->
+            ( { model | hoveredOnColumnWithinCard = Just colDesc }, Effect.none )
+
+        UserClickedNub colDesc ->
+            let
+                ( newPartialEdge, cmd ) =
+                    case model.partialEdgeInProgress of
+                        Just colDesc_ ->
+                            case colDesc of
+                                Persisted_ perCol ->
+                                    case colDesc_ of
+                                        Persisted_ perCol_ ->
+                                            case perCol_.name == perCol.name && perCol_.parentRef == perCol.parentRef of
+                                                True ->
+                                                    -- User clicked same nub as already selected in model.partialEdgeInProgress
+                                                    ( Nothing, Cmd.none )
+
+                                                False ->
+                                                    -- User clicked another nub, reset partial selection to Nothing
+                                                    -- but Fire event to backend, updating graph
+                                                    ( Nothing, Cmd.none )
+
+                                        Computed_ _ ->
+                                            ( Just colDesc, Cmd.none )
+
+                                Computed_ _ ->
+                                    ( Just colDesc, Cmd.none )
+
+                        Nothing ->
+                            ( Just colDesc, Cmd.none )
+            in
+            ( { model | partialEdgeInProgress = newPartialEdge }, Effect.fromCmd cmd )
 
         UserMouseEnteredNodeTitleBar ref ->
             ( { model | hoveredOnNodeTitle = Just ref }, Effect.none )
@@ -707,8 +751,8 @@ view model =
     }
 
 
-viewDataSourceNode : Model -> DimensionalModelRef -> CardRenderInfo -> KimballAssignment DuckDbRef_ (List DuckDbColumnDescription) -> Svg Msg
-viewDataSourceNode model dimModelRef renderInfo kimballAssignment =
+viewDataSourceCard : Model -> DimensionalModelRef -> CardRenderInfo -> KimballAssignment DuckDbRef_ (List DuckDbColumnDescription) -> Svg Msg
+viewDataSourceCard model dimModelRef renderInfo kimballAssignment =
     let
         ( table_, type_, backgroundColor ) =
             case kimballAssignment of
@@ -752,9 +796,35 @@ viewDataSourceNode model dimModelRef renderInfo kimballAssignment =
         title =
             refToString table_
 
-        viewColumn : DuckDbColumnDescription -> Element Msg
-        viewColumn col =
+        viewRowForColumnDesc : DuckDbColumnDescription -> Element Msg
+        viewRowForColumnDesc col =
             let
+                rowBackgroundColor : Color
+                rowBackgroundColor =
+                    case model.hoveredOnColumnWithinCard of
+                        Nothing ->
+                            Palette.transparent
+
+                        Just col_ ->
+                            case col_ of
+                                Persisted_ perCol_ ->
+                                    case col of
+                                        Persisted_ perCol ->
+                                            case perCol.name == perCol_.name && perCol_.parentRef == perCol.parentRef of
+                                                True ->
+                                                    Palette.darken
+
+                                                False ->
+                                                    Palette.transparent
+
+                                        Computed_ _ ->
+                                            -- TODO: Computed column support
+                                            Palette.transparent
+
+                                Computed_ _ ->
+                                    -- TODO: Computed column support
+                                    Palette.transparent
+
                 name : String
                 name =
                     case col of
@@ -763,30 +833,30 @@ viewDataSourceNode model dimModelRef renderInfo kimballAssignment =
 
                         Computed_ desc ->
                             desc.name
+
+                viewNub : Element Msg
+                viewNub =
+                    el
+                        [ width <| px 10
+                        , height <| px 10
+                        , Border.width 1
+                        , Background.color Palette.lightGrey
+                        , Events.onClick (UserClickedNub col)
+                        ]
+                        E.none
             in
             row
                 [ width E.fill
                 , moveRight 3
                 , paddingXY 5 2
                 , spacingXY 4 0
+                , Events.onMouseEnter (UserMouseEnteredColumnDescRow col)
                 , Events.onClick (UserClickedColumnRow col)
+                , Background.color rowBackgroundColor
                 ]
-                [ el
-                    [ width <| px 5
-                    , height <| px 5
-                    , Border.width 1
-                    , Background.color Palette.lightGrey
-                    ]
-                    E.none
+                [ viewNub
                 , text name
-                , el
-                    [ width <| px 5
-                    , height <| px 5
-                    , Border.width 1
-                    , Background.color Palette.lightGrey
-                    , alignRight
-                    ]
-                    E.none
+                , el [ alignRight ] viewNub
                 ]
 
         viewCardElements : Element Msg
@@ -812,8 +882,6 @@ viewDataSourceNode model dimModelRef renderInfo kimballAssignment =
                         , Border.color Palette.black
                         , width fill
                         , Background.color titleBarBackgroundColor
-
-                        --, Events.onMouseEnter (UserMouseEnteredNodeTitleBar renderInfo.ref)
                         , paddingXY 0 0
                         , Events.onClick (UserToggledCardDropDown renderInfo.ref)
                         ]
@@ -874,16 +942,16 @@ viewDataSourceNode model dimModelRef renderInfo kimballAssignment =
                 , padding 2
                 , Background.color backgroundColor
                 , Font.size 14
+                , Events.onMouseEnter (UserMouseEnteredNodeTitleBar renderInfo.ref)
                 ]
                 [ viewTitleBar
                 , column
                     [ width fill
                     , height fill
-                    , Events.onMouseLeave UserMouseLeftNodeTitleBar
                     , Events.onMouseDown (BeginNodeDrag renderInfo.ref)
                     ]
                   <|
-                    List.map (\col -> viewColumn col) colDescs
+                    List.map (\col -> viewRowForColumnDesc col) colDescs
                 ]
     in
     SC.foreignObject
@@ -902,8 +970,13 @@ viewDataSourceNode model dimModelRef renderInfo kimballAssignment =
 viewCanvas : Model -> LayoutInfo -> Element Msg
 viewCanvas model layoutInfo =
     let
-        nodesContainer : List (Svg Msg)
-        nodesContainer =
+        erdCardsSvgNode : List (Svg Msg)
+        erdCardsSvgNode =
+            let
+                renderHelp : DimModelDuckDbSourceInfo -> DimensionalModelRef -> Svg Msg
+                renderHelp info dimModelRef =
+                    viewDataSourceCard model dimModelRef info.renderInfo info.assignment
+            in
             case model.selectedDimensionalModel of
                 Nothing ->
                     []
@@ -919,10 +992,6 @@ viewCanvas model layoutInfo =
                                     Nothing
                         )
                         (Dict.values dimModel.tableInfos)
-
-        renderHelp : DimModelDuckDbSourceInfo -> DimensionalModelRef -> Svg Msg
-        renderHelp info dimModelRef =
-            viewDataSourceNode model dimModelRef info.renderInfo info.assignment
     in
     el
         [ Border.width 1
@@ -939,7 +1008,7 @@ viewCanvas model layoutInfo =
                 , SA.height (ST.px layoutInfo.canvasElementHeight)
                 , SA.viewBox layoutInfo.viewBoxXMin layoutInfo.viewBoxYMin layoutInfo.viewBoxWidth layoutInfo.viewBoxHeight
                 ]
-                nodesContainer
+                erdCardsSvgNode
 
 
 viewControlPanel : Model -> Element Msg

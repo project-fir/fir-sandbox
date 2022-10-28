@@ -253,6 +253,8 @@ type alias ColumnGraph =
 
 columnGraph2DotString : ColumnGraph -> String
 columnGraph2DotString graph =
+    -- Note: Intended for dev/debug use only! A lot is lost when translating to a string, so features should not be
+    --       powered by the output of this function!
     let
         nodeHelper : DuckDbColumnDescription -> Maybe String
         nodeHelper n =
@@ -283,11 +285,7 @@ columnGraph2DotString graph =
 
 addNode : ColumnGraph -> DuckDbColumnDescription -> ColumnGraph
 addNode graph node =
-    let
-        nodeId =
-            computeNodeId node
-    in
-    case nodeId of
+    case computeNodeId node of
         Nothing ->
             graph
 
@@ -302,16 +300,54 @@ addNode graph node =
 
 addNodes : ColumnGraph -> List DuckDbColumnDescription -> ColumnGraph
 addNodes graph nodes =
+    -- TODO: Test
     List.foldl (\node acc -> addNode acc node) graph nodes
 
 
+addEdge : ColumnGraph -> ( DuckDbColumnDescription, DuckDbColumnDescription ) -> EdgeLabel -> ColumnGraph
+addEdge graph ( lhs, rhs ) lbl =
+    let
+        insertEdge : Edge EdgeLabel -> ColumnGraph -> ColumnGraph
+        insertEdge edge =
+            Graph.update edge.from
+                (\maybeCtx ->
+                    case maybeCtx of
+                        Nothing ->
+                            Nothing
 
---removeNode : ColumnGraph -> DuckDbColumnDescription -> ColumnGraph
+                        Just ctx ->
+                            Just { ctx | outgoing = IntDict.insert edge.to edge.label ctx.outgoing }
+                )
+
+        lhsId : Maybe NodeId
+        lhsId =
+            computeNodeId lhs
+
+        rhsId : Maybe NodeId
+        rhsId =
+            computeNodeId rhs
+    in
+    case lhsId of
+        Just lhsId_ ->
+            case rhsId of
+                Just rhsId_ ->
+                    insertEdge { from = lhsId_, to = rhsId_, label = lbl } graph
+
+                Nothing ->
+                    graph
+
+        Nothing ->
+            graph
+
+
+
+-- removeNode : ColumnGraph -> DuckDbColumnDescription -> ColumnGraph
 -- begin region: graph utils
 
 
 computeNodeId : DuckDbColumnDescription -> Maybe NodeId
 computeNodeId node =
+    -- TODO: Test
     -- TODO: I find it odd I can't unwrap Hash.Hash, but the constructors aren't exposed,
     --       so I export to string and back to int *shrug*
     case String.toInt <| Hash.toString (hashColDesc node) of

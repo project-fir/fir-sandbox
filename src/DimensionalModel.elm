@@ -1,4 +1,4 @@
-module DimensionalModel exposing (CardRenderInfo, ColumnGraph, CommonRefEdge, DimModelDuckDbSourceInfo, DimensionalModel, DimensionalModelRef, EdgeLabel(..), JoinableEdge, KimballAssignment(..), NaivePairingStrategyResult(..), PositionPx, Reason(..), addNode, addNodes, columnGraph2DotString, naiveColumnPairingStrategy)
+module DimensionalModel exposing (CardRenderInfo, ColumnGraph, CommonRefEdge, DimModelDuckDbSourceInfo, DimensionalModel, DimensionalModelRef, EdgeLabel(..), JoinableEdge, KimballAssignment(..), NaivePairingStrategyResult(..), PositionPx, Reason(..), addEdges, addNode, addNodes, columnGraph2DotString, naiveColumnPairingStrategy)
 
 import Dict exposing (Dict)
 import DuckDb exposing (DuckDbColumnDescription(..), DuckDbRef, DuckDbRefString, DuckDbRef_(..), refToString, ref_ToString)
@@ -302,6 +302,12 @@ addNodes : ColumnGraph -> List DuckDbColumnDescription -> ColumnGraph
 addNodes graph nodes =
     -- TODO: Test
     List.foldl (\node acc -> addNode acc node) graph nodes
+
+
+addEdges : ColumnGraph -> List ( DuckDbColumnDescription, DuckDbColumnDescription, EdgeLabel ) -> ColumnGraph
+addEdges graph edges =
+    -- TODO: Test
+    List.foldl (\( lhs, rhs, lbl ) acc -> addEdge acc ( lhs, rhs ) lbl) graph edges
 
 
 addEdge : ColumnGraph -> ( DuckDbColumnDescription, DuckDbColumnDescription ) -> EdgeLabel -> ColumnGraph

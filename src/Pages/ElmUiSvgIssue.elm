@@ -151,13 +151,14 @@ viewElements model =
 
         viewCanvas : Element Msg
         viewCanvas =
-            E.html <|
-                S.svg
-                    [ SA.width (ST.px 800)
-                    , SA.height (ST.px 600)
-                    , SA.viewBox 0 0 800 600
-                    ]
-                    [ svgNodes ]
+            el [ Border.width 2, Border.color Palette.red ] <|
+                E.html <|
+                    S.svg
+                        [ SA.width (ST.px 800)
+                        , SA.height (ST.px 601)
+                        , SA.viewBox 0 0 800 601
+                        ]
+                        [ svgNodes ]
     in
     el
         [ width fill

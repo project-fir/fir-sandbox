@@ -4,7 +4,7 @@ import Bridge exposing (BackendData(..), BackendErrorMessage, DimensionalModelUp
 import Browser.Dom
 import Browser.Events as BE
 import Dict exposing (Dict)
-import DimensionalModel exposing (CardRenderInfo, DimModelDuckDbSourceInfo, DimensionalModel, DimensionalModelRef, KimballAssignment(..), NaivePairingStrategyResult(..), PositionPx, Reason(..), naiveColumnPairingStrategy)
+import DimensionalModel exposing (CardRenderInfo, DimModelDuckDbSourceInfo, DimensionalModel, DimensionalModelRef, EdgeLabel(..), KimballAssignment(..), NaivePairingStrategyResult(..), PositionPx, Reason(..), addEdges, naiveColumnPairingStrategy)
 import DuckDb exposing (ColumnName, DuckDbColumn, DuckDbColumnDescription(..), DuckDbRef, DuckDbRefString, DuckDbRef_(..), PersistedDuckDbColumnDescription, fetchDuckDbTableRefs, refEquals, refToString)
 import Effect exposing (Effect)
 import Element as E exposing (..)
@@ -578,11 +578,9 @@ update msg model =
                                                         -- but Fire event to backend, updating graph
                                                         Just dimModel ->
                                                             let
-                                                                newEdge =
-                                                                    ( colDesc_, colDesc )
-
+                                                                -- NB: Add both directions, manually unpacked here
                                                                 newGraph =
-                                                                    dimModel.graph
+                                                                    addEdges dimModel.graph [ ( colDesc_, colDesc, Joinable ), ( colDesc, colDesc_, Joinable ) ]
                                                             in
                                                             ( Nothing, sendToBackend (UpdateDimensionalModel (UpdateGraph dimModel.ref newGraph)) )
 

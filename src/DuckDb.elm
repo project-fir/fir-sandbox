@@ -1,4 +1,4 @@
-module DuckDb exposing (ColumnName, ComputedDuckDbColumn, ComputedDuckDbColumnDescription, DuckDbColumn(..), DuckDbColumnDescription(..), DuckDbMetaResponse, DuckDbQueryResponse, DuckDbRef, DuckDbRefString, DuckDbRef_(..), DuckDbRefsResponse, PersistedDuckDbColumn, PersistedDuckDbColumnDescription, PingResponse, Ref, SchemaName, TableName, Val(..), colDescEquals, fetchDuckDbTableRefs, pingServer, queryDuckDb, queryDuckDbMeta, refEquals, refToString, ref_ToString, taskBuildDateDimTable, uploadFile)
+module DuckDb exposing (ColumnName, ComputedDuckDbColumn, ComputedDuckDbColumnDescription, DuckDbColumn(..), DuckDbColumnDescription(..), DuckDbMetaResponse, DuckDbQueryResponse, DuckDbRef, DuckDbRefString, DuckDbRef_(..), DuckDbRefsResponse, PersistedDuckDbColumn, PersistedDuckDbColumnDescription, PingResponse, Ref, SchemaName, TableName, Val(..), fetchDuckDbTableRefs, pingServer, queryDuckDb, queryDuckDbMeta, refEquals, refToString, ref_ToString, taskBuildDateDimTable, uploadFile)
 
 import Config exposing (apiHost)
 import File exposing (File)
@@ -106,24 +106,6 @@ type alias PersistedDuckDbColumnDescription =
     , parentRef : DuckDbRef_
     , dataType : String
     }
-
-
-colDescEquals : DuckDbColumnDescription -> DuckDbColumnDescription -> Bool
-colDescEquals lhs rhs =
-    -- TODO: Test cases
-    case lhs of
-        Persisted_ lhs_ ->
-            case rhs of
-                Persisted_ rhs_ ->
-                    lhs_ == rhs_
-
-                Computed_ rhs_ ->
-                    -- TODO: Computed col support
-                    False
-
-        Computed_ rhs_ ->
-            -- TODO: Computed col support
-            False
 
 
 type alias ComputedDuckDbColumnDescription =

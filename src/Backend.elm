@@ -3,12 +3,10 @@ module Backend exposing (..)
 import Bridge exposing (BackendErrorMessage, DeliveryEnvelope(..), DimensionalModelUpdate(..), DuckDbCache, DuckDbCache_(..), DuckDbMetaDataCacheEntry, ToBackend(..), defaultColdCache)
 import Dict exposing (Dict)
 import DimensionalModel exposing (CardRenderInfo, DimModelDuckDbSourceInfo, DimensionalModel, DimensionalModelRef, EdgeLabel(..), KimballAssignment(..), PositionPx, addEdges, addNodes)
-import DuckDb exposing (DuckDbColumnDescription, DuckDbRef, DuckDbRefString, DuckDbRef_(..), colDescEquals, fetchDuckDbTableRefs, pingServer, queryDuckDbMeta, refToString, taskBuildDateDimTable)
+import DuckDb exposing (DuckDbColumnDescription, DuckDbRef, DuckDbRefString, DuckDbRef_(..), fetchDuckDbTableRefs, pingServer, queryDuckDbMeta, refToString, taskBuildDateDimTable)
 import Graph
 import Lamdera exposing (ClientId, SessionId, broadcast, sendToFrontend)
-import Pages.Admin exposing (Msg(..))
 import RemoteData exposing (RemoteData(..))
-import Task
 import Types exposing (BackendModel, BackendMsg(..), FrontendMsg(..), Session, ToFrontend(..))
 import Utils exposing (cartesian, send)
 
@@ -272,16 +270,13 @@ updateFromFrontend sessionId clientId msg model =
 
                                         edges : List ( DuckDbColumnDescription, DuckDbColumnDescription )
                                         edges =
-                                            cartesian colDescs colDescs
-
-                                        edgesSansSelf : List ( DuckDbColumnDescription, DuckDbColumnDescription )
-                                        edgesSansSelf =
-                                            -- Avoid self-referential edges by filtering them out!
-                                            List.filter (\( lhs, rhs ) -> not <| colDescEquals lhs rhs) edges
+                                            -- TODO: Test
+                                            -- Avoid self-referential edges by filtering them out of the self-cross product
+                                            List.filter (\( lhs, rhs ) -> lhs /= rhs) (cartesian colDescs colDescs)
 
                                         labeledEdges : List ( DuckDbColumnDescription, DuckDbColumnDescription, EdgeLabel )
                                         labeledEdges =
-                                            List.map (\( lhs, rhs ) -> ( lhs, rhs, CommonRef )) edgesSansSelf
+                                            List.map (\( lhs, rhs ) -> ( lhs, rhs, CommonRef )) edges
 
                                         graphStep2 : DimensionalModel.ColumnGraph
                                         graphStep2 =

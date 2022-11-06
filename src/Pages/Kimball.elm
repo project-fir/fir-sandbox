@@ -268,10 +268,6 @@ update msg model =
                 newDimModel =
                     case model.selectedDimensionalModel of
                         Just dimModel ->
-                            let
-                                newGraph =
-                                    Graph.insert
-                            in
                             Just dimModel
 
                         Nothing ->

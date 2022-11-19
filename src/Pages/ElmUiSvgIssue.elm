@@ -5,11 +5,9 @@ import Element as E exposing (..)
 import Element.Background as Background
 import Element.Border as Border
 import Element.Events as Events
-import Element.Font as Font
-import Element.Input as Input
 import Gen.Params.ElmUiSvgIssue exposing (Params)
 import Page
-import Palette
+import Palette exposing (theme)
 import Request
 import Shared
 import TypedSvg as S
@@ -103,30 +101,30 @@ viewElements model =
                 backgroundColor i =
                     case model.hoveredOnFish of
                         Nothing ->
-                            Palette.white
+                            theme.white
 
                         Just fishId ->
                             case i == fishId of
                                 True ->
-                                    Palette.darkishGrey
+                                    theme.primary1
 
                                 False ->
-                                    Palette.white
+                                    theme.background
             in
             column
                 [ width (px 200)
                 , height (px 300)
                 , Border.width 1
-                , Border.color Palette.black
+                , Border.color theme.black
                 , Events.onMouseEnter MouseEnteredCard
                 , Events.onMouseLeave MouseLeftCard
                 , Background.color
                     (case model.mouseOnCard of
                         True ->
-                            Palette.lightGrey
+                            theme.primary1
 
                         False ->
-                            Palette.white
+                            theme.background
                     )
                 ]
                 [ el [ centerX, centerY, Events.onMouseEnter (MouseEnteredFish 1), Background.color <| backgroundColor 1 ] <| text "One fish"
@@ -163,7 +161,7 @@ viewElements model =
         [ width fill
         , height fill
         , padding 5
-        , Border.color Palette.darkishGrey
+        , Border.color theme.secondary
         , Border.width 1
         , Border.rounded 5
 

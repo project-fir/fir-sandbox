@@ -23,7 +23,7 @@ import ISO8601 as Iso
 import Json.Decode as JD
 import List.Extra as LE
 import Page
-import Palette
+import Palette exposing (theme)
 import RemoteData exposing (RemoteData(..), WebData)
 import Request
 import Set exposing (Set)
@@ -682,7 +682,7 @@ view model =
                     E.column
                         [ E.width E.fill
                         , E.height E.fill
-                        , Background.color Palette.white
+                        , Background.color theme.background
                         , Font.size 12
                         , padding 5
                         ]
@@ -727,7 +727,7 @@ view model =
                 [ width (E.fill |> maximum w)
                 , height (E.fill |> maximum h)
                 , Border.width 1
-                , Border.color Palette.black
+                , Border.color theme.secondary
                 , padding 5
                 , spacing 5
                 ]
@@ -740,7 +740,7 @@ view model =
                         [ width <| E.fillPortion 8
                         , height <| E.fill
                         , Border.width 2
-                        , Border.color Palette.blue
+                        , Border.color theme.secondary
                         , clip
                         , scrollbars
                         ]
@@ -753,27 +753,27 @@ view model =
                             [ height E.fill
                             , width E.fill
                             , Border.width 1
-                            , Border.color Palette.lightGrey
+                            , Border.color theme.secondary
                             ]
                             [ el
                                 [ width E.fill
                                 , height <| E.fillPortion 4
                                 , Border.width 1
-                                , Border.color Palette.lightGrey
+                                , Border.color theme.secondary
                                 ]
                                 (viewCatalogPanel model)
                             , el
                                 [ width E.fill
                                 , height <| E.fillPortion 4
                                 , Border.width 1
-                                , Border.color Palette.lightGrey
+                                , Border.color theme.secondary
                                 ]
                                 (viewSqlInputPanel model)
                             , el
                                 [ width E.fill
                                 , height <| E.fillPortion 2
                                 , Border.width 1
-                                , Border.color Palette.lightGrey
+                                , Border.color theme.secondary
                                 ]
                                 (viewDebugPanel model)
                             ]
@@ -825,10 +825,11 @@ viewDataInspectPanel model =
                                 borderColor =
                                     case shouldHighlightCell of
                                         False ->
-                                            Palette.lightGrey
+                                            -- TODO: I might want to keep gray
+                                            theme.black
 
                                         True ->
-                                            Palette.lightBlue
+                                            theme.primary1
                             in
                             [ Border.color borderColor
                             , Border.width borderWidth
@@ -932,13 +933,13 @@ viewSqlInputPanel model =
         viewDuckDbButton : Element Msg
         viewDuckDbButton =
             Input.button
-                [ Border.color Palette.black
+                [ Border.color theme.secondary
                 , Border.width 1
                 , Border.rounded 4
                 , padding 4
                 , alignTop
                 , alignRight
-                , Background.color Palette.lightGrey
+                , Background.color theme.background
                 ]
                 { onPress = Just <| QueryDuckDb model.userSqlText
                 , label = text "Query DuckDB"
@@ -974,9 +975,9 @@ viewSqlInputPanel model =
             let
                 errAttrs =
                     el
-                        [ Background.color Palette.lightGrey
+                        [ Background.color theme.background
                         , Border.width 2
-                        , Border.color Palette.darkishGrey
+                        , Border.color theme.secondary
                         ]
             in
             case model.duckDbResponse of
@@ -1015,12 +1016,12 @@ viewTimelinePanel model =
     case model.uiMode of
         SheetEditor ->
             Input.button
-                [ Border.color Palette.black
+                [ Border.color theme.secondary
                 , Border.width 1
                 , Border.rounded 4
                 , padding 4
                 , alignTop
-                , Background.color Palette.lightGrey
+                , Background.color theme.background
                 ]
                 { onPress = Just <| EnterTimelineViewerMode
                 , label = text "Enter Timeline Mode"
@@ -1051,67 +1052,67 @@ viewTimelinePanel model =
                     , spacing 5
                     ]
                     [ Input.button
-                        [ Border.color Palette.black
+                        [ Border.color theme.black
                         , Border.width 1
                         , Border.rounded 4
                         , padding 4
                         , alignTop
-                        , Background.color Palette.lightGrey
+                        , Background.color theme.secondary
                         ]
                         { onPress = Just <| EnterSheetEditorMode
                         , label = text "Back to Edit Mode"
                         }
                     , Input.button
-                        [ Border.color Palette.black
+                        [ Border.color theme.black
                         , Border.width 1
                         , Border.rounded 4
                         , padding 4
                         , alignTop
-                        , Background.color Palette.lightGrey
+                        , Background.color theme.secondary
                         ]
                         { onPress = Just <| JumpToFirstFrame
                         , label = text "<|-"
                         }
                     , Input.button
-                        [ Border.color Palette.black
+                        [ Border.color theme.black
                         , Border.width 1
                         , Border.rounded 4
                         , padding 4
                         , alignTop
-                        , Background.color Palette.lightGrey
+                        , Background.color theme.background
                         ]
                         { onPress = Just <| JumpToFrame previousFrame
                         , label = text "<"
                         }
                     , Input.button
-                        [ Border.color Palette.black
+                        [ Border.color theme.black
                         , Border.width 1
                         , Border.rounded 4
                         , padding 4
                         , alignTop
-                        , Background.color Palette.lightGrey
+                        , Background.color theme.secondary
                         ]
                         { onPress = Just <| TogglePauseResume
                         , label = text "||"
                         }
                     , Input.button
-                        [ Border.color Palette.black
+                        [ Border.color theme.black
                         , Border.width 1
                         , Border.rounded 4
                         , padding 4
                         , alignTop
-                        , Background.color Palette.lightGrey
+                        , Background.color theme.secondary
                         ]
                         { onPress = Just <| JumpToFrame nextFrame
                         , label = text ">"
                         }
                     , Input.button
-                        [ Border.color Palette.black
+                        [ Border.color theme.black
                         , Border.width 1
                         , Border.rounded 4
                         , padding 4
                         , alignTop
-                        , Background.color Palette.lightGrey
+                        , Background.color theme.secondary
                         ]
                         { onPress = Just <| JumpToLastFrame
                         , label = text "-|>"
@@ -1202,26 +1203,26 @@ viewCatalogPanel model =
                                 backgroundColorFor ref =
                                     case model.hoveredOnTableRef of
                                         Nothing ->
-                                            Palette.white
+                                            theme.background
 
                                         Just ref_ ->
                                             if refEquals ref ref_ then
-                                                Palette.lightGrey
+                                                theme.primary1
 
                                             else
-                                                Palette.white
+                                                theme.background
 
                                 borderColorFor ref =
                                     case model.hoveredOnTableRef of
                                         Nothing ->
-                                            Palette.white
+                                            theme.background
 
                                         Just ref_ ->
                                             if ref == ref_ then
-                                                Palette.darkishGrey
+                                                theme.primary1
 
                                             else
-                                                Palette.white
+                                                theme.background
 
                                 borderFor ref =
                                     case model.hoveredOnTableRef of
@@ -1238,14 +1239,14 @@ viewCatalogPanel model =
                                 innerBlobColorFor ref =
                                     case model.hoveredOnTableRef of
                                         Nothing ->
-                                            Palette.white
+                                            theme.background
 
                                         Just ref_ ->
                                             if ref == ref_ then
-                                                Palette.black
+                                                theme.primary2
 
                                             else
-                                                Palette.white
+                                                theme.background
 
                                 ui : DuckDbRef -> Element Msg
                                 ui ref =
@@ -1311,26 +1312,27 @@ viewCatalogPanel model =
                                 [ alignBottom
                                 , alignRight
                                 , padding 5
-                                , Border.color Palette.darkCharcoal
+                                , Border.color theme.secondary
                                 , Border.width 4
                                 , Border.rounded 3
-                                , Background.color Palette.darkishGrey
+                                , Background.color theme.background
                                 ]
                                 { onPress = Just FileUpload_UserConfirmsUpload
                                 , label = text "Upload"
                                 }
 
                         False ->
+                            -- TODO: Theme for "faded out" variant of button
                             Input.button
                                 [ alignBottom
                                 , alignRight
                                 , padding 5
-                                , Border.color Palette.black
+                                , Border.color theme.secondary
                                 , Border.width 1
 
                                 --, Font.color Palette.lightGrey
                                 , Border.rounded 3
-                                , Background.color Palette.lightGrey
+                                , Background.color theme.background
                                 ]
                                 { onPress = Nothing
                                 , label = text "Finish form to upload"
@@ -1344,10 +1346,10 @@ viewCatalogPanel model =
                         [ alignBottom
                         , alignRight
                         , padding 5
-                        , Border.color Palette.black
+                        , Border.color theme.secondary
                         , Border.width 1
                         , Border.rounded 3
-                        , Background.color Palette.lightGrey
+                        , Background.color theme.background
                         ]
                         { onPress = Just FileUpload_UserClickedSelectFile
                         , label = text "Upload CSV File"

@@ -10,7 +10,7 @@ type LocalDevModes
 
 
 pointTo =
-    PointToLocalDevFastApi
+    PointToProduction
 
 
 apiHost =

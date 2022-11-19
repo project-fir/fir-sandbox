@@ -20,7 +20,7 @@ import Http
 import Json.Decode as JD
 import Lamdera exposing (sendToBackend)
 import Page
-import Palette
+import Palette exposing (theme)
 import QueryBuilder exposing (Aggregation(..), ColumnRef, Granularity(..), TimeClass(..))
 import RemoteData exposing (RemoteData(..), WebData)
 import Request
@@ -763,31 +763,31 @@ view model =
 viewDataSourceCard : Model -> DimensionalModelRef -> CardRenderInfo -> KimballAssignment DuckDbRef_ (List DuckDbColumnDescription) -> Svg Msg
 viewDataSourceCard model dimModelRef renderInfo kimballAssignment =
     let
-        ( table_, type_, backgroundColor ) =
+        ( table_, type_, computedBackgroundColor ) =
             case kimballAssignment of
                 Unassigned ref _ ->
                     case ref of
                         DuckDbView duckDbRef ->
-                            ( duckDbRef, "Unassigned", Palette.orange_error_alert )
+                            ( duckDbRef, "Unassigned", theme.debugWarn )
 
                         DuckDbTable duckDbRef ->
-                            ( duckDbRef, "Unassigned", Palette.orange_error_alert )
+                            ( duckDbRef, "Unassigned", theme.debugWarn )
 
                 Fact ref _ ->
                     case ref of
                         DuckDbView duckDbRef ->
-                            ( duckDbRef, "Fact", Palette.green_keylime )
+                            ( duckDbRef, "Fact", theme.primary1 )
 
                         DuckDbTable duckDbRef ->
-                            ( duckDbRef, "Fact", Palette.green_keylime )
+                            ( duckDbRef, "Fact", theme.primary1 )
 
                 Dimension ref _ ->
                     case ref of
                         DuckDbView duckDbRef ->
-                            ( duckDbRef, "Dimension", Palette.lightBlue )
+                            ( duckDbRef, "Dimension", theme.primary2 )
 
                         DuckDbTable duckDbRef ->
-                            ( duckDbRef, "Dimension", Palette.lightBlue )
+                            ( duckDbRef, "Dimension", theme.primary2 )
 
         colDescs : List DuckDbColumnDescription
         colDescs =
@@ -812,7 +812,8 @@ viewDataSourceCard model dimModelRef renderInfo kimballAssignment =
                 rowBackgroundColor =
                     case model.hoveredOnColumnWithinCard of
                         Nothing ->
-                            Palette.transparent
+                            -- TODO: Do I need a transparent entry in ColorTheme?
+                            theme.white
 
                         Just col_ ->
                             case col_ of
@@ -821,18 +822,19 @@ viewDataSourceCard model dimModelRef renderInfo kimballAssignment =
                                         Persisted_ perCol ->
                                             case perCol.name == perCol_.name && perCol_.parentRef == perCol.parentRef of
                                                 True ->
-                                                    Palette.darken
+                                                    -- TODO: Do I need a darken entry in ColorTheme?
+                                                    theme.secondary
 
                                                 False ->
-                                                    Palette.transparent
+                                                    theme.background
 
                                         Computed_ _ ->
                                             -- TODO: Computed column support
-                                            Palette.transparent
+                                            theme.background
 
                                 Computed_ _ ->
                                     -- TODO: Computed column support
-                                    Palette.transparent
+                                    theme.background
 
                 name : String
                 name =
@@ -849,7 +851,7 @@ viewDataSourceCard model dimModelRef renderInfo kimballAssignment =
                         [ width <| px 10
                         , height <| px 10
                         , Border.width 1
-                        , Background.color Palette.lightGrey
+                        , Background.color theme.background
                         , Events.onClick (UserClickedNub col)
                         ]
                         E.none
@@ -875,20 +877,20 @@ viewDataSourceCard model dimModelRef renderInfo kimballAssignment =
                 titleBarBackgroundColor =
                     case model.hoveredOnNodeTitle of
                         Nothing ->
-                            backgroundColor
+                            computedBackgroundColor
 
                         Just ref_ ->
                             if refEquals renderInfo.ref ref_ then
-                                Palette.darkishGrey
+                                theme.secondary
 
                             else
-                                backgroundColor
+                                computedBackgroundColor
 
                 viewTitleBar : Element Msg
                 viewTitleBar =
                     el
                         [ Border.widthEach { top = 0, left = 0, right = 0, bottom = 2 }
-                        , Border.color Palette.black
+                        , Border.color theme.black
                         , width fill
                         , Background.color titleBarBackgroundColor
                         , paddingXY 0 0
@@ -908,7 +910,7 @@ viewDataSourceCard model dimModelRef renderInfo kimballAssignment =
                             , column []
                                 [ el
                                     [ Border.width 1
-                                    , Border.color Palette.black
+                                    , Border.color theme.black
                                     , padding 2
 
                                     --, inFront
@@ -923,9 +925,9 @@ viewDataSourceCard model dimModelRef renderInfo kimballAssignment =
                                                     el
                                                         [ E.onRight
                                                             (column
-                                                                [ Border.color Palette.lightGrey
+                                                                [ Border.color theme.secondary
                                                                 , Border.width 1
-                                                                , Background.color Palette.lightBlue
+                                                                , Background.color theme.background
                                                                 , spacing 3
                                                                 ]
                                                                 [ el [ width fill, height fill, Events.onClick (UserClickedKimballAssignment dimModelRef renderInfo.ref (Unassigned (DuckDbTable renderInfo.ref) colDescs)) ] <| E.text "Unassigned"
@@ -946,10 +948,10 @@ viewDataSourceCard model dimModelRef renderInfo kimballAssignment =
             column
                 [ width fill
                 , height fill
-                , Border.color Palette.black
+                , Border.color theme.black
                 , Border.width 1
                 , padding 2
-                , Background.color backgroundColor
+                , Background.color computedBackgroundColor
                 , Font.size 14
                 , Events.onMouseEnter (UserMouseEnteredNodeTitleBar renderInfo.ref)
                 ]
@@ -1004,11 +1006,11 @@ viewCanvas model layoutInfo =
     in
     el
         [ Border.width 1
-        , Border.color Palette.darkishGrey
+        , Border.color theme.secondary
         , Events.onMouseLeave TerminateDrags
         , centerY
         , centerX
-        , Background.color Palette.white
+        , Background.color theme.background
         ]
     <|
         E.html <|
@@ -1028,18 +1030,18 @@ viewControlPanel model =
             row
                 [ centerX
                 , Border.width 1
-                , Border.color Palette.black
+                , Border.color theme.black
                 , height fill
                 , paddingXY 5 0
                 , Font.size 24
                 , spacing 5
                 ]
-                [ el [ centerX, Border.width 1, Border.color Palette.black, Events.onClick <| SvgViewBoxTransform (Zoom 0.1) ] <| E.text "+"
-                , el [ centerX, Border.width 1, Border.color Palette.black, Events.onClick <| SvgViewBoxTransform (Zoom -0.1) ] <| E.text "-"
-                , el [ centerX, Border.width 1, Border.color Palette.black, Events.onClick <| SvgViewBoxTransform (Translation -20 0) ] <| E.text "ᐊ"
-                , el [ centerX, Border.width 1, Border.color Palette.black, Events.onClick <| SvgViewBoxTransform (Translation 20 0) ] <| E.text "ᐅ"
-                , el [ centerX, Border.width 1, Border.color Palette.black, Events.onClick <| SvgViewBoxTransform (Translation 0 -20) ] <| E.text "ᐃ"
-                , el [ centerX, Border.width 1, Border.color Palette.black, Events.onClick <| SvgViewBoxTransform (Translation 0 20) ] <| E.text "ᐁ"
+                [ el [ centerX, Border.width 1, Border.color theme.black, Events.onClick <| SvgViewBoxTransform (Zoom 0.1) ] <| E.text "+"
+                , el [ centerX, Border.width 1, Border.color theme.black, Events.onClick <| SvgViewBoxTransform (Zoom -0.1) ] <| E.text "-"
+                , el [ centerX, Border.width 1, Border.color theme.black, Events.onClick <| SvgViewBoxTransform (Translation -20 0) ] <| E.text "ᐊ"
+                , el [ centerX, Border.width 1, Border.color theme.black, Events.onClick <| SvgViewBoxTransform (Translation 20 0) ] <| E.text "ᐅ"
+                , el [ centerX, Border.width 1, Border.color theme.black, Events.onClick <| SvgViewBoxTransform (Translation 0 -20) ] <| E.text "ᐃ"
+                , el [ centerX, Border.width 1, Border.color theme.black, Events.onClick <| SvgViewBoxTransform (Translation 0 20) ] <| E.text "ᐁ"
                 ]
 
         onPress : Maybe Msg
@@ -1057,7 +1059,7 @@ viewControlPanel model =
                 [ centerX
                 , moveRight 10
                 , height fill
-                , Border.color Palette.black
+                , Border.color theme.secondary
                 , paddingXY 10 0
                 , Border.width 1
                 , Font.size 12
@@ -1068,8 +1070,8 @@ viewControlPanel model =
                         el
                             [ Border.width 1
                             , Border.rounded 2
-                            , Background.color Palette.lightGrey
-                            , Border.color Palette.darkishGrey
+                            , Background.color theme.background
+                            , Border.color theme.secondary
                             , padding 2
                             , Font.size 14
                             ]
@@ -1106,8 +1108,8 @@ viewControlPanel model =
         , height (px 40)
         , Font.size 30
         , Border.width 1
-        , Border.color Palette.darkishGrey
-        , Background.color Palette.white
+        , Background.color theme.background
+        , Border.color theme.secondary
         , spacing 6
         ]
         [ viewViewBoxControls
@@ -1122,13 +1124,14 @@ viewElements model layoutInfo =
         , height fill
         , centerX
         , centerY
-        , Background.color Palette.lightGrey
+        , Background.color theme.background
         ]
         [ column
             [ height fill
             , width (px layoutInfo.mainPanelWidth)
             , paddingXY 0 3
-            , Background.color Palette.lightGrey
+            , Background.color theme.background
+            , Border.color theme.secondary
             , centerX
             ]
             [ viewCanvas model layoutInfo
@@ -1137,9 +1140,9 @@ viewElements model layoutInfo =
         , column
             [ height fill
             , width (px layoutInfo.sidePanelWidth)
-            , Background.color Palette.white
             , Border.width 1
-            , Border.color Palette.darkishGrey
+            , Background.color theme.background
+            , Border.color theme.secondary
             , clipX
             , scrollbarX
             , alignRight
@@ -1184,7 +1187,7 @@ viewColumnInspectorPanel model =
                 Just t ->
                     E.text t
     in
-    column [ width fill, height fill, Border.width 1, Border.color Palette.darkishGrey, spacing 5 ]
+    column [ width fill, height fill, Border.width 1, Border.color theme.secondary, spacing 5 ]
         [ E.text "Column Inspector:"
         , info
         ]
@@ -1244,7 +1247,7 @@ viewMouseEventsDebugInfo model =
                 Just dimModel ->
                     dimModel.ref
     in
-    column [ width fill, height fill, Border.width 1, Border.color Palette.darkishGrey, spacing 5 ]
+    column [ width fill, height fill, Border.width 1, Border.color theme.secondary, spacing 5 ]
         [ E.text <| "Mouse events debug info:"
         , paragraph []
             [ E.text <| "events: " ++ mouseEventStr
@@ -1299,7 +1302,7 @@ viewDimensionalModelRefs model =
                         el
                             [ Border.width 1
                             , Border.rounded 2
-                            , Border.color Palette.black
+                            , Border.color theme.black
                             , Font.size 20
                             ]
                             (E.text " + ")
@@ -1342,27 +1345,27 @@ viewTableRefs model selectedDimModel =
                         backgroundColorFor ref =
                             case model.hoveredOnTableRef of
                                 Nothing ->
-                                    Palette.white
+                                    theme.background
 
                                 Just ref_ ->
                                     if ref == ref_ then
-                                        Palette.lightGrey
+                                        theme.secondary
 
                                     else
-                                        Palette.white
+                                        theme.background
 
                         borderColorFor : DuckDbRef -> Color
                         borderColorFor ref =
                             case model.hoveredOnTableRef of
                                 Nothing ->
-                                    Palette.white
+                                    theme.background
 
                                 Just ref_ ->
                                     if ref == ref_ then
-                                        Palette.darkishGrey
+                                        theme.secondary
 
                                     else
-                                        Palette.white
+                                        theme.background
 
                         borderFor : DuckDbRef -> { top : number, left : number, right : number, bottom : number }
                         borderFor ref =
@@ -1383,13 +1386,13 @@ viewTableRefs model selectedDimModel =
                                 Just info ->
                                     case info.isIncluded of
                                         True ->
-                                            Palette.green_keylime
+                                            theme.primary2
 
                                         False ->
-                                            Palette.white
+                                            theme.background
 
                                 Nothing ->
-                                    Palette.white
+                                    theme.background
 
                         ui : DuckDb.DuckDbRef -> Element Msg
                         ui ref =
@@ -1428,7 +1431,7 @@ viewTableRefs model selectedDimModel =
                 , spacing 2
                 , alignTop
                 , Border.width 1
-                , Border.color Palette.darkishGrey
+                , Border.color theme.secondary
                 , clipX
                 , scrollbarX
                 , clipY

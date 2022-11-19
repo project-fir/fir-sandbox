@@ -17,11 +17,11 @@ import Gen.Params.VegaLite exposing (Params)
 import Html.Attributes as HA
 import Http exposing (Error(..))
 import Page
-import Palette exposing (theme)
 import QueryBuilder exposing (Aggregation(..), ColumnRef, Granularity(..), KimballColumn(..), TimeClass(..), aggToStr, kimballClassificationToString, queryBuilder)
 import RemoteData exposing (RemoteData(..), WebData)
 import Request
 import Shared
+import Ui exposing (theme)
 import Utils exposing (removeNothingsFromList)
 import VegaUtils exposing (ColumnParamed, mapColToFloatCol, mapColToIntegerCol)
 import View exposing (View)

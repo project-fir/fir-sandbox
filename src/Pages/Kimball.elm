@@ -20,7 +20,6 @@ import Http
 import Json.Decode as JD
 import Lamdera exposing (sendToBackend)
 import Page
-import Palette exposing (theme)
 import QueryBuilder exposing (Aggregation(..), ColumnRef, Granularity(..), TimeClass(..))
 import RemoteData exposing (RemoteData(..), WebData)
 import Request
@@ -31,6 +30,7 @@ import TypedSvg as S
 import TypedSvg.Attributes as SA
 import TypedSvg.Core as SC exposing (Svg)
 import TypedSvg.Types as ST
+import Ui exposing (theme)
 import Utils exposing (KeyCode, keyDecoder, send)
 import View exposing (View)
 

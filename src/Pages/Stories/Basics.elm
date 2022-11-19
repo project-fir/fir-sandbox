@@ -1,0 +1,162 @@
+module Pages.Stories.Basics exposing (view)
+
+import Element as E exposing (..)
+import Element.Background as Background
+import Element.Border as Border
+import Element.Events as Events
+import Element.Font as Font
+import Element.Input as Input
+import Ui exposing (ColorTheme, PaletteName(..), theme, themeOf)
+import View exposing (View)
+
+
+view : View msg
+view =
+    { title = "Basics"
+    , body = el [ Font.size 19, Background.color theme.deadspace, width fill, height fill ] elements
+    }
+
+
+swatchSize =
+    100
+
+
+viewDropDown : Element msg
+viewDropDown =
+    E.none
+
+
+elements : Element msg
+elements =
+    let
+        viewHeader : Element msg
+        viewHeader =
+            el
+                [ width fill
+                , height fill
+                , alignLeft
+                , Border.widthEach { top = 0, left = 0, right = 0, bottom = 3 }
+                , Border.color theme.secondary
+                , Font.size 24
+                ]
+            <|
+                row [ padding 5, width fill ]
+                    [ el [ alignLeft, Font.bold ] (E.text "Basics")
+                    , el [ Font.size 14, alignRight ] (E.text "TODO: dropdown here -->")
+                    , viewDropDown
+                    ]
+
+        viewSwatch : Color -> String -> Color -> Element msg
+        viewSwatch col displayText link_ =
+            let
+                -- Supply a "real link" without degrading UX by self-linking
+                ( selfLink, swatchLinkText ) =
+                    ( "/stories/basics", "a self link" )
+            in
+            column
+                [ width (px swatchSize)
+                , height (px swatchSize)
+                , Background.color col
+                , centerX
+                , centerY
+                , Font.size 10
+                , width fill
+                , height fill
+                ]
+                [ el [ centerX, centerY ] (E.text displayText)
+                , link
+                    [ centerX
+                    , centerY
+                    , Font.color link_
+                    ]
+                    { url = selfLink
+                    , label = text swatchLinkText
+                    }
+                ]
+
+        viewThemeSwatches : ColorTheme -> Element msg
+        viewThemeSwatches theme_ =
+            column [ height fill, width fill, padding 5 ]
+                [ row
+                    [ width fill
+                    , height (px (swatchSize + 10))
+
+                    --, Border.width 1
+                    --, Border.color theme.debugAlert
+                    ]
+                    [ viewSwatch theme_.primary1 "Primary 1" theme_.link
+                    , viewSwatch theme_.primary2 "Primary 2" theme_.link
+                    , viewSwatch theme_.secondary "Secondary" theme_.link
+                    , viewSwatch theme_.background "Background" theme_.link
+                    , viewSwatch theme_.deadspace "DeadSpace" theme_.link
+                    ]
+                ]
+
+        viewCommonSwatches : ColorTheme -> Element msg
+        viewCommonSwatches theme_ =
+            row
+                [ height (px (swatchSize + 10))
+                , width fill
+                , spaceEvenly
+                , centerX
+                ]
+                [ viewSwatch theme_.white "white" theme_.link
+                , viewSwatch theme_.gray "gray" theme_.link
+                , viewSwatch theme_.black "black" theme_.link
+                ]
+    in
+    el
+        [ Font.color theme.black
+        , Font.size 16
+        , width (fill |> minimum 400 |> maximum 800)
+        , height fill
+        , Background.color theme.background
+        , centerX
+        ]
+        (column
+            [ width fill
+            , centerX
+            , spacing 5
+            ]
+            [ viewHeader
+            , column
+                [ width fill
+                , height fill
+                ]
+                [ el
+                    [ Font.bold
+                    ]
+                    (E.text "Theme swatches")
+                , column
+                    [ width fill
+                    , height fill
+                    , padding 10
+                    , spacing 10
+                    ]
+                    [ el [ moveDown 5 ] <| E.text (themeName BambooBeach ++ ":")
+                    , viewThemeSwatches (themeOf BambooBeach)
+                    , el [ moveDown 5 ] <| E.text (themeName CoffeeRun ++ ":")
+                    , viewThemeSwatches (themeOf CoffeeRun)
+                    , el [ moveDown 5 ] <| E.text (themeName Nitro ++ ":")
+                    , viewThemeSwatches (themeOf Nitro)
+                    ]
+                ]
+            , column [ width fill, height fill ]
+                [ el [] <| E.text "Common swatches:"
+                , viewCommonSwatches (themeOf BambooBeach)
+                ]
+            ]
+        )
+
+
+themeName : PaletteName -> String
+themeName name =
+    case name of
+        BambooBeach ->
+            "Bamboo Beach"
+
+        CoffeeRun ->
+            "Coffee Run"
+
+        Nitro ->
+            "Nitro"

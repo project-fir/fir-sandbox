@@ -7,13 +7,13 @@ import Element.Border as Border
 import Element.Events as Events
 import Gen.Params.ElmUiSvgIssue exposing (Params)
 import Page
-import Palette exposing (theme)
 import Request
 import Shared
 import TypedSvg as S
 import TypedSvg.Attributes as SA
 import TypedSvg.Core as SC exposing (Svg)
 import TypedSvg.Types as ST
+import Ui exposing (theme)
 import View exposing (View)
 
 
@@ -165,7 +165,7 @@ viewElements model =
         , Border.width 1
         , Border.rounded 5
 
-        --, Background.color Palette.darkishGrey
+        --, Background.color Ui.darkishGrey
         ]
         viewCanvas
 

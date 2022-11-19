@@ -3,7 +3,7 @@ module Pages.Home_ exposing (view)
 import Element as E exposing (..)
 import Element.Background as Background
 import Element.Font as Font
-import Palette exposing (theme)
+import Ui exposing (theme)
 import View exposing (View)
 
 

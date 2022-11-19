@@ -1,4 +1,4 @@
-module Palette exposing (ColorTheme, PaletteTheme(..), theme, toAvhColor)
+module Ui exposing (ColorTheme, PaletteName(..), theme, themeOf, toAvhColor)
 
 import Color as AvhColor
 import Element exposing (Color, rgb255)
@@ -13,32 +13,54 @@ type alias ColorTheme =
     , primary2 : Color
     , secondary : Color
     , background : Color
+    , deadspace : Color
     , white : Color
     , gray : Color
     , black : Color
     , debugWarn : Color
     , debugAlert : Color
+    , link : Color
     }
 
 
-type PaletteTheme
+type PaletteName
     = BambooBeach
     | CoffeeRun
+    | Nitro
 
 
+selectedTheme : PaletteName
 selectedTheme =
     BambooBeach
 
 
 theme : ColorTheme
 theme =
+    -- NB: This is the primary function exposed in this module
+    themeOf selectedTheme
+
+
+themeOf : PaletteName -> ColorTheme
+themeOf palette =
+    -- NB: This is a helper function only exposed for visual QA purposes, see /stories. All potentially user-executed
+    --     code should use the theme function, not this function!
     let
-        decorateBaseTheme : { primary1 : Color, primary2 : Color, secondary : Color, background : Color } -> ColorTheme
+        decorateBaseTheme :
+            { primary1 : Color
+            , primary2 : Color
+            , secondary : Color
+            , background : Color
+            , deadSpace : Color
+            , link : Color
+            }
+            -> ColorTheme
         decorateBaseTheme base =
             { primary1 = base.primary1
             , primary2 = base.primary2
             , secondary = base.secondary
             , background = base.background
+            , deadspace = base.deadSpace
+            , link = base.link
             , white = white
             , gray = gray
             , black = black
@@ -46,13 +68,15 @@ theme =
             , debugAlert = red
             }
     in
-    case selectedTheme of
+    case palette of
         BambooBeach ->
             decorateBaseTheme
                 { primary1 = tangerine
                 , primary2 = turquoise
                 , secondary = blueGray
                 , background = cream
+                , deadSpace = bambooDeadSpace
+                , link = bambooLink
                 }
 
         CoffeeRun ->
@@ -61,11 +85,58 @@ theme =
                 , primary2 = brown2
                 , secondary = cornflower
                 , background = brown1
+                , deadSpace = coffeeDeadSpace
+                , link = coffeeLink
+                }
+
+        Nitro ->
+            decorateBaseTheme
+                { primary1 = yellowNitro
+                , primary2 = mediumAquamarine
+                , secondary = purple
+                , background = seaGreenCrayola
+                , deadSpace = babyPowder
+                , link = nitroLink
                 }
 
 
 
 -- end region: theme definitions
+-- begin region: color definitions - nitro theme
+
+
+purple : Color
+purple =
+    rgb255 0x5E 0x23 0x9D
+
+
+seaGreenCrayola : Color
+seaGreenCrayola =
+    white
+
+
+mediumAquamarine : Color
+mediumAquamarine =
+    rgb255 0x6D 0xEC 0xAF
+
+
+babyPowder : Color
+babyPowder =
+    rgb255 0xF4 0xF4 0xED
+
+
+yellowNitro : Color
+yellowNitro =
+    rgb255 0xFE 0xD7 0x66
+
+
+nitroLink : Color
+nitroLink =
+    rgb255 0xF6 0x10 0x67
+
+
+
+-- end region: color definitions - nitro theme
 --begin region: color definitions - coffee run theme
 -- TODO: coffee run theme is trash, but it highlights overuse of background colors.
 
@@ -90,6 +161,16 @@ cornflower =
     rgb255 0x2F 0x43 0x5A
 
 
+coffeeDeadSpace : Color
+coffeeDeadSpace =
+    rgb255 0xC8 0xA8 0x8F
+
+
+coffeeLink : Color
+coffeeLink =
+    rgb255 0x14 0x60 0xBF
+
+
 
 -- end region: color definitions - coffee run theme
 -- begin region: color definitions - bamboo beach theme
@@ -99,6 +180,16 @@ cornflower =
 cream : Color
 cream =
     rgb255 0xFB 0xF6 0xF3
+
+
+bambooDeadSpace : Color
+bambooDeadSpace =
+    rgb255 0xF7 0xED 0xE7
+
+
+bambooLink : Color
+bambooLink =
+    rgb255 0x34 0xA7 0xC6
 
 
 tangerine : Color

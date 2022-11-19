@@ -9,7 +9,9 @@ import Gen.Params.ElmUiSvgIssue
 import Gen.Params.Home_
 import Gen.Params.Kimball
 import Gen.Params.Sheet
+import Gen.Params.Stories
 import Gen.Params.VegaLite
+import Gen.Params.Stories.Basics
 import Gen.Params.NotFound
 import Url exposing (Url)
 import Url.Parser as Parser exposing ((</>), Parser)
@@ -21,7 +23,9 @@ type Route
     | Home_
     | Kimball
     | Sheet
+    | Stories
     | VegaLite
+    | Stories__Basics
     | NotFound
 
 
@@ -37,8 +41,10 @@ routes =
     , Parser.map ElmUiSvgIssue Gen.Params.ElmUiSvgIssue.parser
     , Parser.map Kimball Gen.Params.Kimball.parser
     , Parser.map Sheet Gen.Params.Sheet.parser
+    , Parser.map Stories Gen.Params.Stories.parser
     , Parser.map VegaLite Gen.Params.VegaLite.parser
     , Parser.map NotFound Gen.Params.NotFound.parser
+    , Parser.map Stories__Basics Gen.Params.Stories.Basics.parser
     ]
 
 
@@ -65,8 +71,14 @@ toHref route =
         Sheet ->
             joinAsHref [ "sheet" ]
     
+        Stories ->
+            joinAsHref [ "stories" ]
+    
         VegaLite ->
             joinAsHref [ "vega-lite" ]
+    
+        Stories__Basics ->
+            joinAsHref [ "stories", "basics" ]
     
         NotFound ->
             joinAsHref [ "not-found" ]

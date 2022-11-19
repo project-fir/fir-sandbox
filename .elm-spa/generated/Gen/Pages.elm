@@ -8,7 +8,9 @@ import Gen.Params.ElmUiSvgIssue
 import Gen.Params.Home_
 import Gen.Params.Kimball
 import Gen.Params.Sheet
+import Gen.Params.Stories
 import Gen.Params.VegaLite
+import Gen.Params.Stories.Basics
 import Gen.Params.NotFound
 import Gen.Model as Model
 import Gen.Msg as Msg
@@ -19,7 +21,9 @@ import Pages.ElmUiSvgIssue
 import Pages.Home_
 import Pages.Kimball
 import Pages.Sheet
+import Pages.Stories
 import Pages.VegaLite
+import Pages.Stories.Basics
 import Pages.NotFound
 import Request exposing (Request)
 import Shared
@@ -54,8 +58,14 @@ init route =
         Route.Sheet ->
             pages.sheet.init ()
     
+        Route.Stories ->
+            pages.stories.init ()
+    
         Route.VegaLite ->
             pages.vegaLite.init ()
+    
+        Route.Stories__Basics ->
+            pages.stories__basics.init ()
     
         Route.NotFound ->
             pages.notFound.init ()
@@ -104,8 +114,14 @@ view model_ =
         Model.Sheet params model ->
             pages.sheet.view params model
     
+        Model.Stories params ->
+            pages.stories.view params ()
+    
         Model.VegaLite params model ->
             pages.vegaLite.view params model
+    
+        Model.Stories__Basics params ->
+            pages.stories__basics.view params ()
     
         Model.NotFound params ->
             pages.notFound.view params ()
@@ -132,8 +148,14 @@ subscriptions model_ =
         Model.Sheet params model ->
             pages.sheet.subscriptions params model
     
+        Model.Stories params ->
+            pages.stories.subscriptions params ()
+    
         Model.VegaLite params model ->
             pages.vegaLite.subscriptions params model
+    
+        Model.Stories__Basics params ->
+            pages.stories__basics.subscriptions params ()
     
         Model.NotFound params ->
             pages.notFound.subscriptions params ()
@@ -149,7 +171,9 @@ pages :
     , home_ : Static Gen.Params.Home_.Params
     , kimball : Bundle Gen.Params.Kimball.Params Pages.Kimball.Model Pages.Kimball.Msg
     , sheet : Bundle Gen.Params.Sheet.Params Pages.Sheet.Model Pages.Sheet.Msg
+    , stories : Static Gen.Params.Stories.Params
     , vegaLite : Bundle Gen.Params.VegaLite.Params Pages.VegaLite.Model Pages.VegaLite.Msg
+    , stories__basics : Static Gen.Params.Stories.Basics.Params
     , notFound : Static Gen.Params.NotFound.Params
     }
 pages =
@@ -158,7 +182,9 @@ pages =
     , home_ = static Pages.Home_.view Model.Home_
     , kimball = bundle Pages.Kimball.page Model.Kimball Msg.Kimball
     , sheet = bundle Pages.Sheet.page Model.Sheet Msg.Sheet
+    , stories = static Pages.Stories.view Model.Stories
     , vegaLite = bundle Pages.VegaLite.page Model.VegaLite Msg.VegaLite
+    , stories__basics = static Pages.Stories.Basics.view Model.Stories__Basics
     , notFound = static Pages.NotFound.view Model.NotFound
     }
 

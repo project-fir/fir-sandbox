@@ -14,9 +14,9 @@ import Element.Input as Input
 import Gen.Params.Admin exposing (Params)
 import Lamdera exposing (SessionId, sendToBackend)
 import Page
-import Palette exposing (theme)
 import Request
 import Shared
+import Ui exposing (theme)
 import View exposing (View)
 
 

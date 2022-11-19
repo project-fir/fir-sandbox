@@ -15,11 +15,11 @@ import Gen.Route as Route
 import Lamdera
 import Pages.Admin exposing (Msg(..))
 import Pages.Kimball exposing (Msg(..))
-import Palette exposing (theme)
 import Request
 import Shared
 import Task
 import Types exposing (FrontendModel, FrontendMsg(..), ToFrontend(..))
+import Ui exposing (theme)
 import Url exposing (Url)
 import Utils exposing (send)
 import View exposing (View)

@@ -6,7 +6,7 @@ import Element.Border as Border
 import Element.Events as Events
 import Element.Font as Font
 import Element.Input as Input
-import Palette exposing (theme)
+import Ui exposing (theme)
 import View exposing (View)
 
 

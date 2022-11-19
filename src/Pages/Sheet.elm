@@ -23,7 +23,6 @@ import ISO8601 as Iso
 import Json.Decode as JD
 import List.Extra as LE
 import Page
-import Palette exposing (theme)
 import RemoteData exposing (RemoteData(..), WebData)
 import Request
 import Set exposing (Set)
@@ -32,6 +31,7 @@ import SheetModel exposing (Cell, CellCoords, CellElement(..), ColumnLabel, RawP
 import String exposing (fromInt)
 import Task
 import Time exposing (Posix)
+import Ui exposing (theme)
 import Utils exposing (KeyCode, keyDecoder, send)
 import View exposing (View)
 
@@ -145,7 +145,7 @@ type Msg
     | ManualDom__AttemptFocus String
     | ManualDom__FocusResult (Result Browser.Dom.Error ())
     | EnterTimelineViewerMode
-    | EnterSheetEditorMode -- TODO: Just toggle Palette mode?
+    | EnterSheetEditorMode -- TODO: Just toggle Ui mode?
     | QueryDuckDb String
     | UserSqlTextChanged String
       -- API response stuff:
@@ -1329,7 +1329,7 @@ viewCatalogPanel model =
                                 , Border.color theme.secondary
                                 , Border.width 1
 
-                                --, Font.color Palette.lightGrey
+                                --, Font.color Ui.lightGrey
                                 , Border.rounded 3
                                 , Background.color theme.background
                                 ]

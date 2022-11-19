@@ -1,4 +1,4 @@
-module Palette exposing (ColorTheme, PaletteName(..), theme, themeOf, toAvhColor)
+module Ui exposing (ColorTheme, PaletteName(..), theme, themeOf, toAvhColor)
 
 import Color as AvhColor
 import Element exposing (Color, rgb255)
@@ -31,23 +31,26 @@ type PaletteName
 
 selectedTheme : PaletteName
 selectedTheme =
-    Nitro
+    BambooBeach
 
 
 theme : ColorTheme
 theme =
+    -- NB: This is the primary function exposed in this module
     themeOf selectedTheme
 
 
 themeOf : PaletteName -> ColorTheme
 themeOf palette =
+    -- NB: This is a helper function only exposed for visual QA purposes, see /stories. All potentially user-executed
+    --     code should use the theme function, not this function!
     let
         decorateBaseTheme :
             { primary1 : Color
             , primary2 : Color
             , secondary : Color
             , background : Color
-            , deadspace : Color
+            , deadSpace : Color
             , link : Color
             }
             -> ColorTheme
@@ -56,7 +59,7 @@ themeOf palette =
             , primary2 = base.primary2
             , secondary = base.secondary
             , background = base.background
-            , deadspace = base.deadspace
+            , deadspace = base.deadSpace
             , link = base.link
             , white = white
             , gray = gray
@@ -72,7 +75,7 @@ themeOf palette =
                 , primary2 = turquoise
                 , secondary = blueGray
                 , background = cream
-                , deadspace = bambooDeadSpace
+                , deadSpace = bambooDeadSpace
                 , link = bambooLink
                 }
 
@@ -82,7 +85,7 @@ themeOf palette =
                 , primary2 = brown2
                 , secondary = cornflower
                 , background = brown1
-                , deadspace = coffeeDeadSpace
+                , deadSpace = coffeeDeadSpace
                 , link = coffeeLink
                 }
 
@@ -92,7 +95,7 @@ themeOf palette =
                 , primary2 = mediumAquamarine
                 , secondary = purple
                 , background = seaGreenCrayola
-                , deadspace = babyPowder
+                , deadSpace = babyPowder
                 , link = nitroLink
                 }
 

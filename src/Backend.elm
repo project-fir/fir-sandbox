@@ -2,15 +2,13 @@ module Backend exposing (..)
 
 import Bridge exposing (BackendErrorMessage, DeliveryEnvelope(..), DimensionalModelUpdate(..), DuckDbCache, DuckDbCache_(..), DuckDbMetaDataCacheEntry, ToBackend(..), defaultColdCache)
 import Dict exposing (Dict)
-import DimensionalModel exposing (CardRenderInfo, DimModelDuckDbSourceInfo, DimensionalModel, DimensionalModelRef, KimballAssignment(..), PositionPx)
+import DimensionalModel exposing (CardRenderInfo, DimModelDuckDbSourceInfo, DimensionalModel, DimensionalModelRef, EdgeLabel(..), KimballAssignment(..), PositionPx, addEdges, addNodes)
 import DuckDb exposing (DuckDbColumnDescription, DuckDbRef, DuckDbRefString, DuckDbRef_(..), fetchDuckDbTableRefs, pingServer, queryDuckDbMeta, refToString, taskBuildDateDimTable)
 import Graph
 import Lamdera exposing (ClientId, SessionId, broadcast, sendToFrontend)
-import Pages.Admin exposing (Msg(..))
 import RemoteData exposing (RemoteData(..))
-import Task
 import Types exposing (BackendModel, BackendMsg(..), FrontendMsg(..), Session, ToFrontend(..))
-import Utils exposing (send)
+import Utils exposing (cartesian, send)
 
 
 type alias Model =
@@ -266,9 +264,30 @@ updateFromFrontend sessionId clientId msg model =
                                             , isIncluded = True
                                             }
 
+                                        graphStep1 : DimensionalModel.ColumnGraph
+                                        graphStep1 =
+                                            addNodes dimModel.graph colDescs
+
+                                        edges : List ( DuckDbColumnDescription, DuckDbColumnDescription )
+                                        edges =
+                                            -- TODO: Test
+                                            -- Avoid self-referential edges by filtering them out of the self-cross product
+                                            List.filter (\( lhs, rhs ) -> lhs /= rhs) (cartesian colDescs colDescs)
+
+                                        labeledEdges : List ( DuckDbColumnDescription, DuckDbColumnDescription, EdgeLabel )
+                                        labeledEdges =
+                                            List.map (\( lhs, rhs ) -> ( lhs, rhs, CommonRef )) edges
+
+                                        graphStep2 : DimensionalModel.ColumnGraph
+                                        graphStep2 =
+                                            addEdges graphStep1 labeledEdges
+
                                         newDimModel : DimensionalModel
                                         newDimModel =
-                                            { dimModel | tableInfos = Dict.insert (refToString duckDbRef) defaultInfo dimModel.tableInfos }
+                                            { dimModel
+                                                | tableInfos = Dict.insert (refToString duckDbRef) defaultInfo dimModel.tableInfos
+                                                , graph = graphStep2
+                                            }
                                     in
                                     ( { model | dimensionalModels = Dict.insert dimRef newDimModel model.dimensionalModels }
                                     , sendToFrontend clientId (DeliverDimensionalModel (BackendSuccess newDimModel))

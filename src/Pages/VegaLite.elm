@@ -4,8 +4,6 @@ module Pages.VegaLite exposing (Model, Msg, page)
 --import PortDefs exposing (dragStart, elmToJS)
 --import VegaLite as VL
 
-import Array
-import Config exposing (apiHost)
 import Dict exposing (Dict)
 import DuckDb exposing (ColumnName, DuckDbColumnDescription(..), DuckDbMetaResponse, fetchDuckDbTableRefs, queryDuckDb, queryDuckDbMeta, refToString)
 import Effect exposing (Effect)
@@ -16,17 +14,13 @@ import Element.Events exposing (..)
 import Element.Font as Font
 import Element.Input as Input
 import Gen.Params.VegaLite exposing (Params)
-import Html as H
 import Html.Attributes as HA
 import Http exposing (Error(..))
-import Json.Decode as JD
-import Json.Encode as JE
 import Page
-import Palette
+import Palette exposing (theme)
 import QueryBuilder exposing (Aggregation(..), ColumnRef, Granularity(..), KimballColumn(..), TimeClass(..), aggToStr, kimballClassificationToString, queryBuilder)
 import RemoteData exposing (RemoteData(..), WebData)
 import Request
-import Set exposing (Set)
 import Shared
 import Utils exposing (removeNothingsFromList)
 import VegaUtils exposing (ColumnParamed, mapColToFloatCol, mapColToIntegerCol)
@@ -327,7 +321,7 @@ elements model =
         vegaLiteDiv =
             el
                 [ htmlAttribute <| HA.id "elm-ui-viz"
-                , Border.color Palette.lightGrey
+                , Border.color theme.secondary
                 , Border.width 1
                 , width fill
                 , height fill
@@ -351,7 +345,7 @@ elements model =
                 , clipY
                 , scrollbarY
                 , Border.width 1
-                , Border.color Palette.darkishGrey
+                , Border.color theme.secondary
                 ]
                 (viewColumnPickerPanel model)
             , row
@@ -364,7 +358,7 @@ elements model =
                     [ width <| fillPortion 5
                     , height fill
                     , Border.width 1
-                    , Border.color Palette.darkishGrey
+                    , Border.color theme.secondary
                     ]
                     (el [ height fill, width <| fillPortion 5 ] (viewDropZone model))
 
@@ -376,7 +370,7 @@ elements model =
             [ height fill
             , width <| fillPortion 2
             , Border.width 1
-            , Border.color Palette.darkishGrey
+            , Border.color theme.secondary
             , padding 5
             ]
             (viewTableRefs model)
@@ -400,7 +394,7 @@ viewDropZone model =
                         [ E.text colRef
                         , row
                             [ Border.width 1
-                            , Border.color Palette.black
+                            , Border.color theme.secondary
                             , padding 2
                             ]
                             [ E.text <| kimballClassificationToString kCol
@@ -418,7 +412,7 @@ viewDropZone model =
                             in
                             el
                                 [ Border.width 1
-                                , Border.color Palette.black
+                                , Border.color theme.secondary
                                 , padding 2
 
                                 --, inFront
@@ -432,9 +426,9 @@ viewDropZone model =
                                             el
                                                 [ E.onRight
                                                     (column
-                                                        [ Border.color Palette.lightGrey
+                                                        [ Border.color theme.secondary
                                                         , Border.width 1
-                                                        , Background.color Palette.lightBlue
+                                                        , Background.color theme.background
                                                         , spacing 3
                                                         ]
                                                         [ el [ onClick (DropDownSelected_Agg colRef_ Sum) ] <| E.text "Sum"
@@ -463,7 +457,7 @@ viewDropZone model =
                         [ E.text colRef
                         , row
                             [ Border.width 1
-                            , Border.color Palette.black
+                            , Border.color theme.secondary
                             , padding 2
                             ]
                             [ E.text <| (kimballClassificationToString kCol ++ " - " ++ aggToStr agg)
@@ -511,7 +505,7 @@ viewDropZone model =
                             in
                             el
                                 [ Border.width 1
-                                , Border.color Palette.black
+                                , Border.color theme.secondary
                                 , padding 2
 
                                 --, inFront
@@ -525,9 +519,9 @@ viewDropZone model =
                                             el
                                                 [ E.onRight
                                                     (column
-                                                        [ Border.color Palette.lightGrey
+                                                        [ Border.color theme.secondary
                                                         , Border.width 1
-                                                        , Background.color Palette.lightBlue
+                                                        , Background.color theme.background
                                                         , spacing 3
                                                         ]
                                                         [ el [ onClick (DropDownToggled colRef) ] (E.text "▶")
@@ -558,7 +552,7 @@ viewDropZone model =
                         [ E.text colRef
                         , row
                             [ Border.width 1
-                            , Border.color Palette.black
+                            , Border.color theme.secondary
                             , padding 2
                             ]
                             [ E.text <| (kimballClassificationToString kCol ++ " - " ++ timeClassToStr)
@@ -571,7 +565,7 @@ viewDropZone model =
     in
     column
         [ spacing 5
-        , Border.color Palette.black
+        , Border.color theme.secondary
         , Border.width 1
         ]
         (Dict.values
@@ -653,16 +647,17 @@ colorAssociatedWith : KimballColumn -> E.Color
 colorAssociatedWith kc =
     case kc of
         Dimension _ ->
-            Palette.blue_light
+            theme.primary2
 
         Measure _ _ ->
-            Palette.green_keylime
+            theme.primary1
 
         Time _ _ ->
-            Palette.yellow_mustard
+            -- TODO: Is time a "big enough" concept to warrant its own color?
+            theme.debugWarn
 
         Error _ ->
-            Palette.orange_error_alert
+            theme.debugAlert
 
 
 viewColumnPickerPanel : Model -> Element Msg
@@ -749,7 +744,7 @@ viewColumnPickerPanel model =
                     in
                     column
                         [ Border.width 1
-                        , Border.color Palette.darkishGrey
+                        , Border.color theme.secondary
                         , spacing 15
                         , padding 5
                         , Background.color <| colorAssociatedWith kc
@@ -766,7 +761,7 @@ viewColumnPickerPanel model =
                     [ alignTop
                     , width fill
                     , Border.width 1
-                    , Border.color Palette.black
+                    , Border.color theme.secondary
                     ]
                     [ text "Dimensions:"
                     , wrappedRow [] <| List.map (\col -> viewKimballColTab col) (dimCols model.kimballCols)
@@ -775,7 +770,7 @@ viewColumnPickerPanel model =
                     [ alignTop
                     , width fill
                     , Border.width 1
-                    , Border.color Palette.black
+                    , Border.color theme.secondary
                     ]
                     [ text "Time:"
                     , wrappedRow [] <| List.map (\col -> viewKimballColTab col) (timeCols model.kimballCols)
@@ -784,7 +779,7 @@ viewColumnPickerPanel model =
                     [ alignTop
                     , width fill
                     , Border.width 1
-                    , Border.color Palette.black
+                    , Border.color theme.secondary
                     ]
                     [ text "Measures:"
                     , wrappedRow [] <| List.map (\col -> viewKimballColTab col) (measureCols model.kimballCols)
@@ -793,7 +788,7 @@ viewColumnPickerPanel model =
                     [ alignTop
                     , width fill
                     , Border.width 1
-                    , Border.color Palette.black
+                    , Border.color theme.secondary
                     ]
                     [ text "Errors:"
                     , wrappedRow [] <| List.map (\col -> viewKimballColTab col) (errorCols model.kimballCols)
@@ -804,9 +799,9 @@ viewColumnPickerPanel model =
             let
                 errAttrs =
                     el
-                        [ Background.color Palette.lightGrey
+                        [ Background.color theme.background
                         , Border.width 2
-                        , Border.color Palette.darkishGrey
+                        , Border.color theme.secondary
                         ]
             in
             case err of
@@ -855,7 +850,7 @@ viewPlotPanel model =
             el
                 ([ width fill
                  , height fill
-                 , Border.color Palette.darkCharcoal
+                 , Border.color theme.secondary
                  , Border.width 5
                  ]
                     ++ droppableAttrs
@@ -907,26 +902,26 @@ viewTableRefs model =
                         backgroundColorFor ref =
                             case model.hoveredOnTableRef of
                                 Nothing ->
-                                    Palette.white
+                                    theme.background
 
                                 Just ref_ ->
                                     if ref == ref_ then
-                                        Palette.lightGrey
+                                        theme.primary1
 
                                     else
-                                        Palette.white
+                                        theme.background
 
                         borderColorFor ref =
                             case model.hoveredOnTableRef of
                                 Nothing ->
-                                    Palette.white
+                                    theme.background
 
                                 Just ref_ ->
                                     if ref == ref_ then
-                                        Palette.darkishGrey
+                                        theme.primary1
 
                                     else
-                                        Palette.white
+                                        theme.background
 
                         borderFor ref =
                             case model.hoveredOnTableRef of
@@ -943,14 +938,14 @@ viewTableRefs model =
                         innerBlobColorFor ref =
                             case model.hoveredOnTableRef of
                                 Nothing ->
-                                    Palette.white
+                                    theme.background
 
                                 Just ref_ ->
                                     if ref == ref_ then
-                                        Palette.black
+                                        theme.primary1
 
                                     else
-                                        Palette.white
+                                        theme.background
 
                         ui : DuckDb.DuckDbRef -> Element Msg
                         ui ref =

@@ -1,4 +1,4 @@
-module DuckDb exposing (ColumnName, ComputedDuckDbColumn, ComputedDuckDbColumnDescription, DuckDbColumn(..), DuckDbColumnDescription(..), DuckDbMetaResponse, DuckDbQueryResponse, DuckDbRef, DuckDbRefString, DuckDbRef_(..), DuckDbRefsResponse, PersistedDuckDbColumn, PersistedDuckDbColumnDescription, PingResponse, Ref, SchemaName, TableName, Val(..), fetchDuckDbTableRefs, pingServer, queryDuckDb, queryDuckDbMeta, refEquals, refToString, taskBuildDateDimTable, uploadFile)
+module DuckDb exposing (ColumnName, ComputedDuckDbColumn, ComputedDuckDbColumnDescription, DuckDbColumn(..), DuckDbColumnDescription(..), DuckDbMetaResponse, DuckDbQueryResponse, DuckDbRef, DuckDbRefString, DuckDbRef_(..), DuckDbRefsResponse, PersistedDuckDbColumn, PersistedDuckDbColumnDescription, PingResponse, Ref, SchemaName, TableName, Val(..), fetchDuckDbTableRefs, pingServer, queryDuckDb, queryDuckDbMeta, refEquals, refToString, ref_ToString, taskBuildDateDimTable, uploadFile)
 
 import Config exposing (apiHost)
 import File exposing (File)
@@ -35,6 +35,16 @@ refEquals lhs rhs =
 refToString : DuckDbRef -> DuckDbRefString
 refToString ref =
     ref.schemaName ++ "." ++ ref.tableName
+
+
+ref_ToString : DuckDbRef_ -> String
+ref_ToString ref_ =
+    case ref_ of
+        DuckDbView duckDbRef ->
+            refToString duckDbRef
+
+        DuckDbTable duckDbRef ->
+            refToString duckDbRef
 
 
 type

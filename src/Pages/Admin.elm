@@ -12,10 +12,9 @@ import Element.Events as Events
 import Element.Font as Font
 import Element.Input as Input
 import Gen.Params.Admin exposing (Params)
-import Graph
 import Lamdera exposing (SessionId, sendToBackend)
 import Page
-import Palette
+import Palette exposing (theme)
 import Request
 import Shared
 import View exposing (View)
@@ -170,12 +169,12 @@ subscriptions model =
 
 viewQuadrant4_Tasks : Model -> Element Msg
 viewQuadrant4_Tasks model =
-    column [ padding 10, width fill, height fill, Background.color Palette.white ]
+    column [ padding 10, width fill, height fill, Background.color theme.white ]
         [ row
             [ width fill
             , height (px 40)
             , alignLeft
-            , Border.color Palette.black
+            , Border.color theme.black
             , Border.width 1
             , paddingXY 10 5
             ]
@@ -203,8 +202,8 @@ viewQuadrant4_Tasks model =
                 , label =
                     el
                         [ Border.width 1
-                        , Border.color Palette.darkishGrey
-                        , Background.color Palette.lightGrey
+                        , Border.color theme.secondary
+                        , Background.color theme.background
                         , Border.rounded 3
                         , padding 5
                         ]
@@ -237,7 +236,7 @@ viewQuadrant1_BackendDataManagement model =
                 ]
                 { data = data
                 , columns =
-                    [ { header = el [ Border.color Palette.black, Border.width 1 ] <| E.text "session id"
+                    [ { header = el [ Border.color theme.black, Border.width 1 ] <| E.text "session id"
                       , width = px 150
                       , view = \sid -> el [] (E.text sid)
                       }
@@ -251,8 +250,8 @@ viewQuadrant1_BackendDataManagement model =
                 , label =
                     el
                         [ Border.width 1
-                        , Border.color Palette.darkishGrey
-                        , Background.color Palette.lightGrey
+                        , Border.color theme.secondary
+                        , Background.color theme.background
                         , Border.rounded 3
                         , padding 5
                         ]
@@ -279,8 +278,8 @@ viewQuadrant1_BackendDataManagement model =
                 , label =
                     el
                         [ Border.width 1
-                        , Border.color Palette.darkishGrey
-                        , Background.color Palette.lightGrey
+                        , Border.color theme.secondary
+                        , Background.color theme.background
                         , Border.rounded 3
                         , padding 5
                         ]
@@ -294,8 +293,8 @@ viewQuadrant1_BackendDataManagement model =
                 , label =
                     el
                         [ Border.width 1
-                        , Border.color Palette.darkishGrey
-                        , Background.color Palette.orange_error_alert
+                        , Border.color theme.secondary
+                        , Background.color theme.debugWarn
                         , Border.rounded 3
                         , padding 5
                         ]
@@ -309,8 +308,8 @@ viewQuadrant1_BackendDataManagement model =
                 , label =
                     el
                         [ Border.width 1
-                        , Border.color Palette.darkishGrey
-                        , Background.color Palette.lightGrey
+                        , Border.color theme.secondary
+                        , Background.color theme.background
                         , Border.rounded 3
                         , padding 5
                         ]
@@ -375,10 +374,10 @@ viewPanelQuadrant2_DimensionalModelAndDuckDbCache model =
                             , columns =
                                 [ { header =
                                         el
-                                            [ Border.color Palette.black
-                                            , Border.widthEach { top = 1, right = 1, left = 1, bottom = 3 }
+                                            [ Border.widthEach { top = 1, right = 1, left = 1, bottom = 3 }
                                             , padding 3
-                                            , Background.color Palette.lightGrey
+                                            , Border.color theme.secondary
+                                            , Background.color theme.background
                                             ]
                                         <|
                                             el [ Font.bold ] <|
@@ -387,7 +386,7 @@ viewPanelQuadrant2_DimensionalModelAndDuckDbCache model =
                                   , view =
                                         \ref ->
                                             el
-                                                [ Border.color Palette.black
+                                                [ Border.color theme.secondary
                                                 , Border.width 1
                                                 , padding 3
                                                 ]
@@ -421,7 +420,7 @@ viewPanelQuadrant2_DimensionalModelAndDuckDbCache model =
         , padding 10
         , spacing 10
         ]
-        [ column [ padding 5, spacing 5, width fill, Border.width 1, Border.color Palette.black ]
+        [ column [ padding 5, spacing 5, width fill, Border.width 1, Border.color theme.black ]
             [ E.text "DuckDbRefs cached in Lamdera backend:"
             , viewDuckDbCacheTable
             ]
@@ -461,10 +460,10 @@ viewQuadrant3_DimensionalModelAndGraph model =
                 , columns =
                     [ { header =
                             el
-                                [ Border.color Palette.black
+                                [ Border.color theme.black
                                 , Border.widthEach { top = 1, right = 1, left = 1, bottom = 3 }
                                 , padding 3
-                                , Background.color Palette.lightGrey
+                                , Background.color theme.secondary
                                 ]
                             <|
                                 el [ Font.bold ] <|
@@ -473,7 +472,7 @@ viewQuadrant3_DimensionalModelAndGraph model =
                       , view =
                             \dimModel ->
                                 el
-                                    [ Border.color Palette.black
+                                    [ Border.color theme.black
                                     , Border.width 1
                                     , padding 3
                                     , Events.onClick <| UserClickedDimModelRow dimModel.ref
@@ -482,10 +481,10 @@ viewQuadrant3_DimensionalModelAndGraph model =
                       }
                     , { header =
                             el
-                                [ Border.color Palette.black
+                                [ Border.color theme.black
                                 , Border.widthEach { top = 1, right = 1, left = 1, bottom = 3 }
                                 , padding 3
-                                , Background.color Palette.lightGrey
+                                , Background.color theme.secondary
                                 ]
                             <|
                                 el [ Font.bold ] <|
@@ -494,7 +493,7 @@ viewQuadrant3_DimensionalModelAndGraph model =
                       , view =
                             \data_ ->
                                 el
-                                    [ Border.color Palette.black
+                                    [ Border.color theme.black
                                     , Border.width 1
                                     , padding 3
                                     ]
@@ -520,7 +519,7 @@ viewQuadrant3_DimensionalModelAndGraph model =
         , spacing 5
         , width fill
         , height fill
-        , Background.color Palette.white
+        , Background.color theme.background
         ]
         [ column [ height fill, width (fillPortion 1), alignTop ]
             [ E.text "Dimensional models stored in Lamdera backend:"
@@ -539,8 +538,8 @@ viewElements model =
         , centerY
         , Border.width 2
         , Border.rounded 5
-        , Border.color Palette.black
-        , Background.color Palette.lightGrey
+        , Border.color theme.secondary
+        , Background.color theme.background
         , padding 10
         , spacing 10
         ]
@@ -555,17 +554,17 @@ viewElements model =
                 , height fill
                 , Border.width 1
                 , Border.rounded 3
-                , Border.color Palette.darkishGrey
-                , Background.color Palette.white
+                , Border.color theme.secondary
+                , Background.color theme.background
                 ]
                 (viewQuadrant1_BackendDataManagement model)
             , el
                 [ width (fillPortion 5)
                 , height fill
                 , Border.width 1
-                , Border.color Palette.darkishGrey
                 , Border.rounded 3
-                , Background.color Palette.white
+                , Border.color theme.secondary
+                , Background.color theme.background
                 ]
                 (viewPanelQuadrant2_DimensionalModelAndDuckDbCache model)
             ]
@@ -579,7 +578,8 @@ viewElements model =
                 , height fill
                 , Border.width 1
                 , Border.rounded 3
-                , Border.color Palette.darkishGrey
+                , Border.color theme.secondary
+                , Background.color theme.background
                 ]
                 (viewQuadrant3_DimensionalModelAndGraph model)
             , el
@@ -587,7 +587,8 @@ viewElements model =
                 , height fill
                 , Border.width 1
                 , Border.rounded 3
-                , Border.color Palette.darkishGrey
+                , Border.color theme.secondary
+                , Background.color theme.background
                 ]
                 (viewQuadrant4_Tasks model)
             ]

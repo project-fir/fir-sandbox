@@ -15,7 +15,7 @@ import Gen.Route as Route
 import Lamdera
 import Pages.Admin exposing (Msg(..))
 import Pages.Kimball exposing (Msg(..))
-import Palette
+import Palette exposing (theme)
 import Request
 import Shared
 import Task
@@ -212,7 +212,7 @@ elements model =
         , padding 3
         , centerX
         , Border.width 1
-        , Border.color Palette.lightGrey
+        , Border.color theme.secondary
         ]
         pageElements.body
 

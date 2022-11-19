@@ -209,10 +209,7 @@ elements model =
     el
         [ width fill
         , height fill
-        , padding 3
         , centerX
-        , Border.width 1
-        , Border.color theme.secondary
         ]
         pageElements.body
 

@@ -14,6 +14,7 @@ type alias ColorTheme =
     , secondary : Color
     , background : Color
     , white : Color
+    , gray : Color
     , black : Color
     , debugWarn : Color
     , debugAlert : Color
@@ -22,6 +23,7 @@ type alias ColorTheme =
 
 type PaletteTheme
     = BambooBeach
+    | CoffeeRun
 
 
 selectedTheme =
@@ -38,6 +40,7 @@ theme =
             , secondary = base.secondary
             , background = base.background
             , white = white
+            , gray = gray
             , black = black
             , debugWarn = orange
             , debugAlert = red
@@ -52,9 +55,43 @@ theme =
                 , background = cream
                 }
 
+        CoffeeRun ->
+            decorateBaseTheme
+                { primary1 = blueGreen
+                , primary2 = brown2
+                , secondary = cornflower
+                , background = brown1
+                }
+
 
 
 -- end region: theme definitions
+--begin region: color definitions - coffee run theme
+-- TODO: coffee run theme is trash, but it highlights overuse of background colors.
+
+
+blueGreen : Color
+blueGreen =
+    rgb255 0x39 0x91 0x8C
+
+
+brown1 : Color
+brown1 =
+    rgb255 0xD0 0xB4 0x9F
+
+
+brown2 : Color
+brown2 =
+    rgb255 0xAB 0x6B 0x51
+
+
+cornflower : Color
+cornflower =
+    rgb255 0x2F 0x43 0x5A
+
+
+
+-- end region: color definitions - coffee run theme
 -- begin region: color definitions - bamboo beach theme
 --           see: https://www.canva.com/colors/color-palettes/bamboo-beach/
 
@@ -104,6 +141,11 @@ orange =
 white : Color
 white =
     rgb255 0xFF 0xFF 0xFF
+
+
+gray : Color
+gray =
+    rgb255 0xE3 0xE3 0xE6
 
 
 black : Color

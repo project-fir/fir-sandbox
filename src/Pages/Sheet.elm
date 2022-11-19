@@ -825,8 +825,7 @@ viewDataInspectPanel model =
                                 borderColor =
                                     case shouldHighlightCell of
                                         False ->
-                                            -- TODO: I might want to keep gray
-                                            theme.black
+                                            theme.gray
 
                                         True ->
                                             theme.primary1

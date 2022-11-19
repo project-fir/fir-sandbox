@@ -813,7 +813,7 @@ viewDataSourceCard model dimModelRef renderInfo kimballAssignment =
                     case model.hoveredOnColumnWithinCard of
                         Nothing ->
                             -- TODO: Do I need a transparent entry in ColorTheme?
-                            theme.white
+                            computedBackgroundColor
 
                         Just col_ ->
                             case col_ of
@@ -826,15 +826,15 @@ viewDataSourceCard model dimModelRef renderInfo kimballAssignment =
                                                     theme.secondary
 
                                                 False ->
-                                                    theme.background
+                                                    computedBackgroundColor
 
                                         Computed_ _ ->
                                             -- TODO: Computed column support
-                                            theme.background
+                                            computedBackgroundColor
 
                                 Computed_ _ ->
                                     -- TODO: Computed column support
-                                    theme.background
+                                    computedBackgroundColor
 
                 name : String
                 name =

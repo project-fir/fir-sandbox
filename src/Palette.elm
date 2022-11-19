@@ -1,75 +1,122 @@
-module Palette exposing (..)
+module Palette exposing (ColorTheme, PaletteTheme(..), theme, toAvhColor)
 
-import Color as CColor
-import Element exposing (rgb255, rgba255)
-
-
-blue =
-    rgb255 0x72 0x9F 0xCF
+import Color as AvhColor
+import Element exposing (Color, rgb255)
 
 
-darkCharcoal =
-    rgb255 0x2E 0x34 0x36
+
+--begin region: theme definitions
 
 
-lightBlue =
-    rgb255 0xC5 0xE8 0xF7
+type alias ColorTheme =
+    { primary1 : Color
+    , primary2 : Color
+    , secondary : Color
+    , background : Color
+    , white : Color
+    , black : Color
+    , debugWarn : Color
+    , debugAlert : Color
+    }
 
 
-lightGrey =
-    rgb255 0xE3 0xE3 0xE6
+type PaletteTheme
+    = BambooBeach
 
 
-white =
-    rgb255 0xFF 0xFF 0xFF
+selectedTheme =
+    BambooBeach
 
 
-transparent =
-    rgba255 0xFF 0xFF 0xFF 0x00
+theme : ColorTheme
+theme =
+    let
+        decorateBaseTheme : { primary1 : Color, primary2 : Color, secondary : Color, background : Color } -> ColorTheme
+        decorateBaseTheme base =
+            { primary1 = base.primary1
+            , primary2 = base.primary2
+            , secondary = base.secondary
+            , background = base.background
+            , white = white
+            , black = black
+            , debugWarn = orange
+            , debugAlert = red
+            }
+    in
+    case selectedTheme of
+        BambooBeach ->
+            decorateBaseTheme
+                { primary1 = tangerine
+                , primary2 = turquoise
+                , secondary = blueGray
+                , background = cream
+                }
 
 
-darken =
-    rgba255 0x80 0x80 0x80 0x80
+
+-- end region: theme definitions
+-- begin region: color definitions - bamboo beach theme
+--           see: https://www.canva.com/colors/color-palettes/bamboo-beach/
 
 
-black =
-    rgb255 0x00 0x00 0x00
+cream : Color
+cream =
+    rgb255 0xFB 0xF6 0xF3
 
 
-darkishGrey =
-    rgb255 0xAB 0xAA 0xB2
+tangerine : Color
+tangerine =
+    rgb255 0xFE 0xB0 0x6A
 
 
+turquoise : Color
+turquoise =
+    rgb255 0x36 0xD6 0xE7
+
+
+blueGray : Color
+blueGray =
+    rgb255 0x5D 0x6C 0x89
+
+
+
+-- end region: color definitions - bamboo beach theme
+-- begin region: color definitions - debug colors
+-- these colors are generic, should be used for development purposes, like elm-ui debugging
+
+
+red : Color
 red =
     rgb255 0xFF 0x12 0x10
 
 
-
--- THEME - inspired by Elm logo
-
-
-blue_light : Element.Color
-blue_light =
-    rgb255 0x60 0xB5 0xCC
-
-
-blue_darker =
-    rgb255 0x5A 0x63 0x78
-
-
-yellow_mustard =
-    rgb255 0xF0 0xAD 0x00
-
-
-green_keylime =
-    rgb255 0x7F 0xD1 0x3B
-
-
-orange_error_alert =
+orange : Color
+orange =
     rgb255 0xFC 0x8F 0x32
 
 
-toAvhColor : Element.Color -> CColor.Color
+
+-- end region: color definitions - debug colors
+-- begin region: color definitions - commons
+-- these colors are generic / will likely be present in all themes
+
+
+white : Color
+white =
+    rgb255 0xFF 0xFF 0xFF
+
+
+black : Color
+black =
+    rgb255 0x00 0x00 0x00
+
+
+
+-- end region: color definitions - commons
+-- begin region: utils
+
+
+toAvhColor : Element.Color -> AvhColor.Color
 toAvhColor color =
     -- I typically work with Element.Color in UIs, but Svg gets along better with Avh's Color,
     -- so to keep the palette defined in one place, transform between the two
@@ -77,4 +124,8 @@ toAvhColor color =
         rgba =
             Element.toRgb color
     in
-    CColor.rgba rgba.red rgba.green rgba.blue rgba.alpha
+    AvhColor.rgba rgba.red rgba.green rgba.blue rgba.alpha
+
+
+
+-- end region: utils

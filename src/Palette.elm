@@ -1,4 +1,4 @@
-module Palette exposing (ColorTheme, PaletteTheme(..), theme, toAvhColor)
+module Palette exposing (ColorTheme, PaletteName(..), theme, themeOf, toAvhColor)
 
 import Color as AvhColor
 import Element exposing (Color, rgb255)
@@ -23,17 +23,24 @@ type alias ColorTheme =
     }
 
 
-type PaletteTheme
+type PaletteName
     = BambooBeach
     | CoffeeRun
+    | Nitro
 
 
+selectedTheme : PaletteName
 selectedTheme =
-    BambooBeach
+    Nitro
 
 
 theme : ColorTheme
 theme =
+    themeOf selectedTheme
+
+
+themeOf : PaletteName -> ColorTheme
+themeOf palette =
     let
         decorateBaseTheme :
             { primary1 : Color
@@ -58,7 +65,7 @@ theme =
             , debugAlert = red
             }
     in
-    case selectedTheme of
+    case palette of
         BambooBeach ->
             decorateBaseTheme
                 { primary1 = tangerine
@@ -66,7 +73,7 @@ theme =
                 , secondary = blueGray
                 , background = cream
                 , deadspace = bambooDeadSpace
-                , link = blue
+                , link = bambooLink
                 }
 
         CoffeeRun ->
@@ -79,9 +86,54 @@ theme =
                 , link = coffeeLink
                 }
 
+        Nitro ->
+            decorateBaseTheme
+                { primary1 = yellowNitro
+                , primary2 = mediumAquamarine
+                , secondary = purple
+                , background = seaGreenCrayola
+                , deadspace = babyPowder
+                , link = nitroLink
+                }
+
 
 
 -- end region: theme definitions
+-- begin region: color definitions - nitro theme
+
+
+purple : Color
+purple =
+    rgb255 0x5E 0x23 0x9D
+
+
+seaGreenCrayola : Color
+seaGreenCrayola =
+    white
+
+
+mediumAquamarine : Color
+mediumAquamarine =
+    rgb255 0x6D 0xEC 0xAF
+
+
+babyPowder : Color
+babyPowder =
+    rgb255 0xF4 0xF4 0xED
+
+
+yellowNitro : Color
+yellowNitro =
+    rgb255 0xFE 0xD7 0x66
+
+
+nitroLink : Color
+nitroLink =
+    rgb255 0xF6 0x10 0x67
+
+
+
+-- end region: color definitions - nitro theme
 --begin region: color definitions - coffee run theme
 -- TODO: coffee run theme is trash, but it highlights overuse of background colors.
 
@@ -134,7 +186,7 @@ bambooDeadSpace =
 
 bambooLink : Color
 bambooLink =
-    blue
+    rgb255 0x34 0xA7 0xC6
 
 
 tangerine : Color
@@ -187,11 +239,6 @@ gray =
 black : Color
 black =
     rgb255 0x00 0x00 0x00
-
-
-blue : Color
-blue =
-    rgb255 0x34 0xA7 0xC6
 
 
 

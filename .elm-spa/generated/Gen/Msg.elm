@@ -26,4 +26,5 @@ type Msg
     | Kimball Pages.Kimball.Msg
     | Sheet Pages.Sheet.Msg
     | VegaLite Pages.VegaLite.Msg
+    | Stories__Basics Pages.Stories.Basics.Msg
 

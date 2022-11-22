@@ -88,6 +88,9 @@ update msg_ model_ =
     
         ( Msg.VegaLite msg, Model.VegaLite params model ) ->
             pages.vegaLite.update params msg model
+    
+        ( Msg.Stories__Basics msg, Model.Stories__Basics params model ) ->
+            pages.stories__basics.update params msg model
 
         _ ->
             \_ _ _ -> ( model_, Effect.none )
@@ -120,8 +123,8 @@ view model_ =
         Model.VegaLite params model ->
             pages.vegaLite.view params model
     
-        Model.Stories__Basics params ->
-            pages.stories__basics.view params ()
+        Model.Stories__Basics params model ->
+            pages.stories__basics.view params model
     
         Model.NotFound params ->
             pages.notFound.view params ()
@@ -154,8 +157,8 @@ subscriptions model_ =
         Model.VegaLite params model ->
             pages.vegaLite.subscriptions params model
     
-        Model.Stories__Basics params ->
-            pages.stories__basics.subscriptions params ()
+        Model.Stories__Basics params model ->
+            pages.stories__basics.subscriptions params model
     
         Model.NotFound params ->
             pages.notFound.subscriptions params ()
@@ -173,7 +176,7 @@ pages :
     , sheet : Bundle Gen.Params.Sheet.Params Pages.Sheet.Model Pages.Sheet.Msg
     , stories : Static Gen.Params.Stories.Params
     , vegaLite : Bundle Gen.Params.VegaLite.Params Pages.VegaLite.Model Pages.VegaLite.Msg
-    , stories__basics : Static Gen.Params.Stories.Basics.Params
+    , stories__basics : Bundle Gen.Params.Stories.Basics.Params Pages.Stories.Basics.Model Pages.Stories.Basics.Msg
     , notFound : Static Gen.Params.NotFound.Params
     }
 pages =
@@ -184,7 +187,7 @@ pages =
     , sheet = bundle Pages.Sheet.page Model.Sheet Msg.Sheet
     , stories = static Pages.Stories.view Model.Stories
     , vegaLite = bundle Pages.VegaLite.page Model.VegaLite Msg.VegaLite
-    , stories__basics = static Pages.Stories.Basics.view Model.Stories__Basics
+    , stories__basics = bundle Pages.Stories.Basics.page Model.Stories__Basics Msg.Stories__Basics
     , notFound = static Pages.NotFound.view Model.NotFound
     }
 

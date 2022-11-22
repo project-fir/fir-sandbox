@@ -1,20 +1,70 @@
-module Pages.Stories.Basics exposing (view)
+module Pages.Stories.Basics exposing (Model, Msg, page)
 
+import Effect exposing (Effect)
 import Element as E exposing (..)
 import Element.Background as Background
 import Element.Border as Border
 import Element.Events as Events
 import Element.Font as Font
 import Element.Input as Input
+import Gen.Params.Stories.Basics exposing (Params)
+import Page
+import Request
+import Shared
 import Ui exposing (ColorTheme, PaletteName(..), theme, themeOf)
 import View exposing (View)
 
 
-view : View msg
-view =
-    { title = "Basics"
-    , body = el [ Font.size 19, Background.color theme.deadspace, width fill, height fill ] elements
+page : Shared.Model -> Request.With Params -> Page.With Model Msg
+page shared req =
+    Page.advanced
+        { init = init
+        , update = update
+        , view = view
+        , subscriptions = subscriptions
+        }
+
+
+
+-- INIT
+
+
+type alias Model =
+    { selectedTheme : ColorTheme
     }
+
+
+init : ( Model, Effect Msg )
+init =
+    ( { selectedTheme = themeOf BambooBeach
+      }
+    , Effect.none
+    )
+
+
+
+-- UPDATE
+
+
+type Msg
+    = UserSelectedPalette PaletteName
+
+
+update : Msg -> Model -> ( Model, Effect Msg )
+update msg model =
+    case msg of
+        UserSelectedPalette paletteName ->
+            ( model, Effect.none )
+
+
+
+--( { model | selectedTheme = themeOf paletteName }, Effect.none )
+-- SUBSCRIPTIONS
+
+
+subscriptions : Model -> Sub Msg
+subscriptions model =
+    Sub.none
 
 
 swatchSize =
@@ -26,8 +76,19 @@ viewDropDown =
     E.none
 
 
-elements : Element msg
-elements =
+
+-- VIEW
+
+
+view : Model -> View Msg
+view model =
+    { title = "Basics"
+    , body = elements model
+    }
+
+
+elements : Model -> Element msg
+elements model =
     let
         viewHeader : Element msg
         viewHeader =

@@ -29,6 +29,6 @@ type Model
     | Sheet Gen.Params.Sheet.Params Pages.Sheet.Model
     | Stories Gen.Params.Stories.Params
     | VegaLite Gen.Params.VegaLite.Params Pages.VegaLite.Model
-    | Stories__Basics Gen.Params.Stories.Basics.Params
+    | Stories__Basics Gen.Params.Stories.Basics.Params Pages.Stories.Basics.Model
     | NotFound Gen.Params.NotFound.Params
 

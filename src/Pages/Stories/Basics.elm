@@ -47,7 +47,7 @@ elements =
                     ]
 
         viewSwatch : Color -> String -> Color -> Element msg
-        viewSwatch col displayText link_ =
+        viewSwatch swatchColor displayText linkColor =
             let
                 -- Supply a "real link" without degrading UX by self-linking
                 ( selfLink, swatchLinkText ) =
@@ -56,18 +56,21 @@ elements =
             column
                 [ width (px swatchSize)
                 , height (px swatchSize)
-                , Background.color col
+                , Background.color swatchColor
                 , centerX
                 , centerY
                 , Font.size 10
-                , width fill
-                , height fill
+                , spacing 5
                 ]
-                [ el [ centerX, centerY ] (E.text displayText)
+                [ el
+                    [ centerX
+                    , centerY
+                    ]
+                    (E.text displayText)
                 , link
                     [ centerX
                     , centerY
-                    , Font.color link_
+                    , Font.color linkColor
                     ]
                     { url = selfLink
                     , label = text swatchLinkText
@@ -80,6 +83,7 @@ elements =
                 [ row
                     [ width fill
                     , height (px (swatchSize + 10))
+                    , spacing 25
 
                     --, Border.width 1
                     --, Border.color theme.debugAlert
@@ -97,12 +101,23 @@ elements =
             row
                 [ height (px (swatchSize + 10))
                 , width fill
-                , spaceEvenly
+                , spacing 40
                 , centerX
                 ]
                 [ viewSwatch theme_.white "white" theme_.link
                 , viewSwatch theme_.gray "gray" theme_.link
                 , viewSwatch theme_.black "black" theme_.link
+                ]
+
+        viewDebugSwatches : ColorTheme -> Element msg
+        viewDebugSwatches theme_ =
+            row
+                [ height (px (swatchSize + 10))
+                , width fill
+                , spacing 60
+                ]
+                [ viewSwatch theme_.debugWarn "Debug - warn" theme_.link
+                , viewSwatch theme_.debugAlert "Debug - alert" theme_.link
                 ]
     in
     el
@@ -119,14 +134,8 @@ elements =
             , spacing 5
             ]
             [ viewHeader
-            , column
-                [ width fill
-                , height fill
-                ]
-                [ el
-                    [ Font.bold
-                    ]
-                    (E.text "Theme swatches")
+            , column [ width fill, height fill ]
+                [ el [ Font.bold ] (E.text "Theme swatches")
                 , column
                     [ width fill
                     , height fill
@@ -141,10 +150,10 @@ elements =
                     , viewThemeSwatches (themeOf Nitro)
                     ]
                 ]
-            , column [ width fill, height fill ]
-                [ el [] <| E.text "Common swatches:"
-                , viewCommonSwatches (themeOf BambooBeach)
-                ]
+            , el [ Font.bold ] <| E.text "Common swatches:"
+            , viewCommonSwatches (themeOf BambooBeach)
+            , el [ Font.bold ] <| E.text "Debug swatches:"
+            , viewDebugSwatches (themeOf BambooBeach)
             ]
         )
 

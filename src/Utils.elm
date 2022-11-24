@@ -1,4 +1,4 @@
-module Utils exposing (KeyCode, cartesian, collapseWhitespace, keyDecoder, removeNothingsFromList, send)
+module Utils exposing (KeyCode, bool2Str, cartesian, collapseWhitespace, keyDecoder, removeNothingsFromList, send)
 
 -- miscellaneous utility functions
 
@@ -28,6 +28,16 @@ send : msg -> Cmd msg
 send m =
     Task.succeed m
         |> Task.perform identity
+
+
+bool2Str : Bool -> String
+bool2Str b =
+    case b of
+        True ->
+            "true"
+
+        False ->
+            "false"
 
 
 collapseWhitespace : String -> Bool -> String

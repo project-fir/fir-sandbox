@@ -12,6 +12,7 @@ import Element as E exposing (..)
 import Request exposing (Request)
 import Task
 import Time
+import Ui exposing (ColorTheme, PaletteName(..), themeOf)
 import View exposing (View)
 
 
@@ -25,12 +26,13 @@ type alias Flags =
 
 type alias Model =
     { zone : Time.Zone
+    , selectedTheme : ColorTheme
     }
 
 
 init : Request -> Flags -> ( Model, Cmd Msg )
 init _ json =
-    ( Model Time.utc
+    ( Model Time.utc (themeOf CoffeeRun)
       -- placeholder gets rewritten on the Task.perform below
     , Task.perform SetTimeZoneToLocale Time.here
     )
@@ -42,6 +44,7 @@ init _ json =
 
 type Msg
     = SetTimeZoneToLocale Time.Zone
+    | Shared__UserSelectedPalette PaletteName
 
 
 update : Request -> Msg -> Model -> ( Model, Cmd Msg )
@@ -49,6 +52,9 @@ update _ msg model =
     case msg of
         SetTimeZoneToLocale newZone ->
             ( { model | zone = newZone }, Cmd.none )
+
+        Shared__UserSelectedPalette palette ->
+            ( { model | selectedTheme = themeOf palette }, Cmd.none )
 
 
 subscriptions : Request -> Model -> Sub Msg

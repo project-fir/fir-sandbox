@@ -10,15 +10,15 @@ import Element.Input as Input
 import Gen.Params.Stories.Basics exposing (Params)
 import Page
 import Request
-import Shared
-import Ui exposing (ColorTheme, PaletteName(..), theme, themeOf)
+import Shared exposing (Msg(..))
+import Ui exposing (ColorTheme, PaletteName(..), themeOf)
 import View exposing (View)
 
 
 page : Shared.Model -> Request.With Params -> Page.With Model Msg
 page shared req =
     Page.advanced
-        { init = init
+        { init = init shared
         , update = update
         , view = view
         , subscriptions = subscriptions
@@ -30,13 +30,15 @@ page shared req =
 
 
 type alias Model =
-    { selectedTheme : ColorTheme
+    { theme : ColorTheme
+    , isDrawerOpen : Bool
     }
 
 
-init : ( Model, Effect Msg )
-init =
-    ( { selectedTheme = themeOf BambooBeach
+init : Shared.Model -> ( Model, Effect Msg )
+init shared =
+    ( { theme = shared.selectedTheme
+      , isDrawerOpen = False
       }
     , Effect.none
     )
@@ -47,14 +49,22 @@ init =
 
 
 type Msg
-    = UserSelectedPalette PaletteName
+    = Basics__UserSelectedPalette PaletteName
+    | UserToggledDrawer
+    | Noop
 
 
 update : Msg -> Model -> ( Model, Effect Msg )
 update msg model =
     case msg of
-        UserSelectedPalette paletteName ->
+        Noop ->
             ( model, Effect.none )
+
+        Basics__UserSelectedPalette paletteName ->
+            ( { model | theme = themeOf paletteName }, Effect.none )
+
+        UserToggledDrawer ->
+            ( { model | isDrawerOpen = not model.isDrawerOpen }, Effect.none )
 
 
 
@@ -71,7 +81,7 @@ swatchSize =
     100
 
 
-viewDropDown : Element msg
+viewDropDown : Element Msg
 viewDropDown =
     E.none
 
@@ -87,27 +97,99 @@ view model =
     }
 
 
-elements : Model -> Element msg
+type alias DropDownProps =
+    { isOpen : Bool
+    , heightPx : Int
+    , onDrawerClick : Msg
+    }
+
+
+map_ : Shared.Msg -> Msg
+map_ sharedMsg =
+    case sharedMsg of
+        SetTimeZoneToLocale _ ->
+            Noop
+
+        Shared__UserSelectedPalette paletteName ->
+            Basics__UserSelectedPalette paletteName
+
+
+dropdownMenu : { r | theme : ColorTheme } -> DropDownProps -> Element Msg
+dropdownMenu r props =
+    let
+        dropdownOption : String -> PaletteName -> Element Msg
+        dropdownOption str palette =
+            el
+                (attrs ++ [ Events.onClick (Basics__UserSelectedPalette palette) ])
+                (E.text str)
+
+        attrs : List (Attribute msg)
+        attrs =
+            [ Border.width 1
+            , Border.color r.theme.secondary
+            , Background.color r.theme.background
+            , height (px props.heightPx)
+            , padding 2
+            , width fill
+            ]
+
+        menuHeader : Element Msg
+        menuHeader =
+            el
+                (attrs ++ [ Events.onClick props.onDrawerClick ])
+                (el [ centerY ] <| E.text "Theme ▼")
+
+        drawer =
+            case props.isOpen of
+                True ->
+                    el
+                        [ below
+                            (column []
+                                [ dropdownOption "Bamboo Beach" BambooBeach
+                                , dropdownOption "Coffee Run" CoffeeRun
+                                , dropdownOption "Nitro" Nitro
+                                ]
+                            )
+                        ]
+                        menuHeader
+
+                False ->
+                    menuHeader
+    in
+    drawer
+
+
+
+-- (el [] <| E.text "▶")
+--  el [] (E.text "▼")
+--el
+--    [ Border.width 1
+--    , Border.color theme.debugAlert
+--    ]
+--    drawer
+
+
+elements : Model -> Element Msg
 elements model =
     let
-        viewHeader : Element msg
+        viewHeader : Element Msg
         viewHeader =
             el
                 [ width fill
                 , height fill
                 , alignLeft
                 , Border.widthEach { top = 0, left = 0, right = 0, bottom = 3 }
-                , Border.color theme.secondary
+                , Border.color model.theme.secondary
                 , Font.size 24
                 ]
             <|
                 row [ padding 5, width fill ]
                     [ el [ alignLeft, Font.bold ] (E.text "Basics")
-                    , el [ Font.size 14, alignRight ] (E.text "TODO: dropdown here -->")
+                    , el [ Font.size 14, alignRight ] (dropdownMenu model { isOpen = model.isDrawerOpen, heightPx = 20, onDrawerClick = UserToggledDrawer })
                     , viewDropDown
                     ]
 
-        viewSwatch : Color -> String -> Color -> Element msg
+        viewSwatch : Color -> String -> Color -> Element Msg
         viewSwatch swatchColor displayText linkColor =
             let
                 -- Supply a "real link" without degrading UX by self-linking
@@ -138,7 +220,7 @@ elements model =
                     }
                 ]
 
-        viewThemeSwatches : ColorTheme -> Element msg
+        viewThemeSwatches : ColorTheme -> Element Msg
         viewThemeSwatches theme_ =
             column [ height fill, width fill, padding 5 ]
                 [ row
@@ -157,7 +239,7 @@ elements model =
                     ]
                 ]
 
-        viewCommonSwatches : ColorTheme -> Element msg
+        viewCommonSwatches : ColorTheme -> Element Msg
         viewCommonSwatches theme_ =
             row
                 [ height (px (swatchSize + 10))
@@ -170,7 +252,7 @@ elements model =
                 , viewSwatch theme_.black "black" theme_.link
                 ]
 
-        viewDebugSwatches : ColorTheme -> Element msg
+        viewDebugSwatches : ColorTheme -> Element Msg
         viewDebugSwatches theme_ =
             row
                 [ height (px (swatchSize + 10))
@@ -182,11 +264,11 @@ elements model =
                 ]
     in
     el
-        [ Font.color theme.black
+        [ Font.color model.theme.black
         , Font.size 16
         , width (fill |> minimum 400 |> maximum 800)
         , height fill
-        , Background.color theme.background
+        , Background.color model.theme.background
         , centerX
         ]
         (column

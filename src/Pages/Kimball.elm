@@ -912,8 +912,6 @@ viewDataSourceCard model dimModelRef renderInfo kimballAssignment =
                                     [ Border.width 1
                                     , Border.color theme.black
                                     , padding 2
-
-                                    --, inFront
                                     ]
                                     (case model.dropdownState of
                                         Nothing ->

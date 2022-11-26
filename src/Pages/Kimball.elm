@@ -77,6 +77,7 @@ type alias Model =
     , columnPairingOperation : ColumnPairingOperation
     , downKeys : Set KeyCode
     , theme : ColorTheme
+    , cursorMode : CursorMode
     }
 
 
@@ -94,6 +95,11 @@ type DragState
 type PageRenderStatus
     = AwaitingDomInfo
     | Ready LayoutInfo
+
+
+type CursorMode
+    = DefaultCursor
+    | ColumnPairingCursor
 
 
 init : ColorTheme -> ( Model, Effect Msg )
@@ -119,6 +125,7 @@ init sharedTheme =
       , downKeys = Set.empty
       , columnPairingOperation = ColumnPairingIdle
       , theme = sharedTheme
+      , cursorMode = DefaultCursor
       }
     , Effect.fromCmd <|
         Cmd.batch
@@ -184,6 +191,7 @@ type Msg
     | UserClickedNub DuckDbColumnDescription
     | KeyWentDown KeyCode
     | KeyReleased KeyCode
+    | UserSelectedCursorMode CursorMode
 
 
 type SvgViewBoxTransformation
@@ -201,6 +209,9 @@ type ColumnPairingOperation
 update : Msg -> Model -> ( Model, Effect Msg )
 update msg model =
     case msg of
+        UserSelectedCursorMode mode ->
+            ( { model | cursorMode = mode }, Effect.none )
+
         KeyWentDown keyCode ->
             let
                 newKeys : Set KeyCode
@@ -275,13 +286,18 @@ update msg model =
                         Nothing ->
                             Nothing
             in
-            ( { model
-                | inspectedColumn = Just colDesc
-                , columnPairingOperation = newPairingOp
-                , selectedDimensionalModel = newDimModel
-              }
-            , Effect.none
-            )
+            case model.cursorMode of
+                DefaultCursor ->
+                    ( model, Effect.none )
+
+                ColumnPairingCursor ->
+                    ( { model
+                        | inspectedColumn = Just colDesc
+                        , columnPairingOperation = newPairingOp
+                        , selectedDimensionalModel = newDimModel
+                      }
+                    , Effect.none
+                    )
 
         UserClickedKimballAssignment dimRef duckDbRef assignment ->
             -- NB: We have the "side effect" of closing the dropdown menu
@@ -451,7 +467,12 @@ update msg model =
             )
 
         BeginNodeDrag ref ->
-            ( { model | dragState = DragInitiated ref }, Effect.none )
+            case model.cursorMode of
+                DefaultCursor ->
+                    ( { model | dragState = DragInitiated ref }, Effect.none )
+
+                _ ->
+                    ( model, Effect.none )
 
         DragStoppedAt _ ->
             -- NB: During a drag, client-side model is updated, but since those events are so frequent, we don't
@@ -1007,6 +1028,7 @@ viewCanvas model layoutInfo =
     el
         [ Border.width 1
         , Border.color model.theme.secondary
+        , Border.rounded 5
         , Events.onMouseLeave TerminateDrags
         , centerY
         , centerX
@@ -1031,17 +1053,18 @@ viewControlPanel model =
                 [ centerX
                 , Border.width 1
                 , Border.color model.theme.black
+                , Background.color model.theme.background
                 , height fill
                 , paddingXY 5 0
                 , Font.size 24
                 , spacing 5
                 ]
-                [ el [ centerX, Border.width 1, Border.color model.theme.black, Events.onClick <| SvgViewBoxTransform (Zoom 0.1) ] <| E.text "+"
-                , el [ centerX, Border.width 1, Border.color model.theme.black, Events.onClick <| SvgViewBoxTransform (Zoom -0.1) ] <| E.text "-"
-                , el [ centerX, Border.width 1, Border.color model.theme.black, Events.onClick <| SvgViewBoxTransform (Translation -20 0) ] <| E.text "ᐊ"
-                , el [ centerX, Border.width 1, Border.color model.theme.black, Events.onClick <| SvgViewBoxTransform (Translation 20 0) ] <| E.text "ᐅ"
-                , el [ centerX, Border.width 1, Border.color model.theme.black, Events.onClick <| SvgViewBoxTransform (Translation 0 -20) ] <| E.text "ᐃ"
-                , el [ centerX, Border.width 1, Border.color model.theme.black, Events.onClick <| SvgViewBoxTransform (Translation 0 20) ] <| E.text "ᐁ"
+                [ el [ centerX, Border.width 1, Background.color model.theme.deadspace, Border.color model.theme.black, Events.onClick <| SvgViewBoxTransform (Zoom 0.1) ] <| E.text "+"
+                , el [ centerX, Border.width 1, Background.color model.theme.deadspace, Border.color model.theme.black, Events.onClick <| SvgViewBoxTransform (Zoom -0.1) ] <| E.text "-"
+                , el [ centerX, Border.width 1, Background.color model.theme.deadspace, Border.color model.theme.black, Events.onClick <| SvgViewBoxTransform (Translation -20 0) ] <| E.text "ᐊ"
+                , el [ centerX, Border.width 1, Background.color model.theme.deadspace, Border.color model.theme.black, Events.onClick <| SvgViewBoxTransform (Translation 20 0) ] <| E.text "ᐅ"
+                , el [ centerX, Border.width 1, Background.color model.theme.deadspace, Border.color model.theme.black, Events.onClick <| SvgViewBoxTransform (Translation 0 -20) ] <| E.text "ᐃ"
+                , el [ centerX, Border.width 1, Background.color model.theme.deadspace, Border.color model.theme.black, Events.onClick <| SvgViewBoxTransform (Translation 0 20) ] <| E.text "ᐁ"
                 ]
 
         onPress : Maybe Msg
@@ -1053,10 +1076,15 @@ viewControlPanel model =
                 Nothing ->
                     Nothing
 
-        viewGraphControlPanel : Element Msg
-        viewGraphControlPanel =
+        viewCursorToolBar : Element Msg
+        viewCursorToolBar =
+            let
+                iconSizePx =
+                    25
+            in
             row
                 [ centerX
+                , centerY
                 , moveRight 10
                 , height fill
                 , Border.color model.theme.secondary
@@ -1065,29 +1093,37 @@ viewControlPanel model =
                 , Font.size 12
                 , spacing 10
                 ]
-                [ el []
-                    (text
-                        (case model.pairingAlgoResult of
-                            Just pairingResult ->
-                                case pairingResult of
-                                    DimensionalModel.Success _ ->
-                                        "pairing was a success!"
+                [ el
+                    [ centerX
+                    , Border.width 1
+                    , Background.color
+                        (case model.cursorMode of
+                            DefaultCursor ->
+                                model.theme.secondary
 
-                                    Fail reason ->
-                                        case reason of
-                                            AllInputTablesMustBeAssigned ->
-                                                "all tables must be given an assignment"
-
-                                            InputMustContainAtLeastOneFactTable ->
-                                                "there must be at least one fact table"
-
-                                            InputMustContainAtLeastOneDimensionTable ->
-                                                "there must be at least one dimension table"
-
-                            Nothing ->
-                                " "
+                            _ ->
+                                model.theme.background
                         )
-                    )
+                    , Border.color model.theme.black
+                    , Events.onClick <| UserSelectedCursorMode DefaultCursor
+                    ]
+                    (E.image [ height (px iconSizePx), width (px iconSizePx) ] { src = "./default-cursor.png", description = "standard mouse cursor" })
+                , el
+                    [ centerX
+                    , centerY
+                    , Border.width 1
+                    , Background.color
+                        (case model.cursorMode of
+                            ColumnPairingCursor ->
+                                model.theme.secondary
+
+                            _ ->
+                                model.theme.background
+                        )
+                    , Border.color model.theme.black
+                    , Events.onClick <| UserSelectedCursorMode ColumnPairingCursor
+                    ]
+                    (E.image [ height (px iconSizePx), width (px iconSizePx) ] { src = "./graph-builder-cursor.png", description = "graph building cursor" })
                 ]
     in
     row
@@ -1097,10 +1133,11 @@ viewControlPanel model =
         , Border.width 1
         , Background.color model.theme.background
         , Border.color model.theme.secondary
+        , Border.rounded 5
         , spacing 6
         ]
-        [ viewViewBoxControls
-        , viewGraphControlPanel
+        [ viewCursorToolBar
+        , viewViewBoxControls
         ]
 
 
@@ -1111,14 +1148,13 @@ viewElements model layoutInfo =
         , height fill
         , centerX
         , centerY
-        , Background.color model.theme.background
+        , Background.color model.theme.deadspace
         ]
         [ column
             [ height fill
             , width (px layoutInfo.mainPanelWidth)
             , paddingXY 0 3
-            , Background.color model.theme.background
-            , Border.color model.theme.secondary
+            , Background.color model.theme.deadspace
             , centerX
             ]
             [ viewCanvas model layoutInfo
@@ -1233,6 +1269,15 @@ viewMouseEventsDebugInfo model =
 
                 Just dimModel ->
                     dimModel.ref
+
+        cursorMode2Str : CursorMode -> String
+        cursorMode2Str mode =
+            case mode of
+                DefaultCursor ->
+                    "Default Cursor"
+
+                ColumnPairingCursor ->
+                    "Column Pairing Cursor"
     in
     column [ width fill, height fill, Border.width 1, Border.color model.theme.secondary, spacing 5 ]
         [ E.text <| "Mouse events debug info:"
@@ -1241,6 +1286,9 @@ viewMouseEventsDebugInfo model =
             , E.text <| "drag state: " ++ dragStateStr
             , E.text <| "veiwPort: " ++ viewPortStr
             , E.text <| "dim model: " ++ selectedModelStr
+            ]
+        , paragraph []
+            [ E.text <| "cursor mode: " ++ cursorMode2Str model.cursorMode
             ]
         ]
 

@@ -12,6 +12,7 @@ import Page
 import Request
 import Shared exposing (Msg(..))
 import Ui exposing (ColorTheme, PaletteName(..), themeOf)
+import Utils exposing (bool2Str)
 import View exposing (View)
 
 
@@ -21,7 +22,7 @@ page shared req =
         { init = init shared
         , update = update
         , view = view
-        , subscriptions = subscriptions
+        , subscriptions = \_ -> Sub.none
         }
 
 
@@ -32,6 +33,8 @@ page shared req =
 type alias Model =
     { theme : ColorTheme
     , isDrawerOpen : Bool
+    , isMenuHovered : Bool
+    , hoveredOnOption : Maybe Int
     }
 
 
@@ -39,6 +42,8 @@ init : Shared.Model -> ( Model, Effect Msg )
 init shared =
     ( { theme = shared.selectedTheme
       , isDrawerOpen = False
+      , isMenuHovered = False
+      , hoveredOnOption = Nothing
       }
     , Effect.none
     )
@@ -51,20 +56,50 @@ init shared =
 type Msg
     = Basics__UserSelectedPalette PaletteName
     | UserToggledDrawer
+    | MouseEnteredDropDownMenu
+    | MouseLeftDropDownMenu
+    | MouseEnteredOption Int
     | Noop
 
 
 update : Msg -> Model -> ( Model, Effect Msg )
 update msg model =
     case msg of
+        MouseEnteredOption optionId ->
+            ( { model
+                | hoveredOnOption = Just optionId
+              }
+            , Effect.none
+            )
+
         Noop ->
             ( model, Effect.none )
 
         Basics__UserSelectedPalette paletteName ->
-            ( { model | theme = themeOf paletteName }, Effect.none )
+            -- TODO: How can I map this to update Shared.Model?
+            ( { model
+                | theme = themeOf paletteName
+                , isDrawerOpen = False
+                , hoveredOnOption = Nothing
+              }
+            , Effect.none
+            )
 
         UserToggledDrawer ->
-            ( { model | isDrawerOpen = not model.isDrawerOpen }, Effect.none )
+            ( { model
+                | isDrawerOpen = not model.isDrawerOpen
+                , hoveredOnOption = Nothing
+              }
+            , Effect.none
+            )
+
+        MouseEnteredDropDownMenu ->
+            ( { model | isMenuHovered = True }
+            , Effect.none
+            )
+
+        MouseLeftDropDownMenu ->
+            ( { model | isMenuHovered = False }, Effect.none )
 
 
 
@@ -72,18 +107,8 @@ update msg model =
 -- SUBSCRIPTIONS
 
 
-subscriptions : Model -> Sub Msg
-subscriptions model =
-    Sub.none
-
-
 swatchSize =
     100
-
-
-viewDropDown : Element Msg
-viewDropDown =
-    E.none
 
 
 
@@ -97,10 +122,29 @@ view model =
     }
 
 
+type alias OptionId =
+    Int
+
+
 type alias DropDownProps =
     { isOpen : Bool
+    , widthPx : Int
     , heightPx : Int
     , onDrawerClick : Msg
+    , onMenuMouseEnter : Msg
+    , onMenuMouseLeave : Msg
+    , isMenuHovered : Bool
+    , menuBarText : String
+    , options : List DropDownOption
+    , hoveredOnOption : Maybe OptionId
+    }
+
+
+type alias DropDownOption =
+    { displayText : String
+    , optionId : OptionId
+    , onClick : Msg
+    , onHover : Msg
     }
 
 
@@ -114,42 +158,166 @@ map_ sharedMsg =
             Basics__UserSelectedPalette paletteName
 
 
+type alias ButtonProps =
+    { onClick : Maybe Msg
+    , displayText : String
+    }
+
+
+button : { r | theme : ColorTheme } -> ButtonProps -> Element Msg
+button r props =
+    Input.button []
+        { onPress = props.onClick
+        , label =
+            el
+                [ Border.width 1
+                , Border.color r.theme.secondary
+                , Background.color r.theme.primary2
+                , Border.rounded 3
+                , padding 3
+                ]
+                (E.text props.displayText)
+        }
+
+
+type alias TableProps data =
+    { data : List data
+    }
+
+
+type alias SampleData =
+    { task : String
+    , isComplete : Bool
+    }
+
+
+
+--table : { r | theme : ColorTheme } -> TableProps SampleData -> Element Msg
+
+
+table : { r | theme : ColorTheme } -> Element Msg
+table r =
+    let
+        headerCellAttrs : List (Attribute Msg)
+        headerCellAttrs =
+            [ Border.color r.theme.black
+            , Border.width 1
+            , Background.color r.theme.secondary
+            , padding 5
+            ]
+
+        headerTextAttrs : String -> Element Msg
+        headerTextAttrs displayText =
+            el [ centerX, Font.bold ] (E.text displayText)
+
+        rowCellAttrs : List (Attribute msg)
+        rowCellAttrs =
+            [ width fill
+            , height fill
+            , Background.color r.theme.primary2
+            , Border.width 1
+            , Border.color r.theme.secondary
+            , padding 2
+            ]
+
+        data =
+            [ { task = "abstract this away"
+              , isComplete = False
+              }
+            , { task = "hard code some data"
+              , isComplete = True
+              }
+            ]
+    in
+    E.table
+        [ width (px 600)
+        ]
+        { data = data
+        , columns =
+            [ { header = el headerCellAttrs (headerTextAttrs "task")
+              , width = px 200
+              , view = \row -> el rowCellAttrs (E.text row.task)
+              }
+            , { header = el headerCellAttrs (headerTextAttrs "is_complete")
+              , width = px 150
+              , view = \row -> el rowCellAttrs (el [] (E.text <| bool2Str row.isComplete))
+              }
+            ]
+        }
+
+
 dropdownMenu : { r | theme : ColorTheme } -> DropDownProps -> Element Msg
 dropdownMenu r props =
     let
-        dropdownOption : String -> PaletteName -> Element Msg
-        dropdownOption str palette =
-            el
-                (attrs ++ [ Events.onClick (Basics__UserSelectedPalette palette) ])
-                (E.text str)
+        menuOption : DropDownOption -> Element Msg
+        menuOption op =
+            let
+                bkgdColor : Color
+                bkgdColor =
+                    case props.hoveredOnOption of
+                        Nothing ->
+                            r.theme.background
 
-        attrs : List (Attribute msg)
-        attrs =
+                        Just opId ->
+                            if opId == op.optionId then
+                                r.theme.secondary
+
+                            else
+                                r.theme.background
+            in
+            el
+                (attrs bkgdColor ++ [ Events.onClick op.onClick, Events.onMouseLeave op.onHover ])
+                (E.text op.displayText)
+
+        attrs : Color -> List (Attribute msg)
+        attrs bkgdColor =
             [ Border.width 1
             , Border.color r.theme.secondary
-            , Background.color r.theme.background
+            , Background.color bkgdColor
             , height (px props.heightPx)
+            , width (px props.widthPx)
             , padding 2
             , width fill
             ]
 
         menuHeader : Element Msg
         menuHeader =
-            el
-                (attrs ++ [ Events.onClick props.onDrawerClick ])
-                (el [ centerY ] <| E.text "Theme ▼")
+            let
+                backgroundColor : Color
+                backgroundColor =
+                    case props.isMenuHovered of
+                        True ->
+                            r.theme.secondary
 
+                        False ->
+                            r.theme.background
+            in
+            el
+                (attrs backgroundColor
+                    ++ [ Events.onClick props.onDrawerClick
+                       , Events.onMouseEnter props.onMenuMouseEnter
+                       , Events.onMouseLeave props.onMenuMouseLeave
+                       ]
+                )
+                (row [ centerY, height fill, padding 0 ]
+                    [ el [ alignLeft ] <| E.text props.menuBarText
+                    , el
+                        [ Border.widthEach { top = 0, bottom = 0, right = 1, left = 1 }
+                        , Border.color r.theme.secondary
+                        , height fill
+                        , alignRight
+                        ]
+                        (E.text "▼")
+                    ]
+                )
+
+        drawer : Element Msg
         drawer =
             case props.isOpen of
                 True ->
                     el
                         [ below
-                            (column []
-                                [ dropdownOption "Bamboo Beach" BambooBeach
-                                , dropdownOption "Coffee Run" CoffeeRun
-                                , dropdownOption "Nitro" Nitro
-                                ]
-                            )
+                            (column [] (List.map (\o -> menuOption o) props.options))
                         ]
                         menuHeader
 
@@ -157,16 +325,6 @@ dropdownMenu r props =
                     menuHeader
     in
     drawer
-
-
-
--- (el [] <| E.text "▶")
---  el [] (E.text "▼")
---el
---    [ Border.width 1
---    , Border.color theme.debugAlert
---    ]
---    drawer
 
 
 elements : Model -> Element Msg
@@ -185,8 +343,36 @@ elements model =
             <|
                 row [ padding 5, width fill ]
                     [ el [ alignLeft, Font.bold ] (E.text "Basics")
-                    , el [ Font.size 14, alignRight ] (dropdownMenu model { isOpen = model.isDrawerOpen, heightPx = 20, onDrawerClick = UserToggledDrawer })
-                    , viewDropDown
+                    , el [ Font.size 14, alignRight ]
+                        (dropdownMenu model
+                            { isOpen = model.isDrawerOpen
+                            , heightPx = 20
+                            , widthPx = 60
+                            , onDrawerClick = UserToggledDrawer
+                            , onMenuMouseEnter = MouseEnteredDropDownMenu
+                            , onMenuMouseLeave = MouseLeftDropDownMenu
+                            , isMenuHovered = model.isMenuHovered
+                            , hoveredOnOption = model.hoveredOnOption
+                            , menuBarText = "Theme"
+                            , options =
+                                [ { displayText = "Coffee Run"
+                                  , optionId = 0
+                                  , onClick = Basics__UserSelectedPalette CoffeeRun
+                                  , onHover = MouseEnteredOption 0
+                                  }
+                                , { displayText = "Bamboo Beach"
+                                  , onClick = Basics__UserSelectedPalette BambooBeach
+                                  , onHover = MouseEnteredOption 1
+                                  , optionId = 1
+                                  }
+                                , { displayText = "Nitro"
+                                  , onClick = Basics__UserSelectedPalette Nitro
+                                  , onHover = MouseEnteredOption 2
+                                  , optionId = 2
+                                  }
+                                ]
+                            }
+                        )
                     ]
 
         viewSwatch : Color -> String -> Color -> Element Msg
@@ -263,42 +449,53 @@ elements model =
                 , viewSwatch theme_.debugAlert "Debug - alert" theme_.link
                 ]
     in
-    el
-        [ Font.color model.theme.black
-        , Font.size 16
-        , width (fill |> minimum 400 |> maximum 800)
-        , height fill
-        , Background.color model.theme.background
-        , centerX
-        ]
-        (column
-            [ width fill
+    el [ width fill, height fill, Background.color model.theme.deadspace, paddingXY 0 10 ] <|
+        el
+            [ Font.color model.theme.black
+            , Font.size 16
+            , width (fill |> minimum 400 |> maximum 800)
+            , height fill
+            , Background.color model.theme.background
             , centerX
-            , spacing 5
             ]
-            [ viewHeader
-            , column [ width fill, height fill ]
-                [ el [ Font.bold ] (E.text "Theme swatches")
-                , column
-                    [ width fill
-                    , height fill
-                    , padding 10
-                    , spacing 10
-                    ]
-                    [ el [ moveDown 5 ] <| E.text (themeName BambooBeach ++ ":")
-                    , viewThemeSwatches (themeOf BambooBeach)
-                    , el [ moveDown 5 ] <| E.text (themeName CoffeeRun ++ ":")
-                    , viewThemeSwatches (themeOf CoffeeRun)
-                    , el [ moveDown 5 ] <| E.text (themeName Nitro ++ ":")
-                    , viewThemeSwatches (themeOf Nitro)
-                    ]
+            (column
+                [ width fill
+                , centerX
+                , spacing 5
+                , padding 5
                 ]
-            , el [ Font.bold ] <| E.text "Common swatches:"
-            , viewCommonSwatches (themeOf BambooBeach)
-            , el [ Font.bold ] <| E.text "Debug swatches:"
-            , viewDebugSwatches (themeOf BambooBeach)
-            ]
-        )
+                [ viewHeader
+                , column [ width fill, height fill ]
+                    [ el [ Font.bold ] (E.text "Theme swatches")
+                    , column
+                        [ width fill
+                        , height fill
+                        , padding 10
+                        , spacing 10
+                        ]
+                        [ el [ moveDown 5 ] <| E.text (themeName BambooBeach ++ ":")
+                        , viewThemeSwatches (themeOf BambooBeach)
+                        , el [ moveDown 5 ] <| E.text (themeName CoffeeRun ++ ":")
+                        , viewThemeSwatches (themeOf CoffeeRun)
+                        , el [ moveDown 5 ] <| E.text (themeName Nitro ++ ":")
+                        , viewThemeSwatches (themeOf Nitro)
+                        ]
+                    ]
+                , el [ Font.bold ] <| E.text "Common swatches:"
+                , viewCommonSwatches (themeOf BambooBeach)
+                , el [ Font.bold ] <| E.text "Debug swatches:"
+                , viewDebugSwatches (themeOf BambooBeach)
+                , el [ Font.bold ] (E.text " ")
+                , el [ Font.bold ] (E.text "Sample Button:")
+                , button model
+                    { onClick = Nothing
+                    , displayText = "Click Me!"
+                    }
+                , el [ Font.bold ] (E.text " ")
+                , el [ Font.bold ] (E.text "Sample Table:")
+                , table model
+                ]
+            )
 
 
 themeName : PaletteName -> String

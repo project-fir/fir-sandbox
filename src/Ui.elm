@@ -31,7 +31,8 @@ type PaletteName
 
 selectedTheme : PaletteName
 selectedTheme =
-    BambooBeach
+    -- TODO: Remove this in favor of the logic in Shared, thread through to all the pages.
+    Nitro
 
 
 theme : ColorTheme

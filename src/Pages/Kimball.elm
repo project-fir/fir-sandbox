@@ -4,7 +4,7 @@ import Bridge exposing (BackendData(..), BackendErrorMessage, DimensionalModelUp
 import Browser.Dom
 import Browser.Events as BE
 import Dict exposing (Dict)
-import DimensionalModel exposing (CardRenderInfo, DimModelDuckDbSourceInfo, DimensionalModel, DimensionalModelRef, EdgeLabel(..), KimballAssignment(..), NaivePairingStrategyResult(..), PositionPx, Reason(..), addEdges, naiveColumnPairingStrategy)
+import DimensionalModel exposing (CardRenderInfo, DimModelDuckDbSourceInfo, DimensionalModel, DimensionalModelRef, EdgeLabel(..), KimballAssignment(..), NaivePairingStrategyResult(..), PositionPx, Reason(..), addEdges, edgesOfType, naiveColumnPairingStrategy)
 import DuckDb exposing (ColumnName, DuckDbColumn, DuckDbColumnDescription(..), DuckDbRef, DuckDbRefString, DuckDbRef_(..), PersistedDuckDbColumnDescription, fetchDuckDbTableRefs, refEquals, refToString)
 import Effect exposing (Effect)
 import Element as E exposing (..)
@@ -30,7 +30,7 @@ import TypedSvg as S
 import TypedSvg.Attributes as SA
 import TypedSvg.Core as SC exposing (Svg)
 import TypedSvg.Types as ST
-import Ui exposing (ColorTheme)
+import Ui exposing (ColorTheme, toAvhColor)
 import Utils exposing (KeyCode, keyDecoder, send)
 import View exposing (View)
 
@@ -1002,6 +1002,18 @@ viewDataSourceCard model dimModelRef renderInfo kimballAssignment =
 viewCanvas : Model -> LayoutInfo -> Element Msg
 viewCanvas model layoutInfo =
     let
+        lines : List (Svg Msg)
+        lines =
+            [ S.line
+                [ SA.x1 (ST.px 428)
+                , SA.y1 (ST.px 173)
+                , SA.x2 (ST.px 725)
+                , SA.y2 (ST.px 147)
+                , SA.stroke (ST.Paint (toAvhColor model.theme.black))
+                ]
+                []
+            ]
+
         erdCardsSvgNode : List (Svg Msg)
         erdCardsSvgNode =
             let
@@ -1041,7 +1053,7 @@ viewCanvas model layoutInfo =
                 , SA.height (ST.px layoutInfo.canvasElementHeight)
                 , SA.viewBox layoutInfo.viewBoxXMin layoutInfo.viewBoxYMin layoutInfo.viewBoxWidth layoutInfo.viewBoxHeight
                 ]
-                erdCardsSvgNode
+                (erdCardsSvgNode ++ lines)
 
 
 viewControlPanel : Model -> Element Msg
@@ -1279,17 +1291,36 @@ viewMouseEventsDebugInfo model =
                 ColumnPairingCursor ->
                     "Column Pairing Cursor"
     in
-    column [ width fill, height fill, Border.width 1, Border.color model.theme.secondary, spacing 5 ]
-        [ E.text <| "Mouse events debug info:"
-        , paragraph []
-            [ E.text <| "events: " ++ mouseEventStr
-            , E.text <| "drag state: " ++ dragStateStr
-            , E.text <| "veiwPort: " ++ viewPortStr
-            , E.text <| "dim model: " ++ selectedModelStr
+    column [ padding 2, width fill, height fill, Border.width 1, Border.color model.theme.secondary, spacing 5 ]
+        [ el [ Font.bold ] (E.text "Debug info:")
+        , el [ Font.bold ] (E.text "General state:")
+        , paragraph [ padding 3 ]
+            [ E.text ("dim model: " ++ selectedModelStr)
             ]
-        , paragraph []
+        , paragraph [ padding 3 ]
+            [ E.text <| "veiwPort: " ++ viewPortStr
+            ]
+        , el [ Font.bold ] (E.text "Mouse Events:")
+        , paragraph [ padding 3 ]
+            [ E.text <| "most recent event coord: " ++ mouseEventStr
+            ]
+        , paragraph [ padding 3 ]
+            [ E.text <| "drag state: " ++ dragStateStr
+            ]
+        , paragraph [ padding 3 ]
             [ E.text <| "cursor mode: " ++ cursorMode2Str model.cursorMode
             ]
+        , el [ Font.bold ] (E.text "Graph Data:")
+        , paragraph [ padding 3 ]
+            (List.map (\edge -> E.text "one")
+                (case model.selectedDimensionalModel of
+                    Just dimModel ->
+                        edgesOfType dimModel.graph Joinable
+
+                    Nothing ->
+                        []
+                )
+            )
         ]
 
 

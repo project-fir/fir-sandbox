@@ -1,4 +1,4 @@
-module DimensionalModel exposing (CardRenderInfo, ColumnGraph, CommonRefEdge, DimModelDuckDbSourceInfo, DimensionalModel, DimensionalModelRef, EdgeLabel(..), JoinableEdge, KimballAssignment(..), NaivePairingStrategyResult(..), PositionPx, Reason(..), addEdges, addNode, addNodes, columnGraph2DotString, naiveColumnPairingStrategy)
+module DimensionalModel exposing (CardRenderInfo, ColumnGraph, CommonRefEdge, DimModelDuckDbSourceInfo, DimensionalModel, DimensionalModelRef, EdgeLabel(..), JoinableEdge, KimballAssignment(..), NaivePairingStrategyResult(..), PositionPx, Reason(..), addEdges, addNode, addNodes, columnGraph2DotString, edgesOfType, naiveColumnPairingStrategy)
 
 import Dict exposing (Dict)
 import DuckDb exposing (DuckDbColumnDescription(..), DuckDbRef, DuckDbRefString, DuckDbRef_(..), refToString, ref_ToString)
@@ -380,6 +380,19 @@ hashColDesc colDesc =
         Computed_ _ ->
             -- TODO: computed support
             Hash.fromInt 0
+
+
+edgesOfType : ColumnGraph -> EdgeLabel -> List (Edge EdgeLabel)
+edgesOfType graph label =
+    List.filter
+        (\e ->
+            if e.label == label then
+                True
+
+            else
+                False
+        )
+        (Graph.edges graph)
 
 
 

@@ -4,7 +4,7 @@ import Bridge exposing (BackendData(..), BackendErrorMessage, DimensionalModelUp
 import Browser.Dom
 import Browser.Events as BE
 import Dict exposing (Dict)
-import DimensionalModel exposing (CardRenderInfo, DimModelDuckDbSourceInfo, DimensionalModel, DimensionalModelRef, EdgeLabel(..), KimballAssignment(..), NaivePairingStrategyResult(..), PositionPx, Reason(..), addEdges, naiveColumnPairingStrategy)
+import DimensionalModel exposing (CardRenderInfo, DimModelDuckDbSourceInfo, DimensionalModel, DimensionalModelRef, EdgeLabel(..), KimballAssignment(..), NaivePairingStrategyResult(..), PositionPx, Reason(..), addEdge, addEdges, edge2Str, edgesOfType, naiveColumnPairingStrategy)
 import DuckDb exposing (ColumnName, DuckDbColumn, DuckDbColumnDescription(..), DuckDbRef, DuckDbRefString, DuckDbRef_(..), PersistedDuckDbColumnDescription, fetchDuckDbTableRefs, refEquals, refToString)
 import Effect exposing (Effect)
 import Element as E exposing (..)
@@ -30,7 +30,7 @@ import TypedSvg as S
 import TypedSvg.Attributes as SA
 import TypedSvg.Core as SC exposing (Svg)
 import TypedSvg.Types as ST
-import Ui exposing (theme)
+import Ui exposing (ColorTheme, toAvhColor)
 import Utils exposing (KeyCode, keyDecoder, send)
 import View exposing (View)
 
@@ -38,7 +38,7 @@ import View exposing (View)
 page : Shared.Model -> Request.With Params -> Page.With Model Msg
 page shared req =
     Page.advanced
-        { init = init
+        { init = init shared.selectedTheme
         , update = update
         , view = view
         , subscriptions = subscriptions
@@ -76,6 +76,8 @@ type alias Model =
     , inspectedColumn : Maybe DuckDbColumnDescription
     , columnPairingOperation : ColumnPairingOperation
     , downKeys : Set KeyCode
+    , theme : ColorTheme
+    , cursorMode : CursorMode
     }
 
 
@@ -95,8 +97,13 @@ type PageRenderStatus
     | Ready LayoutInfo
 
 
-init : ( Model, Effect Msg )
-init =
+type CursorMode
+    = DefaultCursor
+    | ColumnPairingCursor
+
+
+init : ColorTheme -> ( Model, Effect Msg )
+init sharedTheme =
     ( { duckDbRefs = NotAsked_
 
       --, duckDbRefMeta = Dict.empty
@@ -117,6 +124,8 @@ init =
       , inspectedColumn = Nothing
       , downKeys = Set.empty
       , columnPairingOperation = ColumnPairingIdle
+      , theme = sharedTheme
+      , cursorMode = DefaultCursor
       }
     , Effect.fromCmd <|
         Cmd.batch
@@ -180,8 +189,7 @@ type Msg
     | NoopKimball
     | UserClickedKimballAssignment DimensionalModelRef DuckDbRef (KimballAssignment DuckDbRef_ (List DuckDbColumnDescription))
     | UserClickedNub DuckDbColumnDescription
-    | KeyWentDown KeyCode
-    | KeyReleased KeyCode
+    | UserSelectedCursorMode CursorMode
 
 
 type SvgViewBoxTransformation
@@ -196,54 +204,38 @@ type ColumnPairingOperation
     | DestinationSelected DuckDbColumnDescription DuckDbColumnDescription
 
 
+pairingState2Str : ColumnPairingOperation -> String
+pairingState2Str pairingOp =
+    case pairingOp of
+        ColumnPairingIdle ->
+            "idle"
+
+        ColumnPairingListening ->
+            "listening"
+
+        OriginSelected from ->
+            "origin selected"
+
+        DestinationSelected from to ->
+            "destination selected"
+
+
 update : Msg -> Model -> ( Model, Effect Msg )
 update msg model =
     case msg of
-        KeyWentDown keyCode ->
+        UserSelectedCursorMode mode ->
             let
-                newKeys : Set KeyCode
-                newKeys =
-                    -- NB: To avoid complexity re: caps-lock/shift, always save lower-case letters
-                    Set.insert (String.toLower keyCode) model.downKeys
-
-                newColumnPairingState : ColumnPairingOperation
-                newColumnPairingState =
-                    case Set.member "c" newKeys of
-                        True ->
-                            ColumnPairingListening
-
-                        False ->
-                            -- Do nothing, we may already be listening
-                            model.columnPairingOperation
-            in
-            ( { model
-                | downKeys = newKeys
-                , columnPairingOperation = newColumnPairingState
-              }
-            , Effect.none
-            )
-
-        KeyReleased keyCode ->
-            let
-                newKeys : Set KeyCode
-                newKeys =
-                    -- NB: To avoid complexity re: caps-lock/shift, always remove lower-case letters
-                    Set.remove (String.toLower keyCode) model.downKeys
-
-                newColumnPairingState : ColumnPairingOperation
-                newColumnPairingState =
-                    case Set.member "c" newKeys of
-                        True ->
-                            -- Do nothing, we may already be listening
-                            model.columnPairingOperation
-
-                        False ->
-                            -- keep as-is, or terminate in-progress column operation
+                newPairingState =
+                    case mode of
+                        DefaultCursor ->
                             ColumnPairingIdle
+
+                        ColumnPairingCursor ->
+                            ColumnPairingListening
             in
             ( { model
-                | downKeys = newKeys
-                , columnPairingOperation = newColumnPairingState
+                | cursorMode = mode
+                , columnPairingOperation = newPairingState
               }
             , Effect.none
             )
@@ -265,21 +257,35 @@ update msg model =
                         DestinationSelected _ _ ->
                             ColumnPairingIdle
 
-                newDimModel =
-                    case model.selectedDimensionalModel of
-                        Just dimModel ->
-                            Just dimModel
+                effect =
+                    case newPairingOp of
+                        DestinationSelected from to ->
+                            case model.selectedDimensionalModel of
+                                Just dimModel ->
+                                    let
+                                        newGraph =
+                                            -- NB: Add two edges, (from, to) and (to, from)
+                                            addEdge (addEdge dimModel.graph ( from, to ) Joinable) ( to, from ) Joinable
+                                    in
+                                    Effect.fromCmd <| sendToBackend (UpdateDimensionalModel (UpdateGraph dimModel.ref newGraph))
 
-                        Nothing ->
-                            Nothing
+                                Nothing ->
+                                    Effect.none
+
+                        _ ->
+                            Effect.none
             in
-            ( { model
-                | inspectedColumn = Just colDesc
-                , columnPairingOperation = newPairingOp
-                , selectedDimensionalModel = newDimModel
-              }
-            , Effect.none
-            )
+            case model.cursorMode of
+                DefaultCursor ->
+                    ( model, Effect.none )
+
+                ColumnPairingCursor ->
+                    ( { model
+                        | inspectedColumn = Just colDesc
+                        , columnPairingOperation = newPairingOp
+                      }
+                    , effect
+                    )
 
         UserClickedKimballAssignment dimRef duckDbRef assignment ->
             -- NB: We have the "side effect" of closing the dropdown menu
@@ -449,7 +455,12 @@ update msg model =
             )
 
         BeginNodeDrag ref ->
-            ( { model | dragState = DragInitiated ref }, Effect.none )
+            case model.cursorMode of
+                DefaultCursor ->
+                    ( { model | dragState = DragInitiated ref }, Effect.none )
+
+                _ ->
+                    ( model, Effect.none )
 
         DragStoppedAt _ ->
             -- NB: During a drag, client-side model is updated, but since those events are so frequent, we don't
@@ -736,8 +747,6 @@ subscriptions model =
     -- Always listen to Browser events, and key strokes, but only listen to drag events if we believe we're dragging!
     Sub.batch
         ([ BE.onResize GotResizeEvent
-         , BE.onKeyDown (JD.map KeyWentDown keyDecoder)
-         , BE.onKeyUp (JD.map KeyReleased keyDecoder)
          ]
             ++ dragSubs
         )
@@ -768,26 +777,26 @@ viewDataSourceCard model dimModelRef renderInfo kimballAssignment =
                 Unassigned ref _ ->
                     case ref of
                         DuckDbView duckDbRef ->
-                            ( duckDbRef, "Unassigned", theme.debugWarn )
+                            ( duckDbRef, "Unassigned", model.theme.debugWarn )
 
                         DuckDbTable duckDbRef ->
-                            ( duckDbRef, "Unassigned", theme.debugWarn )
+                            ( duckDbRef, "Unassigned", model.theme.debugWarn )
 
                 Fact ref _ ->
                     case ref of
                         DuckDbView duckDbRef ->
-                            ( duckDbRef, "Fact", theme.primary1 )
+                            ( duckDbRef, "Fact", model.theme.primary1 )
 
                         DuckDbTable duckDbRef ->
-                            ( duckDbRef, "Fact", theme.primary1 )
+                            ( duckDbRef, "Fact", model.theme.primary1 )
 
                 Dimension ref _ ->
                     case ref of
                         DuckDbView duckDbRef ->
-                            ( duckDbRef, "Dimension", theme.primary2 )
+                            ( duckDbRef, "Dimension", model.theme.primary2 )
 
                         DuckDbTable duckDbRef ->
-                            ( duckDbRef, "Dimension", theme.primary2 )
+                            ( duckDbRef, "Dimension", model.theme.primary2 )
 
         colDescs : List DuckDbColumnDescription
         colDescs =
@@ -823,7 +832,7 @@ viewDataSourceCard model dimModelRef renderInfo kimballAssignment =
                                             case perCol.name == perCol_.name && perCol_.parentRef == perCol.parentRef of
                                                 True ->
                                                     -- TODO: Do I need a darken entry in ColorTheme?
-                                                    theme.secondary
+                                                    model.theme.secondary
 
                                                 False ->
                                                     computedBackgroundColor
@@ -851,7 +860,7 @@ viewDataSourceCard model dimModelRef renderInfo kimballAssignment =
                         [ width <| px 10
                         , height <| px 10
                         , Border.width 1
-                        , Background.color theme.background
+                        , Background.color model.theme.background
                         , Events.onClick (UserClickedNub col)
                         ]
                         E.none
@@ -881,7 +890,7 @@ viewDataSourceCard model dimModelRef renderInfo kimballAssignment =
 
                         Just ref_ ->
                             if refEquals renderInfo.ref ref_ then
-                                theme.secondary
+                                model.theme.secondary
 
                             else
                                 computedBackgroundColor
@@ -890,7 +899,7 @@ viewDataSourceCard model dimModelRef renderInfo kimballAssignment =
                 viewTitleBar =
                     el
                         [ Border.widthEach { top = 0, left = 0, right = 0, bottom = 2 }
-                        , Border.color theme.black
+                        , Border.color model.theme.black
                         , width fill
                         , Background.color titleBarBackgroundColor
                         , paddingXY 0 0
@@ -910,7 +919,7 @@ viewDataSourceCard model dimModelRef renderInfo kimballAssignment =
                             , column []
                                 [ el
                                     [ Border.width 1
-                                    , Border.color theme.black
+                                    , Border.color model.theme.black
                                     , padding 2
                                     ]
                                     (case model.dropdownState of
@@ -923,14 +932,32 @@ viewDataSourceCard model dimModelRef renderInfo kimballAssignment =
                                                     el
                                                         [ E.onRight
                                                             (column
-                                                                [ Border.color theme.secondary
+                                                                [ Border.color model.theme.secondary
                                                                 , Border.width 1
-                                                                , Background.color theme.background
+                                                                , Background.color model.theme.background
                                                                 , spacing 3
                                                                 ]
-                                                                [ el [ width fill, height fill, Events.onClick (UserClickedKimballAssignment dimModelRef renderInfo.ref (Unassigned (DuckDbTable renderInfo.ref) colDescs)) ] <| E.text "Unassigned"
-                                                                , el [ width fill, height fill, Events.onClick (UserClickedKimballAssignment dimModelRef renderInfo.ref (Dimension (DuckDbTable renderInfo.ref) colDescs)) ] <| E.text "Dimension"
-                                                                , el [ width fill, height fill, Events.onClick (UserClickedKimballAssignment dimModelRef renderInfo.ref (Fact (DuckDbTable renderInfo.ref) colDescs)) ] <| E.text "Fact"
+                                                                [ el
+                                                                    [ width fill
+                                                                    , height fill
+                                                                    , Events.onClick (UserClickedKimballAssignment dimModelRef renderInfo.ref (Unassigned (DuckDbTable renderInfo.ref) colDescs))
+                                                                    ]
+                                                                  <|
+                                                                    E.text "Unassigned"
+                                                                , el
+                                                                    [ width fill
+                                                                    , height fill
+                                                                    , Events.onClick (UserClickedKimballAssignment dimModelRef renderInfo.ref (Dimension (DuckDbTable renderInfo.ref) colDescs))
+                                                                    ]
+                                                                  <|
+                                                                    E.text "Dimension"
+                                                                , el
+                                                                    [ width fill
+                                                                    , height fill
+                                                                    , Events.onClick (UserClickedKimballAssignment dimModelRef renderInfo.ref (Fact (DuckDbTable renderInfo.ref) colDescs))
+                                                                    ]
+                                                                  <|
+                                                                    E.text "Fact"
                                                                 ]
                                                             )
                                                         ]
@@ -946,7 +973,7 @@ viewDataSourceCard model dimModelRef renderInfo kimballAssignment =
             column
                 [ width fill
                 , height fill
-                , Border.color theme.black
+                , Border.color model.theme.black
                 , Border.width 1
                 , padding 2
                 , Background.color computedBackgroundColor
@@ -979,6 +1006,19 @@ viewDataSourceCard model dimModelRef renderInfo kimballAssignment =
 viewCanvas : Model -> LayoutInfo -> Element Msg
 viewCanvas model layoutInfo =
     let
+        lines : List (Svg Msg)
+        lines =
+            []
+
+        --[ S.line
+        --    [ SA.x1 (ST.px 428)
+        --    , SA.y1 (ST.px 173)
+        --    , SA.x2 (ST.px 725)
+        --    , SA.y2 (ST.px 147)
+        --    , SA.stroke (ST.Paint (toAvhColor model.theme.black))
+        --    ]
+        --    []
+        --]
         erdCardsSvgNode : List (Svg Msg)
         erdCardsSvgNode =
             let
@@ -1004,11 +1044,12 @@ viewCanvas model layoutInfo =
     in
     el
         [ Border.width 1
-        , Border.color theme.secondary
+        , Border.color model.theme.secondary
+        , Border.rounded 5
         , Events.onMouseLeave TerminateDrags
         , centerY
         , centerX
-        , Background.color theme.background
+        , Background.color model.theme.background
         ]
     <|
         E.html <|
@@ -1017,7 +1058,7 @@ viewCanvas model layoutInfo =
                 , SA.height (ST.px layoutInfo.canvasElementHeight)
                 , SA.viewBox layoutInfo.viewBoxXMin layoutInfo.viewBoxYMin layoutInfo.viewBoxWidth layoutInfo.viewBoxHeight
                 ]
-                erdCardsSvgNode
+                (erdCardsSvgNode ++ lines)
 
 
 viewControlPanel : Model -> Element Msg
@@ -1027,19 +1068,18 @@ viewControlPanel model =
         viewViewBoxControls =
             row
                 [ centerX
-                , Border.width 1
-                , Border.color theme.black
+                , Background.color model.theme.background
                 , height fill
                 , paddingXY 5 0
                 , Font.size 24
                 , spacing 5
                 ]
-                [ el [ centerX, Border.width 1, Border.color theme.black, Events.onClick <| SvgViewBoxTransform (Zoom 0.1) ] <| E.text "+"
-                , el [ centerX, Border.width 1, Border.color theme.black, Events.onClick <| SvgViewBoxTransform (Zoom -0.1) ] <| E.text "-"
-                , el [ centerX, Border.width 1, Border.color theme.black, Events.onClick <| SvgViewBoxTransform (Translation -20 0) ] <| E.text "ᐊ"
-                , el [ centerX, Border.width 1, Border.color theme.black, Events.onClick <| SvgViewBoxTransform (Translation 20 0) ] <| E.text "ᐅ"
-                , el [ centerX, Border.width 1, Border.color theme.black, Events.onClick <| SvgViewBoxTransform (Translation 0 -20) ] <| E.text "ᐃ"
-                , el [ centerX, Border.width 1, Border.color theme.black, Events.onClick <| SvgViewBoxTransform (Translation 0 20) ] <| E.text "ᐁ"
+                [ el [ centerX, Border.width 1, Background.color model.theme.deadspace, Border.color model.theme.black, Events.onClick <| SvgViewBoxTransform (Zoom 0.1) ] <| E.text "+"
+                , el [ centerX, Border.width 1, Background.color model.theme.deadspace, Border.color model.theme.black, Events.onClick <| SvgViewBoxTransform (Zoom -0.1) ] <| E.text "-"
+                , el [ centerX, Border.width 1, Background.color model.theme.deadspace, Border.color model.theme.black, Events.onClick <| SvgViewBoxTransform (Translation -20 0) ] <| E.text "ᐊ"
+                , el [ centerX, Border.width 1, Background.color model.theme.deadspace, Border.color model.theme.black, Events.onClick <| SvgViewBoxTransform (Translation 20 0) ] <| E.text "ᐅ"
+                , el [ centerX, Border.width 1, Background.color model.theme.deadspace, Border.color model.theme.black, Events.onClick <| SvgViewBoxTransform (Translation 0 -20) ] <| E.text "ᐃ"
+                , el [ centerX, Border.width 1, Background.color model.theme.deadspace, Border.color model.theme.black, Events.onClick <| SvgViewBoxTransform (Translation 0 20) ] <| E.text "ᐁ"
                 ]
 
         onPress : Maybe Msg
@@ -1051,54 +1091,52 @@ viewControlPanel model =
                 Nothing ->
                     Nothing
 
-        viewGraphControlPanel : Element Msg
-        viewGraphControlPanel =
+        viewCursorToolBar : Element Msg
+        viewCursorToolBar =
+            let
+                iconSizePx =
+                    25
+            in
             row
                 [ centerX
+                , centerY
                 , moveRight 10
                 , height fill
-                , Border.color theme.secondary
                 , paddingXY 10 0
-                , Border.width 1
                 , Font.size 12
                 , spacing 10
                 ]
-                [ Input.button [ alignRight ]
-                    { label =
-                        el
-                            [ Border.width 1
-                            , Border.rounded 2
-                            , Background.color theme.background
-                            , Border.color theme.secondary
-                            , padding 2
-                            , Font.size 14
-                            ]
-                            (E.text "Pair columns")
-                    , onPress = onPress
-                    }
-                , el []
-                    (text
-                        (case model.pairingAlgoResult of
-                            Just pairingResult ->
-                                case pairingResult of
-                                    DimensionalModel.Success _ ->
-                                        "pairing was a success!"
+                [ el
+                    [ centerX
+                    , Border.width 1
+                    , Background.color
+                        (case model.cursorMode of
+                            DefaultCursor ->
+                                model.theme.secondary
 
-                                    Fail reason ->
-                                        case reason of
-                                            AllInputTablesMustBeAssigned ->
-                                                "all tables must be given an assignment"
-
-                                            InputMustContainAtLeastOneFactTable ->
-                                                "there must be at least one fact table"
-
-                                            InputMustContainAtLeastOneDimensionTable ->
-                                                "there must be at least one dimension table"
-
-                            Nothing ->
-                                " "
+                            _ ->
+                                model.theme.background
                         )
-                    )
+                    , Border.color model.theme.black
+                    , Events.onClick <| UserSelectedCursorMode DefaultCursor
+                    ]
+                    (E.image [ height (px iconSizePx), width (px iconSizePx) ] { src = "./default-cursor.png", description = "standard mouse cursor" })
+                , el
+                    [ centerX
+                    , centerY
+                    , Border.width 1
+                    , Background.color
+                        (case model.cursorMode of
+                            ColumnPairingCursor ->
+                                model.theme.secondary
+
+                            _ ->
+                                model.theme.background
+                        )
+                    , Border.color model.theme.black
+                    , Events.onClick <| UserSelectedCursorMode ColumnPairingCursor
+                    ]
+                    (E.image [ height (px iconSizePx), width (px iconSizePx) ] { src = "./graph-builder-cursor.png", description = "graph building cursor" })
                 ]
     in
     row
@@ -1106,12 +1144,13 @@ viewControlPanel model =
         , height (px 40)
         , Font.size 30
         , Border.width 1
-        , Background.color theme.background
-        , Border.color theme.secondary
+        , Background.color model.theme.background
+        , Border.color model.theme.secondary
+        , Border.rounded 5
         , spacing 6
         ]
-        [ viewViewBoxControls
-        , viewGraphControlPanel
+        [ viewCursorToolBar
+        , viewViewBoxControls
         ]
 
 
@@ -1122,14 +1161,13 @@ viewElements model layoutInfo =
         , height fill
         , centerX
         , centerY
-        , Background.color theme.background
+        , Background.color model.theme.deadspace
         ]
         [ column
             [ height fill
             , width (px layoutInfo.mainPanelWidth)
             , paddingXY 0 3
-            , Background.color theme.background
-            , Border.color theme.secondary
+            , Background.color model.theme.deadspace
             , centerX
             ]
             [ viewCanvas model layoutInfo
@@ -1139,8 +1177,8 @@ viewElements model layoutInfo =
             [ height fill
             , width (px layoutInfo.sidePanelWidth)
             , Border.width 1
-            , Background.color theme.background
-            , Border.color theme.secondary
+            , Background.color model.theme.background
+            , Border.color model.theme.secondary
             , clipX
             , scrollbarX
             , alignRight
@@ -1185,7 +1223,7 @@ viewColumnInspectorPanel model =
                 Just t ->
                     E.text t
     in
-    column [ width fill, height fill, Border.width 1, Border.color theme.secondary, spacing 5 ]
+    column [ width fill, height fill, Border.width 1, Border.color model.theme.secondary, spacing 5 ]
         [ E.text "Column Inspector:"
         , info
         ]
@@ -1244,15 +1282,59 @@ viewMouseEventsDebugInfo model =
 
                 Just dimModel ->
                     dimModel.ref
+
+        cursorMode2Str : CursorMode -> String
+        cursorMode2Str mode =
+            case mode of
+                DefaultCursor ->
+                    "Default Cursor"
+
+                ColumnPairingCursor ->
+                    "Column Pairing Cursor"
     in
-    column [ width fill, height fill, Border.width 1, Border.color theme.secondary, spacing 5 ]
-        [ E.text <| "Mouse events debug info:"
-        , paragraph []
-            [ E.text <| "events: " ++ mouseEventStr
-            , E.text <| "drag state: " ++ dragStateStr
-            , E.text <| "veiwPort: " ++ viewPortStr
-            , E.text <| "dim model: " ++ selectedModelStr
+    column
+        [ padding 2
+        , width fill
+        , height fill
+        , Border.width 1
+        , Border.color model.theme.secondary
+        , spacing 5
+        , clipY
+        , scrollbarY
+        ]
+        [ E.none
+        , el [ Font.bold ] (E.text "Debug info:")
+        , el [ Font.bold ] (E.text "General state:")
+        , paragraph [ padding 3 ]
+            [ E.text ("dim model: " ++ selectedModelStr)
             ]
+        , paragraph [ padding 3 ]
+            [ E.text ("pairing op: " ++ pairingState2Str model.columnPairingOperation)
+            ]
+        , paragraph [ padding 3 ]
+            [ E.text <| "veiwPort: " ++ viewPortStr
+            ]
+        , el [ Font.bold ] (E.text "Mouse Events:")
+        , paragraph [ padding 3 ]
+            [ E.text <| "most recent event coord: " ++ mouseEventStr
+            ]
+        , paragraph [ padding 3 ]
+            [ E.text <| "drag state: " ++ dragStateStr
+            ]
+        , paragraph [ padding 3 ]
+            [ E.text <| "cursor mode: " ++ cursorMode2Str model.cursorMode
+            ]
+        , el [ Font.bold ] (E.text "Graph Data:")
+        , paragraph [ padding 3 ]
+            (List.map (\edge -> E.text <| edge2Str edge ++ "\n")
+                (case model.selectedDimensionalModel of
+                    Just dimModel ->
+                        edgesOfType dimModel.graph Joinable
+
+                    Nothing ->
+                        []
+                )
+            )
         ]
 
 
@@ -1300,7 +1382,7 @@ viewDimensionalModelRefs model =
                         el
                             [ Border.width 1
                             , Border.rounded 2
-                            , Border.color theme.black
+                            , Border.color model.theme.black
                             , Font.size 20
                             ]
                             (E.text " + ")
@@ -1343,27 +1425,27 @@ viewTableRefs model selectedDimModel =
                         backgroundColorFor ref =
                             case model.hoveredOnTableRef of
                                 Nothing ->
-                                    theme.background
+                                    model.theme.background
 
                                 Just ref_ ->
                                     if ref == ref_ then
-                                        theme.secondary
+                                        model.theme.secondary
 
                                     else
-                                        theme.background
+                                        model.theme.background
 
                         borderColorFor : DuckDbRef -> Color
                         borderColorFor ref =
                             case model.hoveredOnTableRef of
                                 Nothing ->
-                                    theme.background
+                                    model.theme.background
 
                                 Just ref_ ->
                                     if ref == ref_ then
-                                        theme.secondary
+                                        model.theme.secondary
 
                                     else
-                                        theme.background
+                                        model.theme.background
 
                         borderFor : DuckDbRef -> { top : number, left : number, right : number, bottom : number }
                         borderFor ref =
@@ -1384,13 +1466,13 @@ viewTableRefs model selectedDimModel =
                                 Just info ->
                                     case info.isIncluded of
                                         True ->
-                                            theme.primary2
+                                            model.theme.secondary
 
                                         False ->
-                                            theme.background
+                                            model.theme.background
 
                                 Nothing ->
-                                    theme.background
+                                    model.theme.background
 
                         ui : DuckDb.DuckDbRef -> Element Msg
                         ui ref =
@@ -1429,7 +1511,7 @@ viewTableRefs model selectedDimModel =
                 , spacing 2
                 , alignTop
                 , Border.width 1
-                , Border.color theme.secondary
+                , Border.color model.theme.secondary
                 , clipX
                 , scrollbarX
                 , clipY

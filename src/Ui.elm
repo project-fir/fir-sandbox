@@ -94,7 +94,7 @@ themeOf palette =
             decorateBaseTheme
                 { primary1 = yellowNitro
                 , primary2 = mediumAquamarine
-                , secondary = purple
+                , secondary = nitroSecondary
                 , background = seaGreenCrayola
                 , deadSpace = babyPowder
                 , link = nitroLink
@@ -106,9 +106,9 @@ themeOf palette =
 -- begin region: color definitions - nitro theme
 
 
-purple : Color
-purple =
-    rgb255 0x5E 0x23 0x9D
+nitroSecondary : Color
+nitroSecondary =
+    rgb255 0x52 0x77 0xC7
 
 
 seaGreenCrayola : Color

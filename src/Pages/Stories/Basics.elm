@@ -227,6 +227,12 @@ table r =
             , { task = "hard code some data"
               , isComplete = True
               }
+            , { task = "scrub the tub"
+              , isComplete = False
+              }
+            , { task = "feed Simon"
+              , isComplete = True
+              }
             ]
     in
     E.table

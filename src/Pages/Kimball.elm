@@ -4,7 +4,7 @@ import Bridge exposing (BackendData(..), BackendErrorMessage, DimensionalModelUp
 import Browser.Dom
 import Browser.Events as BE
 import Dict exposing (Dict)
-import DimensionalModel exposing (CardRenderInfo, DimModelDuckDbSourceInfo, DimensionalModel, DimensionalModelRef, EdgeLabel(..), KimballAssignment(..), NaivePairingStrategyResult(..), PositionPx, Reason(..), addEdges, edgesOfType, naiveColumnPairingStrategy)
+import DimensionalModel exposing (CardRenderInfo, DimModelDuckDbSourceInfo, DimensionalModel, DimensionalModelRef, EdgeLabel(..), KimballAssignment(..), NaivePairingStrategyResult(..), PositionPx, Reason(..), addEdge, addEdges, edge2Str, edgesOfType, naiveColumnPairingStrategy)
 import DuckDb exposing (ColumnName, DuckDbColumn, DuckDbColumnDescription(..), DuckDbRef, DuckDbRefString, DuckDbRef_(..), PersistedDuckDbColumnDescription, fetchDuckDbTableRefs, refEquals, refToString)
 import Effect exposing (Effect)
 import Element as E exposing (..)
@@ -189,8 +189,6 @@ type Msg
     | NoopKimball
     | UserClickedKimballAssignment DimensionalModelRef DuckDbRef (KimballAssignment DuckDbRef_ (List DuckDbColumnDescription))
     | UserClickedNub DuckDbColumnDescription
-    | KeyWentDown KeyCode
-    | KeyReleased KeyCode
     | UserSelectedCursorMode CursorMode
 
 
@@ -206,57 +204,38 @@ type ColumnPairingOperation
     | DestinationSelected DuckDbColumnDescription DuckDbColumnDescription
 
 
+pairingState2Str : ColumnPairingOperation -> String
+pairingState2Str pairingOp =
+    case pairingOp of
+        ColumnPairingIdle ->
+            "idle"
+
+        ColumnPairingListening ->
+            "listening"
+
+        OriginSelected from ->
+            "origin selected"
+
+        DestinationSelected from to ->
+            "destination selected"
+
+
 update : Msg -> Model -> ( Model, Effect Msg )
 update msg model =
     case msg of
         UserSelectedCursorMode mode ->
-            ( { model | cursorMode = mode }, Effect.none )
-
-        KeyWentDown keyCode ->
             let
-                newKeys : Set KeyCode
-                newKeys =
-                    -- NB: To avoid complexity re: caps-lock/shift, always save lower-case letters
-                    Set.insert (String.toLower keyCode) model.downKeys
-
-                newColumnPairingState : ColumnPairingOperation
-                newColumnPairingState =
-                    case Set.member "c" newKeys of
-                        True ->
-                            ColumnPairingListening
-
-                        False ->
-                            -- Do nothing, we may already be listening
-                            model.columnPairingOperation
-            in
-            ( { model
-                | downKeys = newKeys
-                , columnPairingOperation = newColumnPairingState
-              }
-            , Effect.none
-            )
-
-        KeyReleased keyCode ->
-            let
-                newKeys : Set KeyCode
-                newKeys =
-                    -- NB: To avoid complexity re: caps-lock/shift, always remove lower-case letters
-                    Set.remove (String.toLower keyCode) model.downKeys
-
-                newColumnPairingState : ColumnPairingOperation
-                newColumnPairingState =
-                    case Set.member "c" newKeys of
-                        True ->
-                            -- Do nothing, we may already be listening
-                            model.columnPairingOperation
-
-                        False ->
-                            -- keep as-is, or terminate in-progress column operation
+                newPairingState =
+                    case mode of
+                        DefaultCursor ->
                             ColumnPairingIdle
+
+                        ColumnPairingCursor ->
+                            ColumnPairingListening
             in
             ( { model
-                | downKeys = newKeys
-                , columnPairingOperation = newColumnPairingState
+                | cursorMode = mode
+                , columnPairingOperation = newPairingState
               }
             , Effect.none
             )
@@ -278,13 +257,23 @@ update msg model =
                         DestinationSelected _ _ ->
                             ColumnPairingIdle
 
-                newDimModel =
-                    case model.selectedDimensionalModel of
-                        Just dimModel ->
-                            Just dimModel
+                effect =
+                    case newPairingOp of
+                        DestinationSelected from to ->
+                            case model.selectedDimensionalModel of
+                                Just dimModel ->
+                                    let
+                                        newGraph =
+                                            -- NB: Add two edges, (from, to) and (to, from)
+                                            addEdge (addEdge dimModel.graph ( from, to ) Joinable) ( to, from ) Joinable
+                                    in
+                                    Effect.fromCmd <| sendToBackend (UpdateDimensionalModel (UpdateGraph dimModel.ref newGraph))
 
-                        Nothing ->
-                            Nothing
+                                Nothing ->
+                                    Effect.none
+
+                        _ ->
+                            Effect.none
             in
             case model.cursorMode of
                 DefaultCursor ->
@@ -294,9 +283,8 @@ update msg model =
                     ( { model
                         | inspectedColumn = Just colDesc
                         , columnPairingOperation = newPairingOp
-                        , selectedDimensionalModel = newDimModel
                       }
-                    , Effect.none
+                    , effect
                     )
 
         UserClickedKimballAssignment dimRef duckDbRef assignment ->
@@ -759,8 +747,6 @@ subscriptions model =
     -- Always listen to Browser events, and key strokes, but only listen to drag events if we believe we're dragging!
     Sub.batch
         ([ BE.onResize GotResizeEvent
-         , BE.onKeyDown (JD.map KeyWentDown keyDecoder)
-         , BE.onKeyUp (JD.map KeyReleased keyDecoder)
          ]
             ++ dragSubs
         )
@@ -951,9 +937,27 @@ viewDataSourceCard model dimModelRef renderInfo kimballAssignment =
                                                                 , Background.color model.theme.background
                                                                 , spacing 3
                                                                 ]
-                                                                [ el [ width fill, height fill, Events.onClick (UserClickedKimballAssignment dimModelRef renderInfo.ref (Unassigned (DuckDbTable renderInfo.ref) colDescs)) ] <| E.text "Unassigned"
-                                                                , el [ width fill, height fill, Events.onClick (UserClickedKimballAssignment dimModelRef renderInfo.ref (Dimension (DuckDbTable renderInfo.ref) colDescs)) ] <| E.text "Dimension"
-                                                                , el [ width fill, height fill, Events.onClick (UserClickedKimballAssignment dimModelRef renderInfo.ref (Fact (DuckDbTable renderInfo.ref) colDescs)) ] <| E.text "Fact"
+                                                                [ el
+                                                                    [ width fill
+                                                                    , height fill
+                                                                    , Events.onClick (UserClickedKimballAssignment dimModelRef renderInfo.ref (Unassigned (DuckDbTable renderInfo.ref) colDescs))
+                                                                    ]
+                                                                  <|
+                                                                    E.text "Unassigned"
+                                                                , el
+                                                                    [ width fill
+                                                                    , height fill
+                                                                    , Events.onClick (UserClickedKimballAssignment dimModelRef renderInfo.ref (Dimension (DuckDbTable renderInfo.ref) colDescs))
+                                                                    ]
+                                                                  <|
+                                                                    E.text "Dimension"
+                                                                , el
+                                                                    [ width fill
+                                                                    , height fill
+                                                                    , Events.onClick (UserClickedKimballAssignment dimModelRef renderInfo.ref (Fact (DuckDbTable renderInfo.ref) colDescs))
+                                                                    ]
+                                                                  <|
+                                                                    E.text "Fact"
                                                                 ]
                                                             )
                                                         ]
@@ -1004,16 +1008,17 @@ viewCanvas model layoutInfo =
     let
         lines : List (Svg Msg)
         lines =
-            [ S.line
-                [ SA.x1 (ST.px 428)
-                , SA.y1 (ST.px 173)
-                , SA.x2 (ST.px 725)
-                , SA.y2 (ST.px 147)
-                , SA.stroke (ST.Paint (toAvhColor model.theme.black))
-                ]
-                []
-            ]
+            []
 
+        --[ S.line
+        --    [ SA.x1 (ST.px 428)
+        --    , SA.y1 (ST.px 173)
+        --    , SA.x2 (ST.px 725)
+        --    , SA.y2 (ST.px 147)
+        --    , SA.stroke (ST.Paint (toAvhColor model.theme.black))
+        --    ]
+        --    []
+        --]
         erdCardsSvgNode : List (Svg Msg)
         erdCardsSvgNode =
             let
@@ -1063,8 +1068,6 @@ viewControlPanel model =
         viewViewBoxControls =
             row
                 [ centerX
-                , Border.width 1
-                , Border.color model.theme.black
                 , Background.color model.theme.background
                 , height fill
                 , paddingXY 5 0
@@ -1099,9 +1102,7 @@ viewControlPanel model =
                 , centerY
                 , moveRight 10
                 , height fill
-                , Border.color model.theme.secondary
                 , paddingXY 10 0
-                , Border.width 1
                 , Font.size 12
                 , spacing 10
                 ]
@@ -1291,11 +1292,24 @@ viewMouseEventsDebugInfo model =
                 ColumnPairingCursor ->
                     "Column Pairing Cursor"
     in
-    column [ padding 2, width fill, height fill, Border.width 1, Border.color model.theme.secondary, spacing 5 ]
-        [ el [ Font.bold ] (E.text "Debug info:")
+    column
+        [ padding 2
+        , width fill
+        , height fill
+        , Border.width 1
+        , Border.color model.theme.secondary
+        , spacing 5
+        , clipY
+        , scrollbarY
+        ]
+        [ E.none
+        , el [ Font.bold ] (E.text "Debug info:")
         , el [ Font.bold ] (E.text "General state:")
         , paragraph [ padding 3 ]
             [ E.text ("dim model: " ++ selectedModelStr)
+            ]
+        , paragraph [ padding 3 ]
+            [ E.text ("pairing op: " ++ pairingState2Str model.columnPairingOperation)
             ]
         , paragraph [ padding 3 ]
             [ E.text <| "veiwPort: " ++ viewPortStr
@@ -1312,7 +1326,7 @@ viewMouseEventsDebugInfo model =
             ]
         , el [ Font.bold ] (E.text "Graph Data:")
         , paragraph [ padding 3 ]
-            (List.map (\edge -> E.text "one")
+            (List.map (\edge -> E.text <| edge2Str edge ++ "\n")
                 (case model.selectedDimensionalModel of
                     Just dimModel ->
                         edgesOfType dimModel.graph Joinable
@@ -1452,7 +1466,7 @@ viewTableRefs model selectedDimModel =
                                 Just info ->
                                     case info.isIncluded of
                                         True ->
-                                            model.theme.primary2
+                                            model.theme.secondary
 
                                         False ->
                                             model.theme.background

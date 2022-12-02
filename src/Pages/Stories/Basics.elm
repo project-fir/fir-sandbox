@@ -220,6 +220,7 @@ table r =
             , padding 2
             ]
 
+        data : List SampleData
         data =
             [ { task = "abstract this away"
               , isComplete = False

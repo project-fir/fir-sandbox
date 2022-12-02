@@ -48,7 +48,14 @@ elements =
                         { url = "/stories/basics"
                         , label = text "/basics"
                         }
-                    , E.text " - story for color swatches, and basic components like buttons, drop-downs, etc."
+                    , E.text " - story for theme color swatches, and basic components like buttons, drop-downs, etc."
+                    ]
+                , paragraph []
+                    [ link [ Font.color theme.link ]
+                        { url = "/stories/entity-relationship-diagram"
+                        , label = text "/entity-relationship-diagram"
+                        }
+                    , E.text " - story for (partially) componentized entity relationship diagram"
                     ]
                 ]
     in

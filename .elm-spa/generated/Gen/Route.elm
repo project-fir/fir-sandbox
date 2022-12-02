@@ -12,6 +12,7 @@ import Gen.Params.Sheet
 import Gen.Params.Stories
 import Gen.Params.VegaLite
 import Gen.Params.Stories.Basics
+import Gen.Params.Stories.EntityRelationshipDiagram
 import Gen.Params.NotFound
 import Url exposing (Url)
 import Url.Parser as Parser exposing ((</>), Parser)
@@ -26,6 +27,7 @@ type Route
     | Stories
     | VegaLite
     | Stories__Basics
+    | Stories__EntityRelationshipDiagram
     | NotFound
 
 
@@ -45,6 +47,7 @@ routes =
     , Parser.map VegaLite Gen.Params.VegaLite.parser
     , Parser.map NotFound Gen.Params.NotFound.parser
     , Parser.map Stories__Basics Gen.Params.Stories.Basics.parser
+    , Parser.map Stories__EntityRelationshipDiagram Gen.Params.Stories.EntityRelationshipDiagram.parser
     ]
 
 
@@ -79,6 +82,9 @@ toHref route =
     
         Stories__Basics ->
             joinAsHref [ "stories", "basics" ]
+    
+        Stories__EntityRelationshipDiagram ->
+            joinAsHref [ "stories", "entity-relationship-diagram" ]
     
         NotFound ->
             joinAsHref [ "not-found" ]

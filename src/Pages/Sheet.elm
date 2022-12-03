@@ -644,6 +644,7 @@ update msg model =
 subscriptions : Model -> Sub Msg
 subscriptions model =
     let
+        contextualKeystrokes : Sub Msg
         contextualKeystrokes =
             case model.uiMode of
                 SheetEditor ->

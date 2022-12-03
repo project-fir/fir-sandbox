@@ -12,6 +12,7 @@ import Gen.Params.Stories
 import Gen.Params.VegaLite
 import Gen.Params.Stories.Basics
 import Gen.Params.Stories.EntityRelationshipDiagram
+import Gen.Params.Stories.TextEditor
 import Gen.Params.NotFound
 import Gen.Model as Model
 import Gen.Msg as Msg
@@ -26,6 +27,7 @@ import Pages.Stories
 import Pages.VegaLite
 import Pages.Stories.Basics
 import Pages.Stories.EntityRelationshipDiagram
+import Pages.Stories.TextEditor
 import Pages.NotFound
 import Request exposing (Request)
 import Shared
@@ -72,6 +74,9 @@ init route =
         Route.Stories__EntityRelationshipDiagram ->
             pages.stories__entityRelationshipDiagram.init ()
     
+        Route.Stories__TextEditor ->
+            pages.stories__textEditor.init ()
+    
         Route.NotFound ->
             pages.notFound.init ()
 
@@ -99,6 +104,9 @@ update msg_ model_ =
     
         ( Msg.Stories__EntityRelationshipDiagram msg, Model.Stories__EntityRelationshipDiagram params model ) ->
             pages.stories__entityRelationshipDiagram.update params msg model
+    
+        ( Msg.Stories__TextEditor msg, Model.Stories__TextEditor params model ) ->
+            pages.stories__textEditor.update params msg model
 
         _ ->
             \_ _ _ -> ( model_, Effect.none )
@@ -137,6 +145,9 @@ view model_ =
         Model.Stories__EntityRelationshipDiagram params model ->
             pages.stories__entityRelationshipDiagram.view params model
     
+        Model.Stories__TextEditor params model ->
+            pages.stories__textEditor.view params model
+    
         Model.NotFound params ->
             pages.notFound.view params ()
 
@@ -174,6 +185,9 @@ subscriptions model_ =
         Model.Stories__EntityRelationshipDiagram params model ->
             pages.stories__entityRelationshipDiagram.subscriptions params model
     
+        Model.Stories__TextEditor params model ->
+            pages.stories__textEditor.subscriptions params model
+    
         Model.NotFound params ->
             pages.notFound.subscriptions params ()
 
@@ -192,6 +206,7 @@ pages :
     , vegaLite : Bundle Gen.Params.VegaLite.Params Pages.VegaLite.Model Pages.VegaLite.Msg
     , stories__basics : Bundle Gen.Params.Stories.Basics.Params Pages.Stories.Basics.Model Pages.Stories.Basics.Msg
     , stories__entityRelationshipDiagram : Bundle Gen.Params.Stories.EntityRelationshipDiagram.Params Pages.Stories.EntityRelationshipDiagram.Model Pages.Stories.EntityRelationshipDiagram.Msg
+    , stories__textEditor : Bundle Gen.Params.Stories.TextEditor.Params Pages.Stories.TextEditor.Model Pages.Stories.TextEditor.Msg
     , notFound : Static Gen.Params.NotFound.Params
     }
 pages =
@@ -204,6 +219,7 @@ pages =
     , vegaLite = bundle Pages.VegaLite.page Model.VegaLite Msg.VegaLite
     , stories__basics = bundle Pages.Stories.Basics.page Model.Stories__Basics Msg.Stories__Basics
     , stories__entityRelationshipDiagram = bundle Pages.Stories.EntityRelationshipDiagram.page Model.Stories__EntityRelationshipDiagram Msg.Stories__EntityRelationshipDiagram
+    , stories__textEditor = bundle Pages.Stories.TextEditor.page Model.Stories__TextEditor Msg.Stories__TextEditor
     , notFound = static Pages.NotFound.view Model.NotFound
     }
 

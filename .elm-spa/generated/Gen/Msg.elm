@@ -8,6 +8,8 @@ import Gen.Params.Sheet
 import Gen.Params.Stories
 import Gen.Params.VegaLite
 import Gen.Params.Stories.Basics
+import Gen.Params.Stories.EntityRelationshipDiagram
+import Gen.Params.Stories.TextEditor
 import Gen.Params.NotFound
 import Pages.Admin
 import Pages.ElmUiSvgIssue
@@ -17,6 +19,8 @@ import Pages.Sheet
 import Pages.Stories
 import Pages.VegaLite
 import Pages.Stories.Basics
+import Pages.Stories.EntityRelationshipDiagram
+import Pages.Stories.TextEditor
 import Pages.NotFound
 
 
@@ -27,4 +31,6 @@ type Msg
     | Sheet Pages.Sheet.Msg
     | VegaLite Pages.VegaLite.Msg
     | Stories__Basics Pages.Stories.Basics.Msg
+    | Stories__EntityRelationshipDiagram Pages.Stories.EntityRelationshipDiagram.Msg
+    | Stories__TextEditor Pages.Stories.TextEditor.Msg
 

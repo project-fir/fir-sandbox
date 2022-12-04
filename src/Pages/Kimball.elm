@@ -899,7 +899,7 @@ viewDataSourceCard model dimModelRef renderInfo kimballAssignment =
                 viewTitleBar =
                     el
                         [ Border.widthEach { top = 0, left = 0, right = 0, bottom = 2 }
-                        , Border.color model.theme.black
+                        , Border.color model.theme.secondary
                         , width fill
                         , Background.color titleBarBackgroundColor
                         , paddingXY 0 0
@@ -971,10 +971,11 @@ viewDataSourceCard model dimModelRef renderInfo kimballAssignment =
                             ]
             in
             column
-                [ width fill
-                , height fill
-                , Border.color model.theme.black
+                [ width (px <| round (erdCardWidth - 1.0))
+                , height (px <| round (erdCardHeight - 1.0))
+                , Border.color model.theme.secondary
                 , Border.width 1
+                , Border.rounded 5
                 , padding 2
                 , Background.color computedBackgroundColor
                 , Font.size 14
@@ -982,19 +983,31 @@ viewDataSourceCard model dimModelRef renderInfo kimballAssignment =
                 ]
                 [ viewTitleBar
                 , column
-                    [ width fill
-                    , height fill
+                    [ width (px <| round (erdCardWidth - 10.0))
+                    , height (px <| round (erdCardHeight - titleBarHeight - 0))
                     , Events.onMouseDown (BeginNodeDrag renderInfo.ref)
                     ]
                   <|
                     List.map (\col -> viewRowForColumnDesc col) colDescs
                 ]
+
+        erdCardWidth : Float
+        erdCardWidth =
+            250
+
+        titleBarHeight : Float
+        titleBarHeight =
+            29.0
+
+        erdCardHeight : Float
+        erdCardHeight =
+            titleBarHeight + (18.0 * toFloat (List.length colDescs))
     in
     SC.foreignObject
         [ SA.x (ST.px renderInfo.pos.x)
         , SA.y (ST.px renderInfo.pos.y)
-        , SA.width (ST.px 250)
-        , SA.height (ST.px 450)
+        , SA.width (ST.px erdCardWidth)
+        , SA.height (ST.px erdCardHeight)
         ]
         [ E.layoutWith { options = [ noStaticStyleSheet ] }
             [ Events.onMouseLeave ClearNodeHoverState
@@ -1008,17 +1021,16 @@ viewCanvas model layoutInfo =
     let
         lines : List (Svg Msg)
         lines =
-            []
+            [ S.line
+                [ SA.x1 (ST.px 428)
+                , SA.y1 (ST.px 173)
+                , SA.x2 (ST.px 725)
+                , SA.y2 (ST.px 147)
+                , SA.stroke (ST.Paint (toAvhColor model.theme.black))
+                ]
+                []
+            ]
 
-        --[ S.line
-        --    [ SA.x1 (ST.px 428)
-        --    , SA.y1 (ST.px 173)
-        --    , SA.x2 (ST.px 725)
-        --    , SA.y2 (ST.px 147)
-        --    , SA.stroke (ST.Paint (toAvhColor model.theme.black))
-        --    ]
-        --    []
-        --]
         erdCardsSvgNode : List (Svg Msg)
         erdCardsSvgNode =
             let

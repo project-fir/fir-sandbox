@@ -11,7 +11,7 @@ import Gen.Params.Stories.Basics exposing (Params)
 import Page
 import Request
 import Shared exposing (Msg(..))
-import Ui exposing (ColorTheme, PaletteName(..), themeOf)
+import Ui exposing (ColorTheme, PaletteName(..), dropdownMenu, themeOf)
 import Utils exposing (bool2Str)
 import View exposing (View)
 
@@ -122,32 +122,6 @@ view model =
     }
 
 
-type alias OptionId =
-    Int
-
-
-type alias DropDownProps =
-    { isOpen : Bool
-    , widthPx : Int
-    , heightPx : Int
-    , onDrawerClick : Msg
-    , onMenuMouseEnter : Msg
-    , onMenuMouseLeave : Msg
-    , isMenuHovered : Bool
-    , menuBarText : String
-    , options : List DropDownOption
-    , hoveredOnOption : Maybe OptionId
-    }
-
-
-type alias DropDownOption =
-    { displayText : String
-    , optionId : OptionId
-    , onClick : Msg
-    , onHover : Msg
-    }
-
-
 map_ : Shared.Msg -> Msg
 map_ sharedMsg =
     case sharedMsg of
@@ -220,6 +194,7 @@ table r =
             , padding 2
             ]
 
+        data : List SampleData
         data =
             [ { task = "abstract this away"
               , isComplete = False
@@ -250,87 +225,6 @@ table r =
               }
             ]
         }
-
-
-dropdownMenu : { r | theme : ColorTheme } -> DropDownProps -> Element Msg
-dropdownMenu r props =
-    let
-        menuOption : DropDownOption -> Element Msg
-        menuOption op =
-            let
-                bkgdColor : Color
-                bkgdColor =
-                    case props.hoveredOnOption of
-                        Nothing ->
-                            r.theme.background
-
-                        Just opId ->
-                            if opId == op.optionId then
-                                r.theme.secondary
-
-                            else
-                                r.theme.background
-            in
-            el
-                (attrs bkgdColor ++ [ Events.onClick op.onClick, Events.onMouseLeave op.onHover ])
-                (E.text op.displayText)
-
-        attrs : Color -> List (Attribute msg)
-        attrs bkgdColor =
-            [ Border.width 1
-            , Border.color r.theme.secondary
-            , Background.color bkgdColor
-            , height (px props.heightPx)
-            , width (px props.widthPx)
-            , padding 2
-            , width fill
-            ]
-
-        menuHeader : Element Msg
-        menuHeader =
-            let
-                backgroundColor : Color
-                backgroundColor =
-                    case props.isMenuHovered of
-                        True ->
-                            r.theme.secondary
-
-                        False ->
-                            r.theme.background
-            in
-            el
-                (attrs backgroundColor
-                    ++ [ Events.onClick props.onDrawerClick
-                       , Events.onMouseEnter props.onMenuMouseEnter
-                       , Events.onMouseLeave props.onMenuMouseLeave
-                       ]
-                )
-                (row [ centerY, height fill, padding 0 ]
-                    [ el [ alignLeft ] <| E.text props.menuBarText
-                    , el
-                        [ Border.widthEach { top = 0, bottom = 0, right = 1, left = 1 }
-                        , Border.color r.theme.secondary
-                        , height fill
-                        , alignRight
-                        ]
-                        (E.text "▼")
-                    ]
-                )
-
-        drawer : Element Msg
-        drawer =
-            case props.isOpen of
-                True ->
-                    el
-                        [ below
-                            (column [] (List.map (\o -> menuOption o) props.options))
-                        ]
-                        menuHeader
-
-                False ->
-                    menuHeader
-    in
-    drawer
 
 
 elements : Model -> Element Msg

@@ -2,7 +2,7 @@ module Pages.Stories.EntityRelationshipDiagram exposing (Model, Msg, page)
 
 import Dict exposing (Dict)
 import DimensionalModel exposing (DimModelDuckDbSourceInfo, KimballAssignment(..))
-import DuckDb exposing (DuckDbRef, DuckDbRefString, DuckDbRef_(..), refToString)
+import DuckDb exposing (DuckDbColumnDescription(..), DuckDbRef, DuckDbRefString, DuckDbRef_(..), refToString)
 import Effect exposing (Effect)
 import Element as E exposing (..)
 import Element.Background as Background
@@ -49,9 +49,23 @@ init shared =
         dimRef =
             { schemaName = "story", tableName = "some_dim" }
 
+        dimCols : List DuckDbColumnDescription
+        dimCols =
+            [ Persisted_ { name = "id", parentRef = DuckDbTable dimRef, dataType = "String" }
+            , Persisted_ { name = "attr_1", parentRef = DuckDbTable dimRef, dataType = "String" }
+            , Persisted_ { name = "attr_2", parentRef = DuckDbTable dimRef, dataType = "String" }
+            ]
+
         factRef : DuckDbRef
         factRef =
             { schemaName = "story", tableName = "some_fact" }
+
+        factCols : List DuckDbColumnDescription
+        factCols =
+            [ Persisted_ { name = "fact_id", parentRef = DuckDbTable factRef, dataType = "String" }
+            , Persisted_ { name = "dim_key", parentRef = DuckDbTable factRef, dataType = "String" }
+            , Persisted_ { name = "measure_1", parentRef = DuckDbTable factRef, dataType = "Float" }
+            ]
     in
     ( { theme = shared.selectedTheme
       , tableInfos =
@@ -61,16 +75,16 @@ init shared =
                         { pos = { x = 100.0, y = 100.0 }
                         , ref = dimRef
                         }
-                    , assignment = Dimension (DuckDbTable dimRef) []
+                    , assignment = Dimension (DuckDbTable dimRef) dimCols
                     , isIncluded = True
                     }
                   )
                 , ( refToString factRef
                   , { renderInfo =
                         { pos = { x = 200.0, y = 200.0 }
-                        , ref = dimRef
+                        , ref = factRef
                         }
-                    , assignment = Dimension (DuckDbTable dimRef) []
+                    , assignment = Fact (DuckDbTable factRef) factCols
                     , isIncluded = True
                     }
                   )
@@ -140,7 +154,8 @@ viewCanvas model =
     in
     el
         [ Border.width 1
-        , Border.color model.theme.black
+
+        --, Border.color model.theme.black
         , Border.rounded 5
         , Background.color model.theme.background
         , centerX
@@ -153,14 +168,7 @@ viewCanvas model =
                 , SA.height (ST.px height_)
                 , SA.viewBox 0 0 width_ height_
                 ]
-                [ S.rect
-                    [ SA.x (ST.px 0)
-                    , SA.y (ST.px 0)
-                    , SA.width (ST.px width_)
-                    , SA.height (ST.px height_)
-                    ]
-                    (viewSvgNodes model)
-                ]
+                (viewSvgNodes model)
 
 
 erdCardWidth =
@@ -184,12 +192,47 @@ viewSvgNodes model =
                 ]
                 [ E.layoutWith { options = [ noStaticStyleSheet ] }
                     []
-                    viewEntityRelationshipCard
+                    (viewEntityRelationshipCard model duckDbSourceInfo.assignment)
                 ]
     in
     List.map (\info -> foreignObjectHelper info) (Dict.values model.tableInfos)
 
 
-viewEntityRelationshipCard : Element Msg
-viewEntityRelationshipCard =
-    E.text "This is a elm-ui card!"
+viewEntityRelationshipCard : Model -> KimballAssignment DuckDbRef_ (List DuckDbColumnDescription) -> Element Msg
+viewEntityRelationshipCard model kimballAssignment =
+    let
+        ( duckDbRef_, type_, computedBackgroundColor ) =
+            case kimballAssignment of
+                Unassigned ref _ ->
+                    case ref of
+                        DuckDbView duckDbRef ->
+                            ( duckDbRef, "Unassigned", model.theme.debugWarn )
+
+                        DuckDbTable duckDbRef ->
+                            ( duckDbRef, "Unassigned", model.theme.debugWarn )
+
+                Fact ref _ ->
+                    case ref of
+                        DuckDbView duckDbRef ->
+                            ( duckDbRef, "Fact", model.theme.primary1 )
+
+                        DuckDbTable duckDbRef ->
+                            ( duckDbRef, "Fact", model.theme.primary1 )
+
+                Dimension ref _ ->
+                    case ref of
+                        DuckDbView duckDbRef ->
+                            ( duckDbRef, "Dimension", model.theme.primary2 )
+
+                        DuckDbTable duckDbRef ->
+                            ( duckDbRef, "Dimension", model.theme.primary2 )
+    in
+    column
+        [ width (px 250)
+        , height (px 250)
+        , Background.color computedBackgroundColor
+        ]
+        [ E.text "This is a card!"
+        , E.text (refToString duckDbRef_)
+        , E.text type_
+        ]

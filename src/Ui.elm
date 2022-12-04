@@ -1,7 +1,12 @@
-module Ui exposing (ColorTheme, PaletteName(..), theme, themeOf, toAvhColor)
+module Ui exposing (ColorTheme, DropDownOption, DropDownOptionId, DropDownProps, PaletteName(..), dropdownMenu, theme, themeOf, toAvhColor)
 
 import Color as AvhColor
-import Element exposing (Color, rgb255)
+import Element as E exposing (..)
+import Element.Background as Background
+import Element.Border as Border
+import Element.Events as Events
+import Element.Font as Font
+import Element.Input as Input
 
 
 
@@ -250,16 +255,128 @@ black =
 -- begin region: utils
 
 
-toAvhColor : Element.Color -> AvhColor.Color
+toAvhColor : E.Color -> AvhColor.Color
 toAvhColor color =
     -- I typically work with Element.Color in UIs, but Svg gets along better with Avh's Color,
     -- so to keep the palette defined in one place, transform between the two
     let
         rgba =
-            Element.toRgb color
+            E.toRgb color
     in
     AvhColor.rgba rgba.red rgba.green rgba.blue rgba.alpha
 
 
 
 -- end region: utils
+-- begin region: drop-down component
+
+
+type alias DropDownOptionId =
+    Int
+
+
+type alias DropDownProps msg =
+    { isOpen : Bool
+    , widthPx : Int
+    , heightPx : Int
+    , onDrawerClick : msg
+    , onMenuMouseEnter : msg
+    , onMenuMouseLeave : msg
+    , isMenuHovered : Bool
+    , menuBarText : String
+    , options : List (DropDownOption msg)
+    , hoveredOnOption : Maybe DropDownOptionId
+    }
+
+
+type alias DropDownOption msg =
+    { displayText : String
+    , optionId : DropDownOptionId
+    , onClick : msg
+    , onHover : msg
+    }
+
+
+dropdownMenu : { r | theme : ColorTheme } -> DropDownProps msg -> Element msg
+dropdownMenu r props =
+    let
+        menuOption : DropDownOption msg -> Element msg
+        menuOption op =
+            let
+                bkgdColor : Color
+                bkgdColor =
+                    case props.hoveredOnOption of
+                        Nothing ->
+                            r.theme.background
+
+                        Just opId ->
+                            if opId == op.optionId then
+                                r.theme.secondary
+
+                            else
+                                r.theme.background
+            in
+            el
+                (attrs bkgdColor ++ [ Events.onClick op.onClick, Events.onMouseLeave op.onHover ])
+                (E.text op.displayText)
+
+        attrs : Color -> List (Attribute msg)
+        attrs bkgdColor =
+            [ Border.width 1
+            , Border.color r.theme.secondary
+            , Background.color bkgdColor
+            , height (px props.heightPx)
+            , width (px props.widthPx)
+            , padding 2
+            , width fill
+            ]
+
+        menuHeader : Element msg
+        menuHeader =
+            let
+                backgroundColor : Color
+                backgroundColor =
+                    case props.isMenuHovered of
+                        True ->
+                            r.theme.secondary
+
+                        False ->
+                            r.theme.background
+            in
+            el
+                (attrs backgroundColor
+                    ++ [ Events.onClick props.onDrawerClick
+                       , Events.onMouseEnter props.onMenuMouseEnter
+                       , Events.onMouseLeave props.onMenuMouseLeave
+                       ]
+                )
+                (row [ centerY, height fill, padding 0 ]
+                    [ el [ alignLeft ] <| E.text props.menuBarText
+                    , el
+                        [ Border.widthEach { top = 0, bottom = 0, right = 1, left = 1 }
+                        , Border.color r.theme.secondary
+                        , height fill
+                        , alignRight
+                        ]
+                        (E.text "▼")
+                    ]
+                )
+
+        drawer : Element msg
+        drawer =
+            case props.isOpen of
+                True ->
+                    el
+                        [ below
+                            (column [] (List.map (\o -> menuOption o) props.options))
+                        ]
+                        menuHeader
+
+                False ->
+                    menuHeader
+    in
+    drawer
+
+
+
+-- end region: drop-down component

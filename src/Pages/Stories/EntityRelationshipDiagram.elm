@@ -72,7 +72,7 @@ init shared =
             Dict.fromList
                 [ ( refToString dimRef
                   , { renderInfo =
-                        { pos = { x = 100.0, y = 100.0 }
+                        { pos = { x = 40.0, y = 150.0 }
                         , ref = dimRef
                         }
                     , assignment = Dimension (DuckDbTable dimRef) dimCols
@@ -81,7 +81,7 @@ init shared =
                   )
                 , ( refToString factRef
                   , { renderInfo =
-                        { pos = { x = 200.0, y = 200.0 }
+                        { pos = { x = 400.0, y = 50.0 }
                         , ref = factRef
                         }
                     , assignment = Fact (DuckDbTable factRef) factCols

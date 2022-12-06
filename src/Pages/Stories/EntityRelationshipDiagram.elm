@@ -18,7 +18,7 @@ import TypedSvg as S
 import TypedSvg.Attributes as SA
 import TypedSvg.Core as SC exposing (Svg)
 import TypedSvg.Types as ST
-import Ui exposing (ColorTheme, toAvhColor)
+import Ui exposing (ColorTheme, button, toAvhColor)
 import View exposing (View)
 
 
@@ -39,6 +39,7 @@ page shared req =
 type alias Model =
     { theme : ColorTheme
     , tableInfos : Dict DuckDbRefString DimModelDuckDbSourceInfo
+    , msgHistory : List Msg
     }
 
 
@@ -89,6 +90,7 @@ init shared =
                     }
                   )
                 ]
+      , msgHistory = []
       }
     , Effect.none
     )
@@ -99,14 +101,21 @@ init shared =
 
 
 type Msg
-    = ReplaceMe
+    = UserClickedErdCardColumn
+    | UserHoveredOverErdCardColumn
+    | UserOpenedErdCardDropdown
+    | UserSelectedErdCardDropdownOption
+    | UserHoveredOverErdCard
+    | UserClickedButton
 
 
 update : Msg -> Model -> ( Model, Effect Msg )
 update msg model =
     case msg of
-        ReplaceMe ->
-            ( model, Effect.none )
+        _ ->
+            ( { model | msgHistory = msg :: model.msgHistory }
+            , Effect.none
+            )
 
 
 
@@ -125,14 +134,49 @@ subscriptions model =
 view : Model -> View Msg
 view model =
     { title = "Stories - ERD"
-    , body = viewElements model
+    , body = el [ width fill, height fill, Background.color model.theme.deadspace, padding 5 ] <| viewElements model
     }
+
+
+viewDebugInfo : Model -> Element Msg
+viewDebugInfo model =
+    let
+        msg2str : Msg -> String
+        msg2str msg =
+            case msg of
+                UserClickedErdCardColumn ->
+                    "UserClickedErdCardColumn"
+
+                UserHoveredOverErdCardColumn ->
+                    "UserHoveredOverErdCardColumn"
+
+                UserOpenedErdCardDropdown ->
+                    "UserOpenedErdCardDropdown"
+
+                UserSelectedErdCardDropdownOption ->
+                    "UserSelectedErdCardDropdownOption"
+
+                UserHoveredOverErdCard ->
+                    "UserHoveredOverErdCard"
+
+                UserClickedButton ->
+                    "UserClickedButton"
+
+        viewMsg : Msg -> Element Msg
+        viewMsg msg =
+            paragraph [ padding 5 ] [ E.text (msg2str msg) ]
+    in
+    textColumn [ paddingXY 0 5 ] <|
+        [ paragraph [ Font.bold, Font.size 24 ] [ E.text "Debug info:" ]
+        , paragraph [] [ E.text "Msgs:" ]
+        ]
+            ++ List.map (\m -> viewMsg m) model.msgHistory
 
 
 viewElements : Model -> Element Msg
 viewElements model =
-    el [ width fill, height fill, Background.color model.theme.deadspace, padding 5 ] <|
-        column
+    row [ width fill, height fill ]
+        [ column
             [ height fill
             , width (px 800)
             , padding 5
@@ -140,7 +184,21 @@ viewElements model =
             , centerX
             ]
             [ viewCanvas model
+            , button model
+                { onClick = Just UserClickedButton
+                , displayText = "Click me!"
+                }
             ]
+        , column
+            [ height fill
+            , width (px 250)
+            , padding 5
+            , Background.color model.theme.background
+            , centerX
+            ]
+            [ viewDebugInfo model
+            ]
+        ]
 
 
 viewCanvas : Model -> Element Msg

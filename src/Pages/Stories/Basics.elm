@@ -11,7 +11,7 @@ import Gen.Params.Stories.Basics exposing (Params)
 import Page
 import Request
 import Shared exposing (Msg(..))
-import Ui exposing (ColorTheme, PaletteName(..), dropdownMenu, themeOf)
+import Ui exposing (ColorTheme, PaletteName(..), button, dropdownMenu, themeOf)
 import Utils exposing (bool2Str)
 import View exposing (View)
 
@@ -130,28 +130,6 @@ map_ sharedMsg =
 
         Shared__UserSelectedPalette paletteName ->
             Basics__UserSelectedPalette paletteName
-
-
-type alias ButtonProps =
-    { onClick : Maybe Msg
-    , displayText : String
-    }
-
-
-button : { r | theme : ColorTheme } -> ButtonProps -> Element Msg
-button r props =
-    Input.button []
-        { onPress = props.onClick
-        , label =
-            el
-                [ Border.width 1
-                , Border.color r.theme.secondary
-                , Background.color r.theme.primary2
-                , Border.rounded 3
-                , padding 3
-                ]
-                (E.text props.displayText)
-        }
 
 
 type alias TableProps data =

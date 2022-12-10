@@ -368,7 +368,7 @@ viewEntityRelationshipCard model kimballAssignment =
                 dropDownProps =
                     { isOpen = isDrawOpen
                     , widthPx = 25
-                    , heightPx = titleBarHeightPx
+                    , heightPx = titleBarHeightPx - 1
                     , onDrawerClick = UserToggledErdCardDropdown duckDbRef_
                     , onMenuMouseEnter = MouseEnteredErdCard
                     , onMenuMouseLeave = MouseLeftErdCard
@@ -394,15 +394,18 @@ viewEntityRelationshipCard model kimballAssignment =
                     , hoveredOnOption = Nothing
                     }
             in
-            row
-                [ width fill
-                , height (px titleBarHeightPx)
-                , Border.width 1
-                , Border.color model.theme.black
-                ]
-                [ E.text (refToString duckDbRef_)
-                , el [ alignRight ] <| dropdownMenu model dropDownProps
-                ]
+            el [ width fill, height fill, paddingXY 2 0 ]
+                (row
+                    [ width fill
+                    , paddingXY 3 0
+                    , height (px titleBarHeightPx)
+                    , Border.widthEach { top = 0, bottom = 2, left = 0, right = 0 }
+                    , Border.color model.theme.secondary
+                    ]
+                    [ E.text (refToString duckDbRef_)
+                    , el [ alignRight ] <| dropdownMenu model dropDownProps
+                    ]
+                )
 
         viewCardBody : Element Msg
         viewCardBody =
@@ -439,11 +442,21 @@ viewEntityRelationshipCard model kimballAssignment =
                     )
                     colDescs
                 )
+
+        cardWidthPx =
+            250
+
+        cardHeightPx =
+            -- title bar + body (depends on length) + footer / padding
+            41 + (25 * List.length colDescs) + 5
     in
     column
-        [ width (px 250)
-        , height (px 250)
+        [ width (px cardWidthPx)
+        , height (px cardHeightPx)
         , Background.color computedBackgroundColor
+        , Border.width 1
+        , Border.color model.theme.secondary
+        , Border.rounded 5
         ]
         [ viewCardTitleBar
         , viewCardBody

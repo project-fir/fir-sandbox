@@ -39,6 +39,7 @@ type alias DimensionalModel =
 
 
 type alias DimModelDuckDbSourceInfo =
+    -- TODO: Should I unfold CardRenderInfo into this record type?
     { renderInfo : CardRenderInfo
     , assignment : KimballAssignment DuckDbRef_ (List DuckDbColumnDescription)
     , isIncluded : Bool

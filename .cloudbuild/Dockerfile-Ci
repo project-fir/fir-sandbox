@@ -1,0 +1,23 @@
+FROM node:16-slim
+
+RUN apt-get update
+RUN apt-get install -y \
+    curl
+
+# create directory to work in
+RUN mkdir /build
+RUN cd /build
+COPY ./ .
+
+# install rust, which is used for test running
+# Note, the file is just the output of this, saved to the .cloudbuild/ directory, this is so we can pass in the -y flag
+RUN ./.cloudbuild/install_rust.sh -y
+
+# update npm, npm install elm stuff
+RUN npm install -g npm
+RUN npm install -g elm elm-test elm-review elm-spa
+
+# install Lamdera
+# RUN curl www.google.com
+
+

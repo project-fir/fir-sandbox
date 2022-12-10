@@ -1,4 +1,4 @@
-module Ui exposing (ColorTheme, DropDownOption, DropDownOptionId, DropDownProps, PaletteName(..), dropdownMenu, theme, themeOf, toAvhColor)
+module Ui exposing (ButtonProps, ColorTheme, DropDownOption, DropDownOptionId, DropDownProps, PaletteName(..), button, dropdownMenu, theme, themeOf, toAvhColor)
 
 import Color as AvhColor
 import Element as E exposing (..)
@@ -353,12 +353,17 @@ dropdownMenu r props =
                 (row [ centerY, height fill, padding 0 ]
                     [ el [ alignLeft ] <| E.text props.menuBarText
                     , el
-                        [ Border.widthEach { top = 0, bottom = 0, right = 1, left = 1 }
-                        , Border.color r.theme.secondary
-                        , height fill
+                        [ height fill
                         , alignRight
                         ]
-                        (E.text "▼")
+                        (el
+                            [ centerY
+                            , Border.color r.theme.secondary
+                            , Border.width 1
+                            ]
+                         <|
+                            E.text "▼"
+                        )
                     ]
                 )
 
@@ -375,8 +380,36 @@ dropdownMenu r props =
                 False ->
                     menuHeader
     in
-    drawer
+    -- I don't fully understand why, but wrapping in this top-level el results in a better behaved width
+    el [ width (px props.widthPx), height (px props.heightPx) ] drawer
 
 
 
 -- end region: drop-down component
+-- begin region: button component
+
+
+type alias ButtonProps msg =
+    { onClick : Maybe msg
+    , displayText : String
+    }
+
+
+button : { r | theme : ColorTheme } -> ButtonProps msg -> Element msg
+button r props =
+    Input.button []
+        { onPress = props.onClick
+        , label =
+            el
+                [ Border.width 1
+                , Border.color r.theme.secondary
+                , Background.color r.theme.primary2
+                , Border.rounded 3
+                , padding 3
+                ]
+                (E.text props.displayText)
+        }
+
+
+
+-- end region: button component

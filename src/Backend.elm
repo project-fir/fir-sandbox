@@ -259,6 +259,7 @@ updateFromFrontend sessionId clientId msg model =
                                             { renderInfo =
                                                 { ref = duckDbRef
                                                 , pos = { x = 100, y = 100 }
+                                                , isDrawerOpen = False
                                                 }
                                             , assignment = Unassigned (DuckDbTable duckDbRef) colDescs
                                             , isIncluded = True

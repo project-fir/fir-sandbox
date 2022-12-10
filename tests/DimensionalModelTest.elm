@@ -22,14 +22,15 @@ suite =
             , test "fail nicely if given empty input"
                 (\_ -> naiveColumnPairingStrategy emptyModel |> Expect.equal (Fail InputMustContainAtLeastOneFactTable))
             ]
-        , describe "Test group columns of same table"
-            [ test "happy path - case 1"
-                (\_ -> naiveColumnPairingStrategy goodModel1 |> Expect.equal (Fail InputMustContainAtLeastOneFactTable))
 
-            --, test "happy path - case 2"
-            --    (\_ -> naiveColumnPairingStrategy goodModel2 |> Expect.equal (Success goodModel2_Expected))
-            -- TODO: Test case with two facts with 1 or more column names that match should NOT result in joins
-            ]
+        --, describe "Test group columns of same table"
+        --    [ test "happy path - case 1"
+        --        (\_ -> naiveColumnPairingStrategy goodModel1 |> Expect.equal (Fail InputMustContainAtLeastOneFactTable))
+        --
+        --    --, test "happy path - case 2"
+        --    --    (\_ -> naiveColumnPairingStrategy goodModel2 |> Expect.equal (Success goodModel2_Expected))
+        --    -- TODO: Test case with two facts with 1 or more column names that match should NOT result in joins
+        --    ]
         ]
 
 

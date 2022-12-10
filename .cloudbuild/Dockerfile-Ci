@@ -1,0 +1,29 @@
+FROM node:16-slim
+
+RUN apt-get update
+RUN apt-get install -y \
+    curl \
+    libtinfo5 \
+    git
+
+# create directory to work in
+RUN mkdir /build
+WORKDIR /build
+COPY ./ .
+
+# install rust, which is used for test running
+# Note, the file is just the output of this, saved to the .cloudbuild/ directory, this is so we can pass in the -y flag
+RUN ./.cloudbuild/install_rust.sh -y
+
+# update npm, npm install elm stuff
+RUN npm install -g npm
+RUN npm install -g elm elm-test elm-review elm-spa
+
+# install Lamdera
+RUN curl https://static.lamdera.com/bin/linux/lamdera -o /usr/local/bin/lamdera
+RUN chmod a+x /usr/local/bin/lamdera
+
+# Lamdera make has the side-effect of fetch required elm packages
+# this is so elm-test-rs succeeds
+RUN elm-spa gen
+RUN lamdera make src/Frontend.elm src/Backend.elm

@@ -32,7 +32,7 @@ type alias Model =
 
 init : Request -> Flags -> ( Model, Cmd Msg )
 init _ json =
-    ( Model Time.utc (themeOf Nitro)
+    ( Model Time.utc (themeOf BambooBeach)
       -- placeholder gets rewritten on the Task.perform below
     , Task.perform SetTimeZoneToLocale Time.here
     )

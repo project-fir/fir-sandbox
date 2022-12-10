@@ -18,7 +18,7 @@ import TypedSvg as S
 import TypedSvg.Attributes as SA
 import TypedSvg.Core as SC exposing (Svg)
 import TypedSvg.Types as ST
-import Ui exposing (ColorTheme, button, toAvhColor)
+import Ui exposing (ColorTheme, DropDownOption, DropDownOptionId, DropDownProps, button, dropdownMenu, toAvhColor)
 import View exposing (View)
 
 
@@ -40,6 +40,7 @@ type alias Model =
     { theme : ColorTheme
     , tableInfos : Dict DuckDbRefString DimModelDuckDbSourceInfo
     , msgHistory : List Msg
+    , isDummyDrawerOpen : Bool
     }
 
 
@@ -75,6 +76,7 @@ init shared =
                   , { renderInfo =
                         { pos = { x = 40.0, y = 150.0 }
                         , ref = dimRef
+                        , isDrawerOpen = False
                         }
                     , assignment = Dimension (DuckDbTable dimRef) dimCols
                     , isIncluded = True
@@ -84,6 +86,7 @@ init shared =
                   , { renderInfo =
                         { pos = { x = 400.0, y = 50.0 }
                         , ref = factRef
+                        , isDrawerOpen = False
                         }
                     , assignment = Fact (DuckDbTable factRef) factCols
                     , isIncluded = True
@@ -91,6 +94,7 @@ init shared =
                   )
                 ]
       , msgHistory = []
+      , isDummyDrawerOpen = False
       }
     , Effect.none
     )
@@ -103,15 +107,58 @@ init shared =
 type Msg
     = UserClickedErdCardColumn
     | UserHoveredOverErdCardColumn
-    | UserOpenedErdCardDropdown
+    | UserToggledErdCardDropdown DuckDbRef
+    | UserToggledDummyDropdown
     | UserSelectedErdCardDropdownOption
-    | UserHoveredOverErdCard
+    | UserHoveredOverOption
+    | MouseEnteredErdCard
+    | MouseLeftErdCard
     | UserClickedButton
 
 
 update : Msg -> Model -> ( Model, Effect Msg )
 update msg model =
     case msg of
+        UserToggledDummyDropdown ->
+            ( { model
+                | msgHistory = msg :: model.msgHistory
+                , isDummyDrawerOpen = not model.isDummyDrawerOpen
+              }
+            , Effect.none
+            )
+
+        UserToggledErdCardDropdown ref ->
+            let
+                newSourceInfo =
+                    case Dict.get (refToString ref) model.tableInfos of
+                        Nothing ->
+                            Nothing
+
+                        Just info ->
+                            let
+                                renderInfo =
+                                    info.renderInfo
+
+                                newRenderInfo =
+                                    { renderInfo | isDrawerOpen = not renderInfo.isDrawerOpen }
+                            in
+                            Just { info | renderInfo = newRenderInfo }
+
+                newTableInfos =
+                    case newSourceInfo of
+                        Just tableInfos_ ->
+                            Dict.insert (refToString ref) tableInfos_ model.tableInfos
+
+                        Nothing ->
+                            model.tableInfos
+            in
+            ( { model
+                | msgHistory = msg :: model.msgHistory
+                , tableInfos = newTableInfos
+              }
+            , Effect.none
+            )
+
         _ ->
             ( { model | msgHistory = msg :: model.msgHistory }
             , Effect.none
@@ -150,23 +197,32 @@ viewDebugInfo model =
                 UserHoveredOverErdCardColumn ->
                     "UserHoveredOverErdCardColumn"
 
-                UserOpenedErdCardDropdown ->
-                    "UserOpenedErdCardDropdown"
+                UserToggledErdCardDropdown ref ->
+                    "UserToggledErdCardDropdown " ++ refToString ref
 
                 UserSelectedErdCardDropdownOption ->
                     "UserSelectedErdCardDropdownOption"
 
-                UserHoveredOverErdCard ->
+                MouseEnteredErdCard ->
                     "UserHoveredOverErdCard"
 
                 UserClickedButton ->
                     "UserClickedButton"
 
+                MouseLeftErdCard ->
+                    "MouseLeftErdCard"
+
+                UserHoveredOverOption ->
+                    "UserHoveredOverOption"
+
+                UserToggledDummyDropdown ->
+                    "UserToggledDummyDropdown"
+
         viewMsg : Msg -> Element Msg
         viewMsg msg =
             paragraph [ padding 5 ] [ E.text (msg2str msg) ]
     in
-    textColumn [ paddingXY 0 5 ] <|
+    textColumn [ paddingXY 0 5, clipY, scrollbarY, height fill ] <|
         [ paragraph [ Font.bold, Font.size 24 ] [ E.text "Debug info:" ]
         , paragraph [] [ E.text "Msgs:" ]
         ]
@@ -175,6 +231,37 @@ viewDebugInfo model =
 
 viewElements : Model -> Element Msg
 viewElements model =
+    let
+        dropDownProps : DropDownProps Msg
+        dropDownProps =
+            { isOpen = model.isDummyDrawerOpen
+            , widthPx = 150
+            , heightPx = 40
+            , onDrawerClick = UserToggledDummyDropdown
+            , onMenuMouseEnter = MouseEnteredErdCard
+            , onMenuMouseLeave = MouseLeftErdCard
+            , isMenuHovered = False
+            , menuBarText = "Hallooooo"
+            , options =
+                [ { displayText = "Apples"
+                  , optionId = 1
+                  , onClick = UserSelectedErdCardDropdownOption
+                  , onHover = UserHoveredOverOption
+                  }
+                , { displayText = "Bananas"
+                  , optionId = 2
+                  , onClick = UserSelectedErdCardDropdownOption
+                  , onHover = UserHoveredOverOption
+                  }
+                , { displayText = "Pears"
+                  , optionId = 2
+                  , onClick = UserSelectedErdCardDropdownOption
+                  , onHover = UserHoveredOverOption
+                  }
+                ]
+            , hoveredOnOption = Nothing
+            }
+    in
     row [ width fill, height fill ]
         [ column
             [ height fill
@@ -183,11 +270,8 @@ viewElements model =
             , Background.color model.theme.background
             , centerX
             ]
-            [ viewCanvas model
-            , button model
-                { onClick = Just UserClickedButton
-                , displayText = "Click me!"
-                }
+            [ dropdownMenu model dropDownProps
+            , viewCanvas model
             ]
         , column
             [ height fill
@@ -259,7 +343,7 @@ viewSvgNodes model =
 viewEntityRelationshipCard : Model -> KimballAssignment DuckDbRef_ (List DuckDbColumnDescription) -> Element Msg
 viewEntityRelationshipCard model kimballAssignment =
     let
-        ( duckDbRef_, type_, computedBackgroundColor ) =
+        ( duckDbRef_, assignmentType, computedBackgroundColor ) =
             case kimballAssignment of
                 Unassigned ref _ ->
                     case ref of
@@ -284,13 +368,68 @@ viewEntityRelationshipCard model kimballAssignment =
 
                         DuckDbTable duckDbRef ->
                             ( duckDbRef, "Dimension", model.theme.primary2 )
+
+        viewCardTitleBar : Element Msg
+        viewCardTitleBar =
+            let
+                titleBarHeightPx =
+                    40
+
+                isDrawOpen : Bool
+                isDrawOpen =
+                    case Dict.get (refToString duckDbRef_) model.tableInfos of
+                        Just info ->
+                            info.renderInfo.isDrawerOpen
+
+                        Nothing ->
+                            False
+
+                dropDownProps : DropDownProps Msg
+                dropDownProps =
+                    { isOpen = isDrawOpen
+                    , widthPx = 25
+                    , heightPx = titleBarHeightPx
+                    , onDrawerClick = UserToggledErdCardDropdown duckDbRef_
+                    , onMenuMouseEnter = MouseEnteredErdCard
+                    , onMenuMouseLeave = MouseLeftErdCard
+                    , isMenuHovered = False
+                    , menuBarText = ""
+                    , options =
+                        [ { displayText = "Apples"
+                          , optionId = 1
+                          , onClick = UserSelectedErdCardDropdownOption
+                          , onHover = UserHoveredOverOption
+                          }
+                        , { displayText = "Bananas"
+                          , optionId = 2
+                          , onClick = UserSelectedErdCardDropdownOption
+                          , onHover = UserHoveredOverOption
+                          }
+                        , { displayText = "Pears"
+                          , optionId = 2
+                          , onClick = UserSelectedErdCardDropdownOption
+                          , onHover = UserHoveredOverOption
+                          }
+                        ]
+                    , hoveredOnOption = Nothing
+                    }
+            in
+            row
+                [ width fill
+                , height (px titleBarHeightPx)
+                , Border.width 1
+                , Border.color model.theme.black
+                ]
+                [ E.text (refToString duckDbRef_)
+                , el [ alignRight ] <| dropdownMenu model dropDownProps
+                ]
     in
     column
         [ width (px 250)
         , height (px 250)
         , Background.color computedBackgroundColor
         ]
-        [ E.text "This is a card!"
+        [ viewCardTitleBar
         , E.text (refToString duckDbRef_)
-        , E.text type_
+        , E.text assignmentType
         ]

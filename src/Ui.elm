@@ -353,12 +353,17 @@ dropdownMenu r props =
                 (row [ centerY, height fill, padding 0 ]
                     [ el [ alignLeft ] <| E.text props.menuBarText
                     , el
-                        [ Border.widthEach { top = 0, bottom = 0, right = 1, left = 1 }
-                        , Border.color r.theme.secondary
-                        , height fill
+                        [ height fill
                         , alignRight
                         ]
-                        (E.text "▼")
+                        (el
+                            [ centerY
+                            , Border.color r.theme.secondary
+                            , Border.width 1
+                            ]
+                         <|
+                            E.text "▼"
+                        )
                     ]
                 )
 
@@ -375,7 +380,8 @@ dropdownMenu r props =
                 False ->
                     menuHeader
     in
-    drawer
+    -- I don't fully understand why, but wrapping in this top-level el results in a better behaved width
+    el [ width (px props.widthPx), height (px props.heightPx) ] drawer
 
 
 

@@ -17,6 +17,7 @@ type alias PositionPx =
 type alias CardRenderInfo =
     { pos : PositionPx
     , ref : DuckDb.DuckDbRef
+    , isDrawerOpen : Bool
     }
 
 

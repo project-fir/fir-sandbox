@@ -231,37 +231,6 @@ viewDebugInfo model =
 
 viewElements : Model -> Element Msg
 viewElements model =
-    let
-        dropDownProps : DropDownProps Msg
-        dropDownProps =
-            { isOpen = model.isDummyDrawerOpen
-            , widthPx = 150
-            , heightPx = 40
-            , onDrawerClick = UserToggledDummyDropdown
-            , onMenuMouseEnter = MouseEnteredErdCard
-            , onMenuMouseLeave = MouseLeftErdCard
-            , isMenuHovered = False
-            , menuBarText = "Hallooooo"
-            , options =
-                [ { displayText = "Apples"
-                  , optionId = 1
-                  , onClick = UserSelectedErdCardDropdownOption
-                  , onHover = UserHoveredOverOption
-                  }
-                , { displayText = "Bananas"
-                  , optionId = 2
-                  , onClick = UserSelectedErdCardDropdownOption
-                  , onHover = UserHoveredOverOption
-                  }
-                , { displayText = "Pears"
-                  , optionId = 2
-                  , onClick = UserSelectedErdCardDropdownOption
-                  , onHover = UserHoveredOverOption
-                  }
-                ]
-            , hoveredOnOption = Nothing
-            }
-    in
     row [ width fill, height fill ]
         [ column
             [ height fill
@@ -270,8 +239,7 @@ viewElements model =
             , Background.color model.theme.background
             , centerX
             ]
-            [ dropdownMenu model dropDownProps
-            , viewCanvas model
+            [ viewCanvas model
             ]
         , column
             [ height fill
@@ -343,6 +311,18 @@ viewSvgNodes model =
 viewEntityRelationshipCard : Model -> KimballAssignment DuckDbRef_ (List DuckDbColumnDescription) -> Element Msg
 viewEntityRelationshipCard model kimballAssignment =
     let
+        colDescs : List DuckDbColumnDescription
+        colDescs =
+            case kimballAssignment of
+                Unassigned _ columns ->
+                    columns
+
+                Fact _ columns ->
+                    columns
+
+                Dimension _ columns ->
+                    columns
+
         ( duckDbRef_, assignmentType, computedBackgroundColor ) =
             case kimballAssignment of
                 Unassigned ref _ ->
@@ -423,6 +403,42 @@ viewEntityRelationshipCard model kimballAssignment =
                 [ E.text (refToString duckDbRef_)
                 , el [ alignRight ] <| dropdownMenu model dropDownProps
                 ]
+
+        viewCardBody : Element Msg
+        viewCardBody =
+            let
+                viewNub : Attribute Msg -> Element Msg
+                viewNub alignment =
+                    el
+                        (alignment
+                            :: [ Border.width 1
+                               , Border.color model.theme.secondary
+                               , Background.color model.theme.background
+                               , padding 3
+                               ]
+                        )
+                        E.none
+
+                colDisplayText : DuckDbColumnDescription -> String
+                colDisplayText desc =
+                    case desc of
+                        Persisted_ desc_ ->
+                            desc_.name
+
+                        Computed_ desc_ ->
+                            desc_.name
+            in
+            column [ width fill, height fill ]
+                (List.map
+                    (\col ->
+                        row [ width fill, paddingXY 5 3 ]
+                            [ viewNub alignLeft
+                            , el [ centerX ] (E.text (colDisplayText col))
+                            , viewNub alignRight
+                            ]
+                    )
+                    colDescs
+                )
     in
     column
         [ width (px 250)
@@ -430,6 +446,5 @@ viewEntityRelationshipCard model kimballAssignment =
         , Background.color computedBackgroundColor
         ]
         [ viewCardTitleBar
-        , E.text (refToString duckDbRef_)
-        , E.text assignmentType
+        , viewCardBody
         ]

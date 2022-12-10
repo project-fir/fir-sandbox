@@ -2,10 +2,10 @@ version: "3.7"
 
 services:
   elm-test-rs:
-    image: lamdera-ci:local
-#    image: gcr.io/fir-sandbox-326008/lamdera-ci:latest
-#    command: ./.cloudbuild/bin/elm-test-rs
-    command: bash
+#    image: lamdera-ci:local
+    image: gcr.io/fir-sandbox-326008/lamdera-ci:latest
+    command: ./.cloudbuild/bin/elm-test-rs
+#    command: bash
     working_dir: /build
     networks:
       - lamdera-ci-network

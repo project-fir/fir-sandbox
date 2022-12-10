@@ -119,6 +119,7 @@ badModel1_ =
               , { renderInfo =
                     { pos = defaultPos
                     , ref = table1
+                    , isDrawerOpen = False
                     }
                 , assignment = Unassigned (DuckDbTable table1) table1Cols
                 , isIncluded = True
@@ -139,6 +140,7 @@ badModel2_ =
               , { renderInfo =
                     { pos = defaultPos
                     , ref = table1
+                    , isDrawerOpen = False
                     }
                 , assignment = Fact (DuckDbTable table1) table1Cols
                 , isIncluded = True
@@ -159,6 +161,7 @@ badModel3_ =
               , { renderInfo =
                     { pos = defaultPos
                     , ref = table1
+                    , isDrawerOpen = False
                     }
                 , assignment = Dimension (DuckDbTable table1) table1Cols
                 , isIncluded = True
@@ -178,6 +181,7 @@ goodModel1 =
               , { renderInfo =
                     { pos = defaultPos
                     , ref = table1
+                    , isDrawerOpen = False
                     }
                 , assignment = Fact (DuckDbTable table1) table1Cols
                 , isIncluded = True
@@ -187,6 +191,7 @@ goodModel1 =
               , { renderInfo =
                     { pos = defaultPos
                     , ref = table2
+                    , isDrawerOpen = False
                     }
                 , assignment = Dimension (DuckDbTable table2) table2Cols
                 , isIncluded = True

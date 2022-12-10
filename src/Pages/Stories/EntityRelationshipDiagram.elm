@@ -97,6 +97,8 @@ init shared =
                     [ ( refToString dimRef
                       , { renderInfo =
                             { pos = { x = 40.0, y = 175.0 }
+
+                            --pos = { x = 430.0, y = 175.0 }
                             , ref = dimRef
                             , isDrawerOpen = False
                             }
@@ -107,6 +109,8 @@ init shared =
                     , ( refToString factRef
                       , { renderInfo =
                             { pos = { x = 430.0, y = 325.0 }
+
+                            --pos = { x = 40.0, y = 175.0 }
                             , ref = factRef
                             , isDrawerOpen = False
                             }
@@ -310,24 +314,68 @@ viewCanvas model =
                 (viewSvgErdCards model ++ viewLines model)
 
 
-erdCardWidth =
-    250
-
-
-erdCardHeight =
-    400
-
-
 computeLineCoords : ColumnGraph -> Dict DuckDbRefString DimModelDuckDbSourceInfo -> List (Edge EdgeLabel) -> List ( PositionPx, PositionPx )
 computeLineCoords graph tableInfos edges =
     let
         coordsFor : Edge EdgeLabel -> Maybe ( PositionPx, PositionPx )
         coordsFor edge =
             let
+                cardWidthPx =
+                    250
+
                 compute : DimModelDuckDbSourceInfo -> DimModelDuckDbSourceInfo -> ( PositionPx, PositionPx )
                 compute fromInfo toInfo =
-                    ( { x = fromInfo.renderInfo.pos.x, y = fromInfo.renderInfo.pos.y }
-                    , { x = toInfo.renderInfo.pos.x, y = toInfo.renderInfo.pos.y }
+                    let
+                        x1 =
+                            fromInfo.renderInfo.pos.x
+
+                        x2 =
+                            toInfo.renderInfo.pos.x
+
+                        y1 =
+                            fromInfo.renderInfo.pos.y
+
+                        y2 =
+                            toInfo.renderInfo.pos.y
+
+                        x1_ =
+                            if x2 > x1 then
+                                x1 + cardWidthPx
+
+                            else
+                                x1
+
+                        x2_ =
+                            if x1 + cardWidthPx < x2 then
+                                x2
+
+                            else
+                                x2 + cardWidthPx
+
+                        unpackAssignment : KimballAssignment ref columns -> ( ref, columns )
+                        unpackAssignment assignment =
+                            case assignment of
+                                Unassigned ref colDescs ->
+                                    ( ref, colDescs )
+
+                                Fact ref colDescs ->
+                                    ( ref, colDescs )
+
+                                Dimension ref colDescs ->
+                                    ( ref, colDescs )
+
+                        indexOf : DuckDbRef_ -> List DuckDbColumnDescription -> Maybe Int
+                        indexOf ref colDescs =
+                            Just 0
+
+                        ( fromRef, fromColDescs ) =
+                            unpackAssignment fromInfo.assignment
+
+                        ( toRef, toColDescs ) =
+                            unpackAssignment toInfo.assignment
+                    in
+                    ( { x = x1_, y = y1 }
+                    , { x = x2_, y = y2 }
                     )
 
                 tableInfosFromNodeId : NodeId -> Maybe DimModelDuckDbSourceInfo
@@ -398,13 +446,25 @@ viewSvgErdCards : Model -> List (Svg Msg)
 viewSvgErdCards model =
     -- For each included table, render an Svg foreignObject, which is an elm-ui layout rendering a diagram card.
     let
+        unpackColDescs : DimModelDuckDbSourceInfo -> List DuckDbColumnDescription
+        unpackColDescs sourceInfo =
+            case sourceInfo.assignment of
+                Unassigned _ columns ->
+                    columns
+
+                Fact _ columns ->
+                    columns
+
+                Dimension _ columns ->
+                    columns
+
         foreignObjectHelper : DimModelDuckDbSourceInfo -> Svg Msg
         foreignObjectHelper duckDbSourceInfo =
             SC.foreignObject
                 [ SA.x (ST.px duckDbSourceInfo.renderInfo.pos.x)
                 , SA.y (ST.px duckDbSourceInfo.renderInfo.pos.y)
                 , SA.width (ST.px erdCardWidth)
-                , SA.height (ST.px erdCardHeight)
+                , SA.height (ST.px (erdCardHeightPx (unpackColDescs duckDbSourceInfo)))
                 ]
                 [ E.layoutWith { options = [ noStaticStyleSheet ] }
                     []
@@ -412,6 +472,30 @@ viewSvgErdCards model =
                 ]
     in
     List.map (\info -> foreignObjectHelper info) (Dict.values model.dimModel.tableInfos)
+
+
+
+-- begin region: ERD Card constants
+-- NB: These constants are shared among several functions in this story, but are not intended to be exposed
+--     if you think you need to expose, I recommend first trying to implement the functionality in this module
+
+
+erdCardWidth =
+    250
+
+
+erdCardHeightPx : List DuckDbColumnDescription -> Float
+erdCardHeightPx colDescs =
+    -- title bar + body (depends on length) + footer / padding
+    toFloat <| 41 + (25 * List.length colDescs) + 5
+
+
+titleBarHeightPx =
+    40
+
+
+
+-- end region: ERD Card constants
 
 
 viewEntityRelationshipCard : Model -> KimballAssignment DuckDbRef_ (List DuckDbColumnDescription) -> Element Msg
@@ -458,9 +542,6 @@ viewEntityRelationshipCard model kimballAssignment =
         viewCardTitleBar : Element Msg
         viewCardTitleBar =
             let
-                titleBarHeightPx =
-                    40
-
                 isDrawOpen : Bool
                 isDrawOpen =
                     case Dict.get (refToString duckDbRef_) model.dimModel.tableInfos of
@@ -548,17 +629,10 @@ viewEntityRelationshipCard model kimballAssignment =
                     )
                     colDescs
                 )
-
-        cardWidthPx =
-            250
-
-        cardHeightPx =
-            -- title bar + body (depends on length) + footer / padding
-            41 + (25 * List.length colDescs) + 5
     in
     column
-        [ width (px cardWidthPx)
-        , height (px cardHeightPx)
+        [ width (px erdCardWidth)
+        , height (px <| round (erdCardHeightPx colDescs))
         , Background.color computedBackgroundColor
         , Border.width 1
         , Border.color model.theme.secondary

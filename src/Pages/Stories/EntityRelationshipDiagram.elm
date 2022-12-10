@@ -1,7 +1,7 @@
 module Pages.Stories.EntityRelationshipDiagram exposing (Model, Msg, page)
 
 import Dict exposing (Dict)
-import DimensionalModel exposing (DimModelDuckDbSourceInfo, KimballAssignment(..))
+import DimensionalModel exposing (CardRenderInfo, ColumnGraph, DimModelDuckDbSourceInfo, DimensionalModel, EdgeLabel(..), KimballAssignment(..), PositionPx, addEdges, addNodes, edgesOfType)
 import DuckDb exposing (DuckDbColumnDescription(..), DuckDbRef, DuckDbRefString, DuckDbRef_(..), refToString)
 import Effect exposing (Effect)
 import Element as E exposing (..)
@@ -11,6 +11,7 @@ import Element.Events as Events
 import Element.Font as Font
 import Element.Input as Input
 import Gen.Params.Stories.EntityRelationshipDiagram exposing (Params)
+import Graph exposing (Edge)
 import Page
 import Request
 import Shared
@@ -38,7 +39,7 @@ page shared req =
 
 type alias Model =
     { theme : ColorTheme
-    , tableInfos : Dict DuckDbRefString DimModelDuckDbSourceInfo
+    , dimModel : DimensionalModel
     , msgHistory : List Msg
     , isDummyDrawerOpen : Bool
     }
@@ -68,31 +69,53 @@ init shared =
             , Persisted_ { name = "dim_key", parentRef = DuckDbTable factRef, dataType = "String" }
             , Persisted_ { name = "measure_1", parentRef = DuckDbTable factRef, dataType = "Float" }
             ]
+
+        graphStep1 : ColumnGraph
+        graphStep1 =
+            addNodes Graph.empty (factCols ++ dimCols)
+
+        graphStep2 : ColumnGraph
+        graphStep2 =
+            let
+                lhs =
+                    Persisted_ { name = "dim_key", parentRef = DuckDbTable factRef, dataType = "String" }
+
+                rhs =
+                    Persisted_ { name = "id", parentRef = DuckDbTable dimRef, dataType = "String" }
+            in
+            addEdges graphStep1
+                [ ( lhs, rhs, Joinable )
+                , ( rhs, lhs, Joinable )
+                ]
     in
     ( { theme = shared.selectedTheme
-      , tableInfos =
-            Dict.fromList
-                [ ( refToString dimRef
-                  , { renderInfo =
-                        { pos = { x = 40.0, y = 150.0 }
-                        , ref = dimRef
-                        , isDrawerOpen = False
+      , dimModel =
+            { graph = graphStep2
+            , ref = "story_dim_model"
+            , tableInfos =
+                Dict.fromList
+                    [ ( refToString dimRef
+                      , { renderInfo =
+                            { pos = { x = 40.0, y = 150.0 }
+                            , ref = dimRef
+                            , isDrawerOpen = False
+                            }
+                        , assignment = Dimension (DuckDbTable dimRef) dimCols
+                        , isIncluded = True
                         }
-                    , assignment = Dimension (DuckDbTable dimRef) dimCols
-                    , isIncluded = True
-                    }
-                  )
-                , ( refToString factRef
-                  , { renderInfo =
-                        { pos = { x = 400.0, y = 50.0 }
-                        , ref = factRef
-                        , isDrawerOpen = False
+                      )
+                    , ( refToString factRef
+                      , { renderInfo =
+                            { pos = { x = 400.0, y = 50.0 }
+                            , ref = factRef
+                            , isDrawerOpen = False
+                            }
+                        , assignment = Fact (DuckDbTable factRef) factCols
+                        , isIncluded = True
                         }
-                    , assignment = Fact (DuckDbTable factRef) factCols
-                    , isIncluded = True
-                    }
-                  )
-                ]
+                      )
+                    ]
+            }
       , msgHistory = []
       , isDummyDrawerOpen = False
       }
@@ -130,7 +153,7 @@ update msg model =
         UserToggledErdCardDropdown ref ->
             let
                 newSourceInfo =
-                    case Dict.get (refToString ref) model.tableInfos of
+                    case Dict.get (refToString ref) model.dimModel.tableInfos of
                         Nothing ->
                             Nothing
 
@@ -147,14 +170,20 @@ update msg model =
                 newTableInfos =
                     case newSourceInfo of
                         Just tableInfos_ ->
-                            Dict.insert (refToString ref) tableInfos_ model.tableInfos
+                            Dict.insert (refToString ref) tableInfos_ model.dimModel.tableInfos
 
                         Nothing ->
-                            model.tableInfos
+                            model.dimModel.tableInfos
+
+                dimModel =
+                    model.dimModel
+
+                newDimModel =
+                    { dimModel | tableInfos = newTableInfos }
             in
             ( { model
                 | msgHistory = msg :: model.msgHistory
-                , tableInfos = newTableInfos
+                , dimModel = newDimModel
               }
             , Effect.none
             )
@@ -278,7 +307,7 @@ viewCanvas model =
                 , SA.height (ST.px height_)
                 , SA.viewBox 0 0 width_ height_
                 ]
-                (viewSvgNodes model)
+                (viewSvgErdCards model ++ viewLines model)
 
 
 erdCardWidth =
@@ -289,8 +318,53 @@ erdCardHeight =
     400
 
 
-viewSvgNodes : Model -> List (Svg Msg)
-viewSvgNodes model =
+computeLineCoords : List (Edge EdgeLabel) -> List ( PositionPx, PositionPx )
+computeLineCoords edges =
+    let
+        coordsFor : Edge EdgeLabel -> Maybe ( PositionPx, PositionPx )
+        coordsFor edge =
+            case edge.label of
+                CommonRef ->
+                    Nothing
+
+                Joinable ->
+                    Just ( { x = 100, y = 100 }, { x = 200, y = 450 } )
+
+        coords : List (Maybe ( PositionPx, PositionPx ))
+        coords =
+            List.map (\lbl -> coordsFor lbl) edges
+    in
+    List.filterMap identity coords
+
+
+viewLines : Model -> List (Svg Msg)
+viewLines model =
+    let
+        joinables : List (Edge EdgeLabel)
+        joinables =
+            edgesOfType model.dimModel.graph Joinable
+
+        coords : List ( PositionPx, PositionPx )
+        coords =
+            computeLineCoords joinables
+
+        lineFromCoords : ( PositionPx, PositionPx ) -> Svg Msg
+        lineFromCoords ( p1, p2 ) =
+            S.line
+                [ SA.x1 (ST.px p1.x)
+                , SA.y1 (ST.px p1.y)
+                , SA.x2 (ST.px p2.x)
+                , SA.y2 (ST.px p2.y)
+                , SA.stroke (ST.Paint (toAvhColor model.theme.black))
+                ]
+                []
+    in
+    List.map (\coord -> lineFromCoords coord) coords
+
+
+viewSvgErdCards : Model -> List (Svg Msg)
+viewSvgErdCards model =
+    -- For each included table, render an Svg foreignObject, which is an elm-ui layout rendering a diagram card.
     let
         foreignObjectHelper : DimModelDuckDbSourceInfo -> Svg Msg
         foreignObjectHelper duckDbSourceInfo =
@@ -305,7 +379,7 @@ viewSvgNodes model =
                     (viewEntityRelationshipCard model duckDbSourceInfo.assignment)
                 ]
     in
-    List.map (\info -> foreignObjectHelper info) (Dict.values model.tableInfos)
+    List.map (\info -> foreignObjectHelper info) (Dict.values model.dimModel.tableInfos)
 
 
 viewEntityRelationshipCard : Model -> KimballAssignment DuckDbRef_ (List DuckDbColumnDescription) -> Element Msg
@@ -357,7 +431,7 @@ viewEntityRelationshipCard model kimballAssignment =
 
                 isDrawOpen : Bool
                 isDrawOpen =
-                    case Dict.get (refToString duckDbRef_) model.tableInfos of
+                    case Dict.get (refToString duckDbRef_) model.dimModel.tableInfos of
                         Just info ->
                             info.renderInfo.isDrawerOpen
 

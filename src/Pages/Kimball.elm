@@ -1019,18 +1019,6 @@ viewDataSourceCard model dimModelRef renderInfo kimballAssignment =
 viewCanvas : Model -> LayoutInfo -> Element Msg
 viewCanvas model layoutInfo =
     let
-        lines : List (Svg Msg)
-        lines =
-            [ S.line
-                [ SA.x1 (ST.px 428)
-                , SA.y1 (ST.px 173)
-                , SA.x2 (ST.px 725)
-                , SA.y2 (ST.px 147)
-                , SA.stroke (ST.Paint (toAvhColor model.theme.black))
-                ]
-                []
-            ]
-
         erdCardsSvgNode : List (Svg Msg)
         erdCardsSvgNode =
             let
@@ -1070,7 +1058,7 @@ viewCanvas model layoutInfo =
                 , SA.height (ST.px layoutInfo.canvasElementHeight)
                 , SA.viewBox layoutInfo.viewBoxXMin layoutInfo.viewBoxYMin layoutInfo.viewBoxWidth layoutInfo.viewBoxHeight
                 ]
-                (erdCardsSvgNode ++ lines)
+                erdCardsSvgNode
 
 
 viewControlPanel : Model -> Element Msg

@@ -1,4 +1,4 @@
-module DimensionalModel exposing (CardRenderInfo, ColumnGraph, CommonRefEdge, DimModelDuckDbSourceInfo, DimensionalModel, DimensionalModelRef, EdgeLabel(..), JoinableEdge, KimballAssignment(..), NaivePairingStrategyResult(..), PositionPx, Reason(..), addEdge, addEdges, addNode, addNodes, columnGraph2DotString, edge2Str, edgesOfType, naiveColumnPairingStrategy)
+module DimensionalModel exposing (CardRenderInfo, ColumnGraph, CommonRefEdge, DimModelDuckDbSourceInfo, DimensionalModel, DimensionalModelRef, EdgeLabel(..), JoinableEdge, KimballAssignment(..), NaivePairingStrategyResult(..), PositionPx, Reason(..), addEdge, addEdges, addNode, addNodes, columnDescFromNodeId, columnGraph2DotString, edge2Str, edgesOfType, naiveColumnPairingStrategy)
 
 import Dict exposing (Dict)
 import DuckDb exposing (DuckDbColumnDescription(..), DuckDbRef, DuckDbRefString, DuckDbRef_(..), refToString, ref_ToString)
@@ -251,6 +251,16 @@ type EdgeLabel
 
 type alias ColumnGraph =
     Graph DuckDbColumnDescription EdgeLabel
+
+
+columnDescFromNodeId : ColumnGraph -> NodeId -> Maybe DuckDbColumnDescription
+columnDescFromNodeId graph nodeId =
+    case Graph.get nodeId graph of
+        Just a ->
+            Just a.node.label
+
+        Nothing ->
+            Nothing
 
 
 columnGraph2DotString : ColumnGraph -> String

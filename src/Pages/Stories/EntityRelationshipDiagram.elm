@@ -1,8 +1,8 @@
 module Pages.Stories.EntityRelationshipDiagram exposing (Model, Msg, page)
 
 import Dict exposing (Dict)
-import DimensionalModel exposing (CardRenderInfo, ColumnGraph, DimModelDuckDbSourceInfo, DimensionalModel, EdgeLabel(..), KimballAssignment(..), PositionPx, addEdges, addNodes, edgesOfType)
-import DuckDb exposing (DuckDbColumnDescription(..), DuckDbRef, DuckDbRefString, DuckDbRef_(..), refToString)
+import DimensionalModel exposing (CardRenderInfo, ColumnGraph, DimModelDuckDbSourceInfo, DimensionalModel, EdgeLabel(..), KimballAssignment(..), PositionPx, addEdges, addNodes, columnDescFromNodeId, edgesOfType)
+import DuckDb exposing (DuckDbColumnDescription(..), DuckDbRef, DuckDbRefString, DuckDbRef_(..), refToString, ref_ToString)
 import Effect exposing (Effect)
 import Element as E exposing (..)
 import Element.Background as Background
@@ -11,7 +11,7 @@ import Element.Events as Events
 import Element.Font as Font
 import Element.Input as Input
 import Gen.Params.Stories.EntityRelationshipDiagram exposing (Params)
-import Graph exposing (Edge)
+import Graph exposing (Edge, NodeId)
 import Page
 import Request
 import Shared
@@ -96,7 +96,7 @@ init shared =
                 Dict.fromList
                     [ ( refToString dimRef
                       , { renderInfo =
-                            { pos = { x = 40.0, y = 150.0 }
+                            { pos = { x = 40.0, y = 175.0 }
                             , ref = dimRef
                             , isDrawerOpen = False
                             }
@@ -106,7 +106,7 @@ init shared =
                       )
                     , ( refToString factRef
                       , { renderInfo =
-                            { pos = { x = 400.0, y = 50.0 }
+                            { pos = { x = 430.0, y = 325.0 }
                             , ref = factRef
                             , isDrawerOpen = False
                             }
@@ -318,17 +318,49 @@ erdCardHeight =
     400
 
 
-computeLineCoords : List (Edge EdgeLabel) -> List ( PositionPx, PositionPx )
-computeLineCoords edges =
+computeLineCoords : ColumnGraph -> Dict DuckDbRefString DimModelDuckDbSourceInfo -> List (Edge EdgeLabel) -> List ( PositionPx, PositionPx )
+computeLineCoords graph tableInfos edges =
     let
         coordsFor : Edge EdgeLabel -> Maybe ( PositionPx, PositionPx )
         coordsFor edge =
+            let
+                compute : DimModelDuckDbSourceInfo -> DimModelDuckDbSourceInfo -> ( PositionPx, PositionPx )
+                compute fromInfo toInfo =
+                    ( { x = fromInfo.renderInfo.pos.x, y = fromInfo.renderInfo.pos.y }
+                    , { x = toInfo.renderInfo.pos.x, y = toInfo.renderInfo.pos.y }
+                    )
+
+                tableInfosFromNodeId : NodeId -> Maybe DimModelDuckDbSourceInfo
+                tableInfosFromNodeId nodeId =
+                    case columnDescFromNodeId graph nodeId of
+                        Just colDesc ->
+                            case colDesc of
+                                Persisted_ colDesc_ ->
+                                    Dict.get (ref_ToString colDesc_.parentRef) tableInfos
+
+                                -- TODO: Computed support
+                                Computed_ colDesc_ ->
+                                    Nothing
+
+                        Nothing ->
+                            Nothing
+            in
             case edge.label of
                 CommonRef ->
                     Nothing
 
                 Joinable ->
-                    Just ( { x = 100, y = 100 }, { x = 200, y = 450 } )
+                    case tableInfosFromNodeId edge.from of
+                        Nothing ->
+                            Nothing
+
+                        Just fromInfos ->
+                            case tableInfosFromNodeId edge.to of
+                                Nothing ->
+                                    Nothing
+
+                                Just toInfos ->
+                                    Just (compute fromInfos toInfos)
 
         coords : List (Maybe ( PositionPx, PositionPx ))
         coords =
@@ -346,7 +378,7 @@ viewLines model =
 
         coords : List ( PositionPx, PositionPx )
         coords =
-            computeLineCoords joinables
+            computeLineCoords model.dimModel.graph model.dimModel.tableInfos joinables
 
         lineFromCoords : ( PositionPx, PositionPx ) -> Svg Msg
         lineFromCoords ( p1, p2 ) =

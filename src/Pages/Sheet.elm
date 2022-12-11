@@ -331,9 +331,6 @@ mapColumnsToSheet cols =
                     case col of
                         Persisted col_ ->
                             List.map (\e -> mapVal e) col_.vals
-
-                        Computed col_ ->
-                            List.map (\e -> mapVal e) col_.vals
                 )
                 cols
 
@@ -345,9 +342,6 @@ mapColumnsToSheet cols =
                 (\col ->
                     case col of
                         Persisted col_ ->
-                            col_.name
-
-                        Computed col_ ->
                             col_.name
                 )
                 cols

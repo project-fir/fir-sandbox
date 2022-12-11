@@ -38,18 +38,6 @@ mapColToStringCol col =
                     , vals = []
                     }
 
-        Computed col_ ->
-            case col_.dataType of
-                "DOUBLE" ->
-                    { ref = col_.name
-                    , vals = mapToStringList [] (removeNothingsFromList col_.vals)
-                    }
-
-                _ ->
-                    { ref = "ERROR - INT MAP"
-                    , vals = []
-                    }
-
 
 mapColToFloatCol : DuckDbColumn -> ColumnParamed Float
 mapColToFloatCol col =
@@ -79,18 +67,6 @@ mapColToFloatCol col =
                     , vals = []
                     }
 
-        Computed col_ ->
-            case col_.dataType of
-                "DOUBLE" ->
-                    { ref = col_.name
-                    , vals = mapToFloatList [] (removeNothingsFromList col_.vals)
-                    }
-
-                _ ->
-                    { ref = "ERROR - INT MAP"
-                    , vals = []
-                    }
-
 
 mapColToIntegerCol : DuckDbColumn -> ColumnParamed Int
 mapColToIntegerCol col =
@@ -109,18 +85,6 @@ mapColToIntegerCol col =
     in
     case col of
         Persisted col_ ->
-            case col_.dataType of
-                "INTEGER" ->
-                    { ref = col_.name
-                    , vals = mapToIntList [] (removeNothingsFromList col_.vals)
-                    }
-
-                _ ->
-                    { ref = "ERROR - INT MAP"
-                    , vals = []
-                    }
-
-        Computed col_ ->
             case col_.dataType of
                 "INTEGER" ->
                     { ref = col_.name

@@ -1,7 +1,7 @@
-module Pages.Stories.EntityRelationshipDiagram exposing (Model, Msg, page)
+module Pages.Stories.EntityRelationshipDiagram exposing (Model, Msg, indexOf, page)
 
 import Dict exposing (Dict)
-import DimensionalModel exposing (CardRenderInfo, ColumnGraph, DimModelDuckDbSourceInfo, DimensionalModel, EdgeLabel(..), KimballAssignment(..), PositionPx, addEdges, addNodes, columnDescFromNodeId, edgesOfType)
+import DimensionalModel exposing (CardRenderInfo, ColumnGraph, DimModelDuckDbSourceInfo, DimensionalModel, EdgeLabel(..), KimballAssignment(..), PositionPx, addEdges, addNodes, columnDescFromNodeId, edgesOfType, unpackAssignment)
 import DuckDb exposing (DuckDbColumnDescription(..), DuckDbRef, DuckDbRefString, DuckDbRef_(..), refToString, ref_ToString)
 import Effect exposing (Effect)
 import Element as E exposing (..)
@@ -314,6 +314,11 @@ viewCanvas model =
                 (viewSvgErdCards model ++ viewLines model)
 
 
+indexOf : DuckDbRef_ -> List DuckDbColumnDescription -> Maybe Int
+indexOf ref colDescs =
+    Nothing
+
+
 computeLineCoords : ColumnGraph -> Dict DuckDbRefString DimModelDuckDbSourceInfo -> List (Edge EdgeLabel) -> List ( PositionPx, PositionPx )
 computeLineCoords graph tableInfos edges =
     let
@@ -326,18 +331,23 @@ computeLineCoords graph tableInfos edges =
                 compute : DimModelDuckDbSourceInfo -> DimModelDuckDbSourceInfo -> ( PositionPx, PositionPx )
                 compute fromInfo toInfo =
                     let
+                        x1 : Float
                         x1 =
                             fromInfo.renderInfo.pos.x
 
+                        x2 : Float
                         x2 =
                             toInfo.renderInfo.pos.x
 
+                        y1 : Float
                         y1 =
                             fromInfo.renderInfo.pos.y
 
+                        y2 : Float
                         y2 =
                             toInfo.renderInfo.pos.y
 
+                        x1_ : Float
                         x1_ =
                             if x2 > x1 then
                                 x1 + cardWidthPx
@@ -345,28 +355,13 @@ computeLineCoords graph tableInfos edges =
                             else
                                 x1
 
+                        x2_ : Float
                         x2_ =
                             if x1 + cardWidthPx < x2 then
                                 x2
 
                             else
                                 x2 + cardWidthPx
-
-                        unpackAssignment : KimballAssignment ref columns -> ( ref, columns )
-                        unpackAssignment assignment =
-                            case assignment of
-                                Unassigned ref colDescs ->
-                                    ( ref, colDescs )
-
-                                Fact ref colDescs ->
-                                    ( ref, colDescs )
-
-                                Dimension ref colDescs ->
-                                    ( ref, colDescs )
-
-                        indexOf : DuckDbRef_ -> List DuckDbColumnDescription -> Maybe Int
-                        indexOf ref colDescs =
-                            Just 0
 
                         ( fromRef, fromColDescs ) =
                             unpackAssignment fromInfo.assignment
@@ -385,10 +380,6 @@ computeLineCoords graph tableInfos edges =
                             case colDesc of
                                 Persisted_ colDesc_ ->
                                     Dict.get (ref_ToString colDesc_.parentRef) tableInfos
-
-                                -- TODO: Computed support
-                                Computed_ colDesc_ ->
-                                    Nothing
 
                         Nothing ->
                             Nothing
@@ -517,25 +508,16 @@ viewEntityRelationshipCard model kimballAssignment =
             case kimballAssignment of
                 Unassigned ref _ ->
                     case ref of
-                        DuckDbView duckDbRef ->
-                            ( duckDbRef, "Unassigned", model.theme.debugWarn )
-
                         DuckDbTable duckDbRef ->
                             ( duckDbRef, "Unassigned", model.theme.debugWarn )
 
                 Fact ref _ ->
                     case ref of
-                        DuckDbView duckDbRef ->
-                            ( duckDbRef, "Fact", model.theme.primary1 )
-
                         DuckDbTable duckDbRef ->
                             ( duckDbRef, "Fact", model.theme.primary1 )
 
                 Dimension ref _ ->
                     case ref of
-                        DuckDbView duckDbRef ->
-                            ( duckDbRef, "Dimension", model.theme.primary2 )
-
                         DuckDbTable duckDbRef ->
                             ( duckDbRef, "Dimension", model.theme.primary2 )
 
@@ -613,9 +595,6 @@ viewEntityRelationshipCard model kimballAssignment =
                 colDisplayText desc =
                     case desc of
                         Persisted_ desc_ ->
-                            desc_.name
-
-                        Computed_ desc_ ->
                             desc_.name
             in
             column [ width fill, height fill ]

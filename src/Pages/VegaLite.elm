@@ -639,9 +639,6 @@ mapToKimball r =
         Persisted_ colDesc ->
             mapDataType colDesc
 
-        Computed_ colDesc ->
-            mapDataType colDesc
-
 
 colorAssociatedWith : KimballColumn -> E.Color
 colorAssociatedWith kc =

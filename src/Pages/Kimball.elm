@@ -599,14 +599,6 @@ update msg model =
                                                             -- degenerate case, we should never get here without having a dim model selected
                                                             ( Nothing, Cmd.none )
 
-                                        Computed_ _ ->
-                                            -- TODO: Computed column support
-                                            ( Just colDesc, Cmd.none )
-
-                                Computed_ _ ->
-                                    -- TODO: Computed column support
-                                    ( Just colDesc, Cmd.none )
-
                         Nothing ->
                             ( Just colDesc, Cmd.none )
             in
@@ -776,25 +768,16 @@ viewDataSourceCard model dimModelRef renderInfo kimballAssignment =
             case kimballAssignment of
                 Unassigned ref _ ->
                     case ref of
-                        DuckDbView duckDbRef ->
-                            ( duckDbRef, "Unassigned", model.theme.debugWarn )
-
                         DuckDbTable duckDbRef ->
                             ( duckDbRef, "Unassigned", model.theme.debugWarn )
 
                 Fact ref _ ->
                     case ref of
-                        DuckDbView duckDbRef ->
-                            ( duckDbRef, "Fact", model.theme.primary1 )
-
                         DuckDbTable duckDbRef ->
                             ( duckDbRef, "Fact", model.theme.primary1 )
 
                 Dimension ref _ ->
                     case ref of
-                        DuckDbView duckDbRef ->
-                            ( duckDbRef, "Dimension", model.theme.primary2 )
-
                         DuckDbTable duckDbRef ->
                             ( duckDbRef, "Dimension", model.theme.primary2 )
 
@@ -837,21 +820,10 @@ viewDataSourceCard model dimModelRef renderInfo kimballAssignment =
                                                 False ->
                                                     computedBackgroundColor
 
-                                        Computed_ _ ->
-                                            -- TODO: Computed column support
-                                            computedBackgroundColor
-
-                                Computed_ _ ->
-                                    -- TODO: Computed column support
-                                    computedBackgroundColor
-
                 name : String
                 name =
                     case col of
                         Persisted_ desc ->
-                            desc.name
-
-                        Computed_ desc ->
                             desc.name
 
                 viewNub : Element Msg
@@ -1201,15 +1173,8 @@ viewColumnInspectorPanel model =
                     case colDesc of
                         Persisted_ colDesc_ ->
                             case colDesc_.parentRef of
-                                DuckDbView ref ->
-                                    Just <| refToString ref ++ "::" ++ colDesc_.name
-
                                 DuckDbTable ref ->
                                     Just <| refToString ref ++ "::" ++ colDesc_.name
-
-                        Computed_ computedDuckDbColumnDescription ->
-                            -- TODO: Computed support
-                            Nothing
 
                 Nothing ->
                     Nothing

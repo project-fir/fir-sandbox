@@ -4,16 +4,19 @@ RUN apt-get update
 RUN apt-get install -y \
     curl \
     libtinfo5 \
-    git
+    git \
+    wget
 
 # create directory to work in
 RUN mkdir /build
 WORKDIR /build
 COPY ./ .
 
-# install rust, which is used for test running
-# Note, the file is just the output of this, saved to the .cloudbuild/ directory, this is so we can pass in the -y flag
-RUN ./.cloudbuild/install_rust.sh -y
+# install rust, see: https://www.rust-lang.org/tools/install
+# NB: We wget / save the file so that the -y flag can be passed in.
+RUN wget -O install_rust.sh https://sh.rustup.rs
+RUN chmod +x install_rust.sh
+RUN ./install_rust.sh -y
 
 # update npm, npm install elm stuff
 RUN npm install -g npm
@@ -23,7 +26,7 @@ RUN npm install -g elm elm-test elm-review elm-spa
 RUN curl https://static.lamdera.com/bin/linux/lamdera -o /usr/local/bin/lamdera
 RUN chmod a+x /usr/local/bin/lamdera
 
-# Lamdera make has the side-effect of fetch required elm packages
-# this is so elm-test-rs succeeds
+# Lamdera make has the side-effect of fetching required elm packages.
+# This is so elm-test-rs succeeds
 RUN elm-spa gen
 RUN lamdera make src/Frontend.elm src/Backend.elm

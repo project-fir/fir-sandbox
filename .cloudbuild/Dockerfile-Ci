@@ -4,16 +4,20 @@ RUN apt-get update
 RUN apt-get install -y \
     curl \
     libtinfo5 \
-    git
+    git \
+    wget
 
 # create directory to work in
 RUN mkdir /build
 WORKDIR /build
 COPY ./ .
 
-# install rust, which is used for test running
-# Note, the file is just the output of this, saved to the .cloudbuild/ directory, this is so we can pass in the -y flag
-RUN ./.cloudbuild/install_rust.sh -y
+# install rust, see: https://www.rust-lang.org/tools/install
+# NB: We wget / save the file so that the -y flag can be passed in.
+#     This is to workaround interactive CLI assumption of the curl method.
+RUN wget -O install_rust.sh https://sh.rustup.rs
+RUN chmod +x install_rust.sh
+RUN ./install_rust.sh -y
 
 # update npm, npm install elm stuff
 RUN npm install -g npm

@@ -14,7 +14,6 @@ COPY ./ .
 
 # install rust, see: https://www.rust-lang.org/tools/install
 # NB: We wget / save the file so that the -y flag can be passed in.
-#     This is to workaround interactive CLI assumption of the curl method.
 RUN wget -O install_rust.sh https://sh.rustup.rs
 RUN chmod +x install_rust.sh
 RUN ./install_rust.sh -y
@@ -27,7 +26,7 @@ RUN npm install -g elm elm-test elm-review elm-spa
 RUN curl https://static.lamdera.com/bin/linux/lamdera -o /usr/local/bin/lamdera
 RUN chmod a+x /usr/local/bin/lamdera
 
-# Lamdera make has the side-effect of fetch required elm packages
-# this is so elm-test-rs succeeds
+# Lamdera make has the side-effect of fetching required elm packages.
+# This is so elm-test-rs succeeds
 RUN elm-spa gen
 RUN lamdera make src/Frontend.elm src/Backend.elm

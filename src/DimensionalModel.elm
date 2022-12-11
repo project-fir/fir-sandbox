@@ -1,4 +1,4 @@
-module DimensionalModel exposing (CardRenderInfo, ColumnGraph, CommonRefEdge, DimModelDuckDbSourceInfo, DimensionalModel, DimensionalModelRef, EdgeLabel(..), JoinableEdge, KimballAssignment(..), NaivePairingStrategyResult(..), PositionPx, Reason(..), addEdge, addEdges, addNode, addNodes, columnDescFromNodeId, columnGraph2DotString, edge2Str, edgesOfType, naiveColumnPairingStrategy)
+module DimensionalModel exposing (CardRenderInfo, ColumnGraph, CommonRefEdge, DimModelDuckDbSourceInfo, DimensionalModel, DimensionalModelRef, EdgeLabel(..), JoinableEdge, KimballAssignment(..), NaivePairingStrategyResult(..), PositionPx, Reason(..), addEdge, addEdges, addNode, addNodes, columnDescFromNodeId, columnGraph2DotString, edge2Str, edgesOfType, naiveColumnPairingStrategy, unpackAssignment)
 
 import Dict exposing (Dict)
 import DuckDb exposing (DuckDbColumnDescription(..), DuckDbRef, DuckDbRefString, DuckDbRef_(..), refToString, ref_ToString)
@@ -424,3 +424,21 @@ edge2Str e =
 
 
 -- end region: graph utils
+-- begin region: misc. utils
+
+
+unpackAssignment : KimballAssignment ref columns -> ( ref, columns )
+unpackAssignment assignment =
+    case assignment of
+        Unassigned ref colDescs ->
+            ( ref, colDescs )
+
+        Fact ref colDescs ->
+            ( ref, colDescs )
+
+        Dimension ref colDescs ->
+            ( ref, colDescs )
+
+
+
+-- end region: misc. utils

@@ -4,7 +4,22 @@ import Bridge exposing (BackendData(..), BackendErrorMessage, DimensionalModelUp
 import Browser.Dom
 import Browser.Events as BE
 import Dict exposing (Dict)
-import DimensionalModel exposing (CardRenderInfo, DimModelDuckDbSourceInfo, DimensionalModel, DimensionalModelRef, EdgeLabel(..), KimballAssignment(..), NaivePairingStrategyResult(..), PositionPx, Reason(..), addEdge, addEdges, edge2Str, edgesOfType, naiveColumnPairingStrategy)
+import DimensionalModel
+    exposing
+        ( CardRenderInfo
+        , DimModelDuckDbSourceInfo
+        , DimensionalModel
+        , DimensionalModelRef
+        , EdgeLabel(..)
+        , KimballAssignment(..)
+        , NaivePairingStrategyResult(..)
+        , PositionPx
+        , Reason(..)
+        , addEdge
+        , addEdges
+        , edge2Str
+        , edgesOfType
+        )
 import DuckDb exposing (ColumnName, DuckDbColumn, DuckDbColumnDescription(..), DuckDbRef, DuckDbRefString, DuckDbRef_(..), PersistedDuckDbColumnDescription, fetchDuckDbTableRefs, refEquals, refToString)
 import Effect exposing (Effect)
 import Element as E exposing (..)
@@ -169,7 +184,6 @@ type Msg
     | UserSelectedDimensionalModel DimensionalModelRef
     | UserClickedDuckDbRef DuckDb.DuckDbRef
     | UserMouseEnteredTableRef DuckDb.DuckDbRef
-    | UserClickedAttemptPairing DimensionalModelRef
     | UserToggledCardDropDown DuckDbRef
     | UserMouseLeftTableRef
     | UserMouseEnteredNodeTitleBar DuckDb.DuckDbRef
@@ -661,57 +675,6 @@ update msg model =
                 ]
             )
 
-        UserClickedAttemptPairing dimRef ->
-            let
-                ( newDimModel, pairingStatus ) =
-                    case model.selectedDimensionalModel of
-                        Nothing ->
-                            ( Nothing, Nothing )
-
-                        Just dimModel ->
-                            case dimModel.ref == dimRef of
-                                True ->
-                                    case naiveColumnPairingStrategy dimModel of
-                                        DimensionalModel.Success pairedDimModel ->
-                                            ( Just pairedDimModel, Just <| DimensionalModel.Success pairedDimModel )
-
-                                        DimensionalModel.Fail reason ->
-                                            case reason of
-                                                -- Note, we failed to pair the graph, but we still have the model
-                                                -- so just return what we already have, with the error reason message
-                                                AllInputTablesMustBeAssigned ->
-                                                    ( Just dimModel, Just <| DimensionalModel.Fail AllInputTablesMustBeAssigned )
-
-                                                InputMustContainAtLeastOneFactTable ->
-                                                    ( Just dimModel, Just <| DimensionalModel.Fail InputMustContainAtLeastOneFactTable )
-
-                                                InputMustContainAtLeastOneDimensionTable ->
-                                                    ( Just dimModel, Just <| DimensionalModel.Fail InputMustContainAtLeastOneDimensionTable )
-
-                                False ->
-                                    ( Nothing, Nothing )
-
-                cmd : Cmd msg
-                cmd =
-                    case pairingStatus of
-                        Just status ->
-                            case status of
-                                DimensionalModel.Success pairedDimModel ->
-                                    sendToBackend <| UpdateDimensionalModel (FullReplacement pairedDimModel.ref pairedDimModel)
-
-                                DimensionalModel.Fail _ ->
-                                    Cmd.none
-
-                        Nothing ->
-                            Cmd.none
-            in
-            ( { model
-                | selectedDimensionalModel = newDimModel
-                , pairingAlgoResult = pairingStatus
-              }
-            , Effect.fromCmd cmd
-            )
-
 
 
 -- SUBSCRIPTIONS
@@ -1053,15 +1016,6 @@ viewControlPanel model =
                 , el [ centerX, Border.width 1, Background.color model.theme.deadspace, Border.color model.theme.black, Events.onClick <| SvgViewBoxTransform (Translation 0 -20) ] <| E.text "ᐃ"
                 , el [ centerX, Border.width 1, Background.color model.theme.deadspace, Border.color model.theme.black, Events.onClick <| SvgViewBoxTransform (Translation 0 20) ] <| E.text "ᐁ"
                 ]
-
-        onPress : Maybe Msg
-        onPress =
-            case model.selectedDimensionalModel of
-                Just dimModel ->
-                    Just <| UserClickedAttemptPairing dimModel.ref
-
-                Nothing ->
-                    Nothing
 
         viewCursorToolBar : Element Msg
         viewCursorToolBar =

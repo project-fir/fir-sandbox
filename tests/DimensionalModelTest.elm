@@ -1,7 +1,16 @@
 module DimensionalModelTest exposing (..)
 
 import Dict
-import DimensionalModel exposing (DimModelDuckDbSourceInfo, DimensionalModel, EdgeLabel(..), KimballAssignment(..), NaivePairingStrategyResult(..), PositionPx, Reason(..), naiveColumnPairingStrategy)
+import DimensionalModel
+    exposing
+        ( DimModelDuckDbSourceInfo
+        , DimensionalModel
+        , EdgeLabel(..)
+        , KimballAssignment(..)
+        , NaivePairingStrategyResult(..)
+        , PositionPx
+        , Reason(..)
+        )
 import DuckDb exposing (DuckDbColumnDescription(..), DuckDbRef, DuckDbRefString, DuckDbRef_(..), refEquals, refToString)
 import Expect exposing (Expectation)
 import Graph exposing (Edge, Node)
@@ -9,29 +18,19 @@ import Test exposing (Test, describe, test)
 import Utils exposing (cartesian)
 
 
-suite : Test
-suite =
-    describe "Dimensional Model Module"
-        [ describe "malformed input yields appropriate result"
-            [ test "input dimModel must have no 'Unassigned' tables"
-                (\_ -> naiveColumnPairingStrategy badModel1_ |> Expect.equal (Fail AllInputTablesMustBeAssigned))
-            , test "input dimModel must have at least one 'Dimension' table"
-                (\_ -> naiveColumnPairingStrategy badModel2_ |> Expect.equal (Fail InputMustContainAtLeastOneDimensionTable))
-            , test "input dimModel must have at least one 'Fact' table"
-                (\_ -> naiveColumnPairingStrategy badModel3_ |> Expect.equal (Fail InputMustContainAtLeastOneFactTable))
-            , test "fail nicely if given empty input"
-                (\_ -> naiveColumnPairingStrategy emptyModel |> Expect.equal (Fail InputMustContainAtLeastOneFactTable))
-            ]
 
-        --, describe "Test group columns of same table"
-        --    [ test "happy path - case 1"
-        --        (\_ -> naiveColumnPairingStrategy goodModel1 |> Expect.equal (Fail InputMustContainAtLeastOneFactTable))
-        --
-        --    --, test "happy path - case 2"
-        --    --    (\_ -> naiveColumnPairingStrategy goodModel2 |> Expect.equal (Success goodModel2_Expected))
-        --    -- TODO: Test case with two facts with 1 or more column names that match should NOT result in joins
-        --    ]
-        ]
+--suite : Test
+--suite =
+--    describe "Dimensional Model Module"
+--        [ describe "Test group columns of same table"
+--            [ test "happy path - case 1"
+--                (\_ -> naiveColumnPairingStrategy goodModel1 |> Expect.equal (Fail InputMustContainAtLeastOneFactTable))
+--
+--            --, test "happy path - case 2"
+--            --    (\_ -> naiveColumnPairingStrategy goodModel2 |> Expect.equal (Success goodModel2_Expected))
+--            -- TODO: Test case with two facts with 1 or more column names that match should NOT result in joins
+--            ]
+--        ]
 
 
 defaultPos : PositionPx

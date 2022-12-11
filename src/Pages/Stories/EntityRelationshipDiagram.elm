@@ -381,10 +381,6 @@ computeLineCoords graph tableInfos edges =
                                 Persisted_ colDesc_ ->
                                     Dict.get (ref_ToString colDesc_.parentRef) tableInfos
 
-                                -- TODO: Computed support
-                                Computed_ colDesc_ ->
-                                    Nothing
-
                         Nothing ->
                             Nothing
             in
@@ -512,25 +508,16 @@ viewEntityRelationshipCard model kimballAssignment =
             case kimballAssignment of
                 Unassigned ref _ ->
                     case ref of
-                        DuckDbView duckDbRef ->
-                            ( duckDbRef, "Unassigned", model.theme.debugWarn )
-
                         DuckDbTable duckDbRef ->
                             ( duckDbRef, "Unassigned", model.theme.debugWarn )
 
                 Fact ref _ ->
                     case ref of
-                        DuckDbView duckDbRef ->
-                            ( duckDbRef, "Fact", model.theme.primary1 )
-
                         DuckDbTable duckDbRef ->
                             ( duckDbRef, "Fact", model.theme.primary1 )
 
                 Dimension ref _ ->
                     case ref of
-                        DuckDbView duckDbRef ->
-                            ( duckDbRef, "Dimension", model.theme.primary2 )
-
                         DuckDbTable duckDbRef ->
                             ( duckDbRef, "Dimension", model.theme.primary2 )
 
@@ -608,9 +595,6 @@ viewEntityRelationshipCard model kimballAssignment =
                 colDisplayText desc =
                     case desc of
                         Persisted_ desc_ ->
-                            desc_.name
-
-                        Computed_ desc_ ->
                             desc_.name
             in
             column [ width fill, height fill ]

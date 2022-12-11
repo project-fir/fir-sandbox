@@ -1,4 +1,4 @@
-module DuckDb exposing (ColumnName, ComputedDuckDbColumn, ComputedDuckDbColumnDescription, DuckDbColumn(..), DuckDbColumnDescription(..), DuckDbMetaResponse, DuckDbQueryResponse, DuckDbRef, DuckDbRefString, DuckDbRef_(..), DuckDbRefsResponse, PersistedDuckDbColumn, PersistedDuckDbColumnDescription, PingResponse, Ref, SchemaName, TableName, Val(..), fetchDuckDbTableRefs, pingServer, queryDuckDb, queryDuckDbMeta, refEquals, refToString, ref_ToString, taskBuildDateDimTable, uploadFile)
+module DuckDb exposing (ColumnName, DuckDbColumn(..), DuckDbColumnDescription(..), DuckDbMetaResponse, DuckDbQueryResponse, DuckDbRef, DuckDbRefString, DuckDbRef_(..), DuckDbRefsResponse, PersistedDuckDbColumn, PersistedDuckDbColumnDescription, PingResponse, Ref, SchemaName, TableName, Val(..), fetchDuckDbTableRefs, pingServer, queryDuckDb, queryDuckDbMeta, refEquals, refToString, ref_ToString, taskBuildDateDimTable, uploadFile)
 
 import Config exposing (apiHost)
 import File exposing (File)
@@ -40,18 +40,15 @@ refToString ref =
 ref_ToString : DuckDbRef_ -> String
 ref_ToString ref_ =
     case ref_ of
-        DuckDbView duckDbRef ->
-            refToString duckDbRef
-
         DuckDbTable duckDbRef ->
             refToString duckDbRef
 
 
 type
     DuckDbRef_
+    -- TODO: DuckDbView Variant
     -- While DuckDB supports schema-less tables, I don't =)
-    = DuckDbView DuckDbRef
-    | DuckDbTable DuckDbRef
+    = DuckDbTable DuckDbRef
 
 
 type alias DuckDbRefString =
@@ -73,9 +70,10 @@ type alias ColumnName =
     String
 
 
-type DuckDbColumn
+type
+    DuckDbColumn
+    -- TODO: Computed column support
     = Persisted PersistedDuckDbColumn
-    | Computed ComputedDuckDbColumn
 
 
 type alias PersistedDuckDbColumn =
@@ -86,32 +84,16 @@ type alias PersistedDuckDbColumn =
     }
 
 
-type alias ComputedDuckDbColumn =
-    -- TODO: Is it possible to generalize the notion of ownerRef to apply to computed columns?
-    --       I believe this would involve a SQL parser =/
-    { name : ColumnName
-    , dataType : String
-    , vals : List (Maybe Val)
-    }
-
-
-type DuckDbColumnDescription
+type
+    DuckDbColumnDescription
+    -- TODO: Computed column support
     = Persisted_ PersistedDuckDbColumnDescription
-    | Computed_ ComputedDuckDbColumnDescription
 
 
 type alias PersistedDuckDbColumnDescription =
     -- Just the metadata for a DuckDbColumn
     { name : ColumnName
     , parentRef : DuckDbRef_
-    , dataType : String
-    }
-
-
-type alias ComputedDuckDbColumnDescription =
-    -- TODO: Is it possible to generalize the notion of ownerRef to apply to computed columns?
-    --       I believe this would involve a SQL parser =/
-    { name : ColumnName
     , dataType : String
     }
 

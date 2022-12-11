@@ -70,9 +70,6 @@ naiveColumnPairingStrategy dimModel =
         refDrillDown : DuckDbRef_ -> Maybe DuckDbRef
         refDrillDown ref =
             case ref of
-                DuckDbView ref_ ->
-                    Just ref_
-
                 DuckDbTable ref_ ->
                     Just ref_
 
@@ -145,9 +142,6 @@ naiveColumnPairingStrategy dimModel =
         columnsOfNode : Node DuckDbRef_ -> List ( NodeId, DuckDbColumnDescription )
         columnsOfNode node =
             case node.label of
-                DuckDbView _ ->
-                    List.map2 (\nid col -> ( nid, col )) (List.repeat (List.length []) node.id) []
-
                 DuckDbTable ref_ ->
                     case Dict.get (refToString ref_) dimModel.tableInfos of
                         Nothing ->
@@ -273,15 +267,8 @@ columnGraph2DotString graph =
             case n of
                 Persisted_ persistedDuckDbColumnDescription ->
                     case persistedDuckDbColumnDescription.parentRef of
-                        DuckDbView ref ->
-                            Just <| refToString ref ++ ":" ++ persistedDuckDbColumnDescription.name
-
                         DuckDbTable ref ->
                             Just <| refToString ref ++ ":" ++ persistedDuckDbColumnDescription.name
-
-                Computed_ _ ->
-                    -- TODO: Computed column support
-                    Nothing
 
         edgeHelper : EdgeLabel -> Maybe String
         edgeHelper e =
@@ -387,11 +374,6 @@ hashColDesc colDesc =
                     (Hash.fromString <| perCol.name)
                 )
                 (Hash.fromString perCol.dataType)
-
-        --(Hash.fromString <| perCol.dataType)
-        Computed_ _ ->
-            -- TODO: computed support
-            Hash.fromInt 0
 
 
 edgesOfType : ColumnGraph -> EdgeLabel -> List (Edge EdgeLabel)

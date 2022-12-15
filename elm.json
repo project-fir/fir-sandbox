@@ -11,6 +11,7 @@
     "dependencies": {
         "direct": {
             "Evelios/elm-hash": "1.0.0",
+            "Janiczek/cmd-extra": "1.1.0",
             "avh4/elm-color": "1.0.0",
             "elm/browser": "1.0.2",
             "elm/core": "1.0.5",
@@ -26,18 +27,24 @@
             "elm-community/graph": "6.0.0",
             "elm-community/intdict": "3.0.0",
             "elm-community/list-extra": "8.6.0",
+            "elm-community/maybe-extra": "5.3.0",
+            "elm-community/string-extra": "4.0.1",
             "elm-community/typed-svg": "7.0.0",
+            "emilianobovetti/edit-distance": "1.0.7",
             "folkertdev/elm-paragraph": "1.0.0",
+            "jinjor/elm-contextmenu": "2.0.0",
+            "jinjor/elm-debounce": "3.0.0",
             "jweir/elm-iso8601": "7.0.1",
+            "jxxcarlson/elm-markdown": "9.6.0",
             "krisajenkins/remotedata": "6.0.1",
             "lamdera/codecs": "1.0.0",
             "lamdera/core": "1.0.0",
+            "lovasoa/elm-rolling-list": "1.1.4",
             "mpizenberg/elm-pointer-events": "4.0.2",
             "ryannhg/elm-spa": "6.0.0"
         },
         "indirect": {
             "Garados007/elm-svg-parser": "1.0.0",
-            "Janiczek/cmd-extra": "1.1.0",
             "Janiczek/elm-bidict": "2.0.1",
             "NoRedInk/elm-string-conversions": "1.0.1",
             "Punie/elm-parser-extras": "1.0.0",
@@ -48,15 +55,8 @@
             "elm/bytes": "1.0.8",
             "elm/svg": "1.0.1",
             "elm-community/dict-extra": "2.4.0",
-            "elm-community/maybe-extra": "5.3.0",
-            "elm-community/result-extra": "2.4.0",
-            "elm-community/string-extra": "4.0.1",
             "erlandsona/assoc-set": "1.1.0",
-            "jinjor/elm-contextmenu": "2.0.0",
-            "jinjor/elm-debounce": "3.0.0",
-            "jxxcarlson/elm-markdown": "9.6.0",
             "jxxcarlson/htree": "2.0.1",
-            "lovasoa/elm-rolling-list": "1.1.4",
             "myrho/elm-round": "1.0.4",
             "pablohirafuji/elm-syntax-highlight": "3.4.1",
             "pilatch/flip": "1.0.0",
@@ -71,7 +71,8 @@
             "elm-explorations/test": "1.2.2"
         },
         "indirect": {
-            "elm/random": "1.0.0"
+            "elm/random": "1.0.0",
+            "elm-community/result-extra": "2.4.0"
         }
     }
 }

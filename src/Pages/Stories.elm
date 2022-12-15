@@ -57,6 +57,13 @@ elements =
                         }
                     , E.text " - story for (partially) componentized entity relationship diagram"
                     ]
+                , paragraph []
+                    [ link [ Font.color theme.link ]
+                        { url = "/stories/text-editor"
+                        , label = text "/text-editor"
+                        }
+                    , E.text " - story for testing text-editor features"
+                    ]
                 ]
     in
     el

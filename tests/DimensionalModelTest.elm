@@ -12,9 +12,7 @@ import DimensionalModel
         , Reason(..)
         )
 import DuckDb exposing (DuckDbColumnDescription(..), DuckDbRef, DuckDbRefString, DuckDbRef_(..), refEquals, refToString)
-import Expect exposing (Expectation)
 import Graph exposing (Edge, Node)
-import Test exposing (Test, describe, test)
 import Utils exposing (cartesian)
 
 

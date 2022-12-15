@@ -144,8 +144,8 @@ pasteSelection model =
                 --_ =
                 --    Debug.log "paste, (sel1, sel2)" ( sel1, sel2 )
 
-                --( newArray, removed ) =
-                --    Action.deleteSelection model.selection model.lines |> Debug.log "CUT"
+                ( newArray, removed ) =
+                    Action.deleteSelection model.selection model.lines
                 delta =
                     lengthOfLine 0 model.selectedText + sel1.column - sel2.column
             in

@@ -2,6 +2,7 @@ module Pages.Stories.TextEditor exposing (Model, Msg, page)
 
 import Editor exposing (Editor)
 import EditorModel
+import EditorMsg exposing (WrapOption(..))
 import Effect exposing (Effect)
 import Element as E exposing (..)
 import Element.Background as Background
@@ -44,8 +45,8 @@ text =
 
 config : EditorModel.Config
 config =
-    { width = windowWidth 1800 -- 1200
-    , height = windowHeight 700
+    { width = 800 -- 1200
+    , height = 1200
     , fontSize = 16
     , verticalScrollOffset = 3
     , viewMode = EditorModel.Dark
@@ -55,16 +56,16 @@ config =
     }
 
 
-init : () -> ( Model, Cmd Msg )
-init _ =
+init : ( Model, Effect Msg )
+init =
     let
         newEditor =
-            Editor.initWithContent text Load.config
+            Editor.initWithContent text config
 
         -- Editor.initWithContent Text.test1 Load.config
     in
     ( { editor = newEditor }
-    , Cmd.none
+    , Effect.none
     )
 
 
@@ -76,7 +77,7 @@ type Msg
     = MyEditorMsg Editor.EditorMsg
 
 
-update : Msg -> Model -> ( Model, Cmd Msg )
+update : Msg -> Model -> ( Model, Effect Msg )
 update msg model =
     case msg of
         MyEditorMsg editorMsg ->
@@ -84,7 +85,7 @@ update msg model =
                 ( newEditor, cmd ) =
                     Editor.update editorMsg model.editor
             in
-            ( { model | editor = newEditor }, Cmd.map MyEditorMsg cmd )
+            ( { model | editor = newEditor }, Effect.fromCmd <| Cmd.map MyEditorMsg cmd )
 
 
 

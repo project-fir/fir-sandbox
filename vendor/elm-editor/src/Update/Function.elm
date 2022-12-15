@@ -141,13 +141,13 @@ pasteSelection model =
         Selection sel1 sel2 ->
             let
                 -- TODO: in this case, delete selection, then paste
-                _ =
-                    Debug.log "paste, (sel1, sel2)" ( sel1, sel2 )
+                --_ =
+                --    Debug.log "paste, (sel1, sel2)" ( sel1, sel2 )
 
                 --( newArray, removed ) =
                 --    Action.deleteSelection model.selection model.lines |> Debug.log "CUT"
                 delta =
-                    lengthOfLine 0 model.selectedText + sel1.column - sel2.column |> Debug.log "DELTA"
+                    lengthOfLine 0 model.selectedText + sel1.column - sel2.column
             in
             { model
                 | lines = ArrayUtil.replaceLines sel1 sel2 model.selectedText model.lines

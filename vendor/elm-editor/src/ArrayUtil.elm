@@ -467,14 +467,14 @@ replaceLines pos1 pos2 newLines targetLines =
         case ( Array.length newLines == 1, lengthOfLine 0 newLines /= lengthOfLine pos1.line targetLines ) of
             ( True, True ) ->
                 let
-                    _ =
-                        Debug.log "BR 1 (pos1, pos2)" ( pos1, pos2 )
-
-                    _ =
-                        Debug.log "target lines" targetLines
-
-                    _ =
-                        Debug.log "CUT" (cutOut pos1 pos2 targetLines)
+                    --_ =
+                    --    Debug.log "BR 1 (pos1, pos2)" ( pos1, pos2 )
+                    --
+                    --_ =
+                    --    Debug.log "target lines" targetLines
+                    --
+                    --_ =
+                    --    Debug.log "CUT" (cutOut pos1 pos2 targetLines)
 
                     targetLines_ =
                         if pos1 == pos2 then
@@ -486,24 +486,24 @@ replaceLines pos1 pos2 newLines targetLines =
                 insert pos1 (firstLine_ newLines) targetLines_
 
             ( True, False ) ->
-                let
-                    _ =
-                        Debug.log "BR" "2"
-                in
+                --let
+                --    _ =
+                --        Debug.log "BR" "2"
+                --in
                 insertLineAfter (pos1.line - 1) (firstLine_ newLines) targetLines
 
             ( False, _ ) ->
                 let
-                    _ =
-                        Debug.log "BR" "3"
-
-                    _ =
-                        Debug.log "newlines" newLines
+                    --_ =
+                    --    Debug.log "BR" "3"
+                    --
+                    --_ =
+                    --    Debug.log "newlines" newLines
 
                     { before, middle, after } =
-                        cut pos1 pos2 targetLines |> Debug.log "CT"
+                        cut pos1 pos2 targetLines
                 in
-                joinThree before newLines after |> Debug.log "JOIN"
+                joinThree before newLines after
 
     else
         let

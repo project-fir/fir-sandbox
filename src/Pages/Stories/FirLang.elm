@@ -1,8 +1,10 @@
 module Pages.Stories.FirLang exposing (Model, Msg, page)
 
-import Editor exposing (Editor)
+import Array
+import ArrayUtil as Array
+import Editor exposing (Editor(..))
 import EditorModel
-import EditorMsg exposing (WrapOption(..))
+import EditorMsg exposing (Context, WrapOption(..))
 import Effect exposing (Effect)
 import Element as E exposing (..)
 import Element.Background as Background
@@ -12,7 +14,10 @@ import Element.Font as Font
 import Element.Input as Input
 import Gen.Params.Stories.TextEditor exposing (Params)
 import Html
+import Lambda.Expression exposing (Expr)
+import Lambda.Parser exposing (parse)
 import Page
+import Parser.Advanced as PA
 import Request
 import Shared
 import Ui exposing (ColorTheme)
@@ -70,6 +75,9 @@ text =
 #
 # Note: This demo is designed for keyboard/cursor-based devices, not phones!
 #
+
+\\x.x(\\y.y)(\\z.z)
+
 """
 
 
@@ -116,6 +124,20 @@ update msg model =
             let
                 ( newEditor, cmd ) =
                     Editor.update editorMsg model.editor
+
+                newEditorModel =
+                    case newEditor of
+                        Editor editorModel ->
+                            editorModel
+
+                editorContent : String
+                editorContent =
+                    -- TODO: This smell non-performant
+                    String.join "\n" (Array.toList (Editor.getLines newEditor))
+
+                result : Result (List (PA.DeadEnd Context Problem)) Expr
+                result =
+                    parse editorContent
             in
             ( { model | editor = newEditor }, Effect.fromCmd <| Cmd.map MyEditorMsg cmd )
 

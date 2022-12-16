@@ -13,6 +13,7 @@ import Gen.Params.Stories
 import Gen.Params.VegaLite
 import Gen.Params.Stories.Basics
 import Gen.Params.Stories.EntityRelationshipDiagram
+import Gen.Params.Stories.FirLang
 import Gen.Params.Stories.TextEditor
 import Gen.Params.NotFound
 import Url exposing (Url)
@@ -29,6 +30,7 @@ type Route
     | VegaLite
     | Stories__Basics
     | Stories__EntityRelationshipDiagram
+    | Stories__FirLang
     | Stories__TextEditor
     | NotFound
 
@@ -50,6 +52,7 @@ routes =
     , Parser.map NotFound Gen.Params.NotFound.parser
     , Parser.map Stories__Basics Gen.Params.Stories.Basics.parser
     , Parser.map Stories__EntityRelationshipDiagram Gen.Params.Stories.EntityRelationshipDiagram.parser
+    , Parser.map Stories__FirLang Gen.Params.Stories.FirLang.parser
     , Parser.map Stories__TextEditor Gen.Params.Stories.TextEditor.parser
     ]
 
@@ -88,6 +91,9 @@ toHref route =
     
         Stories__EntityRelationshipDiagram ->
             joinAsHref [ "stories", "entity-relationship-diagram" ]
+    
+        Stories__FirLang ->
+            joinAsHref [ "stories", "fir-lang" ]
     
         Stories__TextEditor ->
             joinAsHref [ "stories", "text-editor" ]

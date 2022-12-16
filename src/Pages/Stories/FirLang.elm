@@ -1,8 +1,10 @@
 module Pages.Stories.FirLang exposing (Model, Msg, page)
 
-import Editor exposing (Editor)
+import Array
+import ArrayUtil as Array
+import Editor exposing (Editor(..))
 import EditorModel
-import EditorMsg exposing (WrapOption(..))
+import EditorMsg exposing (Context, WrapOption(..))
 import Effect exposing (Effect)
 import Element as E exposing (..)
 import Element.Background as Background
@@ -10,9 +12,14 @@ import Element.Border as Border
 import Element.Events as Events
 import Element.Font as Font
 import Element.Input as Input
+import FirLang.Lambda.Expression exposing (Expr)
+import FirLang.Lambda.Parser exposing (parse)
+import FirLang.Tools.Advanced.Parser as PA
+import FirLang.Tools.Problem exposing (Problem)
 import Gen.Params.Stories.TextEditor exposing (Params)
 import Html
 import Page
+import Parser.Advanced exposing (DeadEnd)
 import Request
 import Shared
 import Ui exposing (ColorTheme)
@@ -57,8 +64,13 @@ textEditorDebugPanelHeight =
 -- end region: constants
 
 
+type alias TextEditorResult =
+    Result (List (DeadEnd FirLang.Tools.Problem.Context Problem)) Expr
+
+
 type alias Model =
     { editor : Editor
+    , result : Maybe TextEditorResult
     , theme : ColorTheme
     }
 
@@ -70,6 +82,9 @@ text =
 #
 # Note: This demo is designed for keyboard/cursor-based devices, not phones!
 #
+
+\\x.x(\\y.y)(\\z.z)
+
 """
 
 
@@ -91,11 +106,10 @@ init shared =
     let
         newEditor =
             Editor.initWithContent text config
-
-        -- Editor.initWithContent Text.test1 Load.config
     in
     ( { editor = newEditor
       , theme = shared.selectedTheme
+      , result = Nothing
       }
     , Effect.none
     )
@@ -116,8 +130,22 @@ update msg model =
             let
                 ( newEditor, cmd ) =
                     Editor.update editorMsg model.editor
+
+                editorContent : String
+                editorContent =
+                    -- TODO: This smell non-performant
+                    String.join "\n" (Array.toList (Editor.getLines newEditor))
+
+                result : Result (List (DeadEnd FirLang.Tools.Problem.Context Problem)) Expr
+                result =
+                    parse editorContent
             in
-            ( { model | editor = newEditor }, Effect.fromCmd <| Cmd.map MyEditorMsg cmd )
+            ( { model
+                | editor = newEditor
+                , result = Just result
+              }
+            , Effect.fromCmd <| Cmd.map MyEditorMsg cmd
+            )
 
 
 
@@ -148,19 +176,37 @@ viewElements model =
         , Background.color model.theme.deadspace
         ]
     <|
-        column
-            [ width (px textEditorWidth)
-            , height (px <| textEditorHeight + textEditorDebugPanelHeight)
-            , centerX
+        row
+            [ centerX
             , centerY
             , padding 5
             , Border.width 1
             , Border.color model.theme.secondary
             , Border.rounded 5
+            , spacing 5
             , Background.color model.theme.background
             ]
-            [ viewEditor model
+            [ el
+                [ width (px textEditorWidth)
+                , height (px <| textEditorHeight + textEditorDebugPanelHeight)
+                ]
+              <|
+                viewEditor model
+            , viewResultPanel model
             ]
+
+
+viewResultPanel : Model -> Element Msg
+viewResultPanel model =
+    el
+        [ width (px 200)
+        , height fill
+        , padding 5
+        , Border.width 1
+        , Border.color model.theme.secondary
+        , Border.rounded 3
+        ]
+        (E.text "result")
 
 
 viewEditor : Model -> Element Msg

@@ -15,13 +15,14 @@ import Html
 import Page
 import Request
 import Shared
+import Ui exposing (ColorTheme)
 import View exposing (View)
 
 
 page : Shared.Model -> Request.With Params -> Page.With Model Msg
 page shared req =
     Page.advanced
-        { init = init
+        { init = init shared
         , update = update
         , view = view
         , subscriptions = subscriptions
@@ -29,42 +30,73 @@ page shared req =
 
 
 
--- INIT
--- MODEL
+-- begin region: constants
+
+
+textEditorWidth : Int
+textEditorWidth =
+    800
+
+
+textEditorPadding : Int
+textEditorPadding =
+    5
+
+
+textEditorHeight : Int
+textEditorHeight =
+    600
+
+
+textEditorDebugPanelHeight : Int
+textEditorDebugPanelHeight =
+    250
+
+
+
+-- end region: constants
 
 
 type alias Model =
     { editor : Editor
+    , theme : ColorTheme
     }
 
 
 text : String
 text =
-    "Hello, is it me you're looking for!?"
+    """#
+# Fir - a programming language for metric algebra
+#
+# Note: This demo is designed for keyboard/cursor-based devices, not phones!
+#
+"""
 
 
 config : EditorModel.Config
 config =
-    { width = 800 -- 1200
-    , height = 1200
+    { width = toFloat (textEditorWidth - (2 * textEditorPadding))
+    , height = toFloat textEditorHeight
     , fontSize = 16
     , verticalScrollOffset = 3
-    , viewMode = EditorModel.Dark
-    , debugOn = False
+    , viewMode = EditorModel.Light
+    , debugOn = True
     , viewLineNumbersOn = False
     , wrapOption = DontWrap
     }
 
 
-init : ( Model, Effect Msg )
-init =
+init : Shared.Model -> ( Model, Effect Msg )
+init shared =
     let
         newEditor =
             Editor.initWithContent text config
 
         -- Editor.initWithContent Text.test1 Load.config
     in
-    ( { editor = newEditor }
+    ( { editor = newEditor
+      , theme = shared.selectedTheme
+      }
     , Effect.none
     )
 
@@ -104,13 +136,31 @@ subscriptions model =
 view : Model -> View Msg
 view model =
     { title = "Story - Fir Lang"
-    , body = viewEditor model
+    , body = viewElements model
     }
 
 
 viewElements : Model -> Element Msg
 viewElements model =
-    E.none
+    el
+        [ width fill
+        , height fill
+        , Background.color model.theme.deadspace
+        ]
+    <|
+        column
+            [ width (px textEditorWidth)
+            , height (px <| textEditorHeight + textEditorDebugPanelHeight)
+            , centerX
+            , centerY
+            , padding 5
+            , Border.width 1
+            , Border.color model.theme.secondary
+            , Border.rounded 5
+            , Background.color model.theme.background
+            ]
+            [ viewEditor model
+            ]
 
 
 viewEditor : Model -> Element Msg

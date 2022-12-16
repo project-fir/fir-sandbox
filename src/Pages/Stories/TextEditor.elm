@@ -51,6 +51,8 @@ config =
     , verticalScrollOffset = 3
     , viewMode = EditorModel.Dark
     , debugOn = False
+
+    -- TODO: viewing line numbers results in strange UI behavior, debug why
     , viewLineNumbersOn = False
     , wrapOption = DontWrap
     }
@@ -116,9 +118,3 @@ viewElements model =
 viewEditor : Model -> Element Msg
 viewEditor model =
     Editor.view model.editor |> Html.map MyEditorMsg |> E.html
-
-
-type Expr
-    = Var String
-    | Lambda String Expr
-    | Apply Expr Expr

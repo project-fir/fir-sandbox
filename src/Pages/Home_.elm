@@ -17,11 +17,12 @@ view =
 
 elements : Element msg
 elements =
-    el
-        [ Font.size 40
-        , Font.color theme.black
-        , width fill
-        , height fill
-        , Background.color theme.background
-        ]
-        (E.text "Homepage placeholder")
+    el [] <|
+        column
+            [ Font.size 40
+            , Font.color theme.black
+            , width (px 600)
+            , height fill
+            , Background.color theme.background
+            ]
+            [ E.text "Fir" ]

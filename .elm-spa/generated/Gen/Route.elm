@@ -8,6 +8,7 @@ import Gen.Params.Admin
 import Gen.Params.ElmUiSvgIssue
 import Gen.Params.Home_
 import Gen.Params.Kimball
+import Gen.Params.NotFound
 import Gen.Params.Sheet
 import Gen.Params.Stories
 import Gen.Params.VegaLite
@@ -15,7 +16,6 @@ import Gen.Params.Stories.Basics
 import Gen.Params.Stories.EntityRelationshipDiagram
 import Gen.Params.Stories.FirLang
 import Gen.Params.Stories.TextEditor
-import Gen.Params.NotFound
 import Url exposing (Url)
 import Url.Parser as Parser exposing ((</>), Parser)
 
@@ -25,6 +25,7 @@ type Route
     | ElmUiSvgIssue
     | Home_
     | Kimball
+    | NotFound
     | Sheet
     | Stories
     | VegaLite
@@ -32,7 +33,6 @@ type Route
     | Stories__EntityRelationshipDiagram
     | Stories__FirLang
     | Stories__TextEditor
-    | NotFound
 
 
 fromUrl : Url -> Route
@@ -46,10 +46,10 @@ routes =
     , Parser.map Admin Gen.Params.Admin.parser
     , Parser.map ElmUiSvgIssue Gen.Params.ElmUiSvgIssue.parser
     , Parser.map Kimball Gen.Params.Kimball.parser
+    , Parser.map NotFound Gen.Params.NotFound.parser
     , Parser.map Sheet Gen.Params.Sheet.parser
     , Parser.map Stories Gen.Params.Stories.parser
     , Parser.map VegaLite Gen.Params.VegaLite.parser
-    , Parser.map NotFound Gen.Params.NotFound.parser
     , Parser.map Stories__Basics Gen.Params.Stories.Basics.parser
     , Parser.map Stories__EntityRelationshipDiagram Gen.Params.Stories.EntityRelationshipDiagram.parser
     , Parser.map Stories__FirLang Gen.Params.Stories.FirLang.parser
@@ -77,6 +77,9 @@ toHref route =
         Kimball ->
             joinAsHref [ "kimball" ]
     
+        NotFound ->
+            joinAsHref [ "not-found" ]
+    
         Sheet ->
             joinAsHref [ "sheet" ]
     
@@ -97,7 +100,4 @@ toHref route =
     
         Stories__TextEditor ->
             joinAsHref [ "stories", "text-editor" ]
-    
-        NotFound ->
-            joinAsHref [ "not-found" ]
 

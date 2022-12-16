@@ -198,6 +198,21 @@ viewElements model =
 
 viewResultPanel : Model -> Element Msg
 viewResultPanel model =
+    let
+        resultText : String
+        resultText =
+            case model.result of
+                Just result ->
+                    case result of
+                        Ok value ->
+                            "valid"
+
+                        Err error ->
+                            "error!"
+
+                Nothing ->
+                    "Click into the editor and edit to trigger the parsing"
+    in
     el
         [ width (px 200)
         , height fill
@@ -206,7 +221,7 @@ viewResultPanel model =
         , Border.color model.theme.secondary
         , Border.rounded 3
         ]
-        (E.text "result")
+        (E.text resultText)
 
 
 viewEditor : Model -> Element Msg

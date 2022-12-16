@@ -1,4 +1,4 @@
-module Tools.Problem exposing (Context(..), Problem(..))
+module FirLang.Tools.Problem exposing (Context(..), Problem(..))
 
 
 type Problem

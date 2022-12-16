@@ -1,4 +1,4 @@
-module Lambda.Eval exposing
+module FirLang.Lambda.Eval exposing
     ( eval
     , equivalent
     )
@@ -31,8 +31,8 @@ back into a string.
 -}
 
 import Dict exposing (Dict)
-import Lambda.Expression exposing (Expr(..), ViewStyle(..))
-import Lambda.Parser
+import FirLang.Lambda.Expression exposing (Expr(..), ViewStyle(..))
+import FirLang.Lambda.Parser
 
 
 equivalent : Dict String String -> String -> String

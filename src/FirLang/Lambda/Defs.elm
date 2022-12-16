@@ -1,4 +1,4 @@
-module Lambda.Defs exposing (dictionary, show)
+module FirLang.Lambda.Defs exposing (dictionary, show)
 
 {-| This module provides the means (via function dictionary) of constructing
 a dictionary of terms to be used by the rewriting functions.
@@ -8,9 +8,9 @@ a dictionary of terms to be used by the rewriting functions.
 -}
 
 import Dict exposing (Dict)
+import FirLang.Tools.Parser as PT
 import Maybe.Extra
 import Parser exposing ((|.), (|=), Parser)
-import Tools.Parser as PT
 
 
 type alias Definition =

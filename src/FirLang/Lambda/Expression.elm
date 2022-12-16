@@ -1,4 +1,4 @@
-module Lambda.Expression exposing
+module FirLang.Lambda.Expression exposing
     ( Expr(..), beta, compressNameSpace, isNormal, reduceSubscripts, toString
     , ViewStyle(..), alphaConvertWithExpr, applyVariableMap, compare, depth, equivalent, size, size2, substitute, variableMap
     )

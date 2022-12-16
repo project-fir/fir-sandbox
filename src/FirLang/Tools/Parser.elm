@@ -1,4 +1,4 @@
-module Tools.Parser exposing
+module FirLang.Tools.Parser exposing
     ( first
     , fold
     , many

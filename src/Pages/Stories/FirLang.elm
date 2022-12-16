@@ -12,12 +12,14 @@ import Element.Border as Border
 import Element.Events as Events
 import Element.Font as Font
 import Element.Input as Input
+import FirLang.Lambda.Expression exposing (Expr)
+import FirLang.Lambda.Parser exposing (parse)
+import FirLang.Tools.Advanced.Parser as PA
+import FirLang.Tools.Problem exposing (Problem)
 import Gen.Params.Stories.TextEditor exposing (Params)
 import Html
-import Lambda.Expression exposing (Expr)
-import Lambda.Parser exposing (parse)
 import Page
-import Parser.Advanced as PA
+import Parser.Advanced exposing (DeadEnd)
 import Request
 import Shared
 import Ui exposing (ColorTheme)
@@ -62,8 +64,13 @@ textEditorDebugPanelHeight =
 -- end region: constants
 
 
+type alias TextEditorResult =
+    Result (List (DeadEnd FirLang.Tools.Problem.Context Problem)) Expr
+
+
 type alias Model =
     { editor : Editor
+    , result : Maybe TextEditorResult
     , theme : ColorTheme
     }
 
@@ -99,11 +106,10 @@ init shared =
     let
         newEditor =
             Editor.initWithContent text config
-
-        -- Editor.initWithContent Text.test1 Load.config
     in
     ( { editor = newEditor
       , theme = shared.selectedTheme
+      , result = Nothing
       }
     , Effect.none
     )
@@ -125,21 +131,21 @@ update msg model =
                 ( newEditor, cmd ) =
                     Editor.update editorMsg model.editor
 
-                newEditorModel =
-                    case newEditor of
-                        Editor editorModel ->
-                            editorModel
-
                 editorContent : String
                 editorContent =
                     -- TODO: This smell non-performant
                     String.join "\n" (Array.toList (Editor.getLines newEditor))
 
-                result : Result (List (PA.DeadEnd Context Problem)) Expr
+                result : Result (List (DeadEnd FirLang.Tools.Problem.Context Problem)) Expr
                 result =
                     parse editorContent
             in
-            ( { model | editor = newEditor }, Effect.fromCmd <| Cmd.map MyEditorMsg cmd )
+            ( { model
+                | editor = newEditor
+                , result = Just result
+              }
+            , Effect.fromCmd <| Cmd.map MyEditorMsg cmd
+            )
 
 
 
@@ -170,19 +176,37 @@ viewElements model =
         , Background.color model.theme.deadspace
         ]
     <|
-        column
-            [ width (px textEditorWidth)
-            , height (px <| textEditorHeight + textEditorDebugPanelHeight)
-            , centerX
+        row
+            [ centerX
             , centerY
             , padding 5
             , Border.width 1
             , Border.color model.theme.secondary
             , Border.rounded 5
+            , spacing 5
             , Background.color model.theme.background
             ]
-            [ viewEditor model
+            [ el
+                [ width (px textEditorWidth)
+                , height (px <| textEditorHeight + textEditorDebugPanelHeight)
+                ]
+              <|
+                viewEditor model
+            , viewResultPanel model
             ]
+
+
+viewResultPanel : Model -> Element Msg
+viewResultPanel model =
+    el
+        [ width (px 200)
+        , height fill
+        , padding 5
+        , Border.width 1
+        , Border.color model.theme.secondary
+        , Border.rounded 3
+        ]
+        (E.text "result")
 
 
 viewEditor : Model -> Element Msg

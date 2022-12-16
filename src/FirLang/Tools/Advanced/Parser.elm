@@ -1,4 +1,4 @@
-module Tools.Advanced.Parser exposing
+module FirLang.Tools.Advanced.Parser exposing
     ( first
     , foldWithInitialValue
     , many
@@ -14,8 +14,8 @@ module Tools.Advanced.Parser exposing
     , word
     )
 
+import FirLang.Tools.Problem exposing (Context(..), Problem(..))
 import Parser.Advanced as PA exposing ((|.), (|=))
-import Tools.Problem exposing (Context(..), Problem(..))
 
 
 type alias Parser a =
@@ -229,5 +229,5 @@ rightParen =
 
 
 parenthesized p =
-    PA.inContext Tools.Problem.Parenthesized
+    PA.inContext FirLang.Tools.Problem.Parenthesized
         (middle leftParen p rightParen)

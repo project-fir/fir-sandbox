@@ -1,4 +1,4 @@
-module Lambda.Parser exposing
+module FirLang.Lambda.Parser exposing
     ( parse, exprParser
     , parseUnsafe
     )
@@ -14,11 +14,11 @@ returns an Expr.
 
 -}
 
-import Lambda.Expression exposing (Expr(..))
+import FirLang.Lambda.Expression exposing (Expr(..))
+import FirLang.Tools.Advanced.Parser as PT
+import FirLang.Tools.Problem exposing (Context, Problem(..))
 import Parser.Advanced as PA exposing ((|.), (|=))
 import Set
-import Tools.Advanced.Parser as PT
-import Tools.Problem exposing (Context, Problem(..))
 
 
 type alias Parser a =
@@ -52,17 +52,17 @@ parseUnsafe str =
 -}
 exprParser : PA.Parser Context Problem Expr
 exprParser =
-    PA.inContext Tools.Problem.Expression
+    PA.inContext FirLang.Tools.Problem.Expression
         (simpleExprParser |> PA.andThen applicationParser)
 
 
 applicationParser aInitial =
-    PA.inContext Tools.Problem.Application
+    PA.inContext FirLang.Tools.Problem.Application
         (PT.foldWithInitialValue (\a b -> Apply b a) simpleExprParser aInitial)
 
 
 simpleExprParser =
-    PA.inContext Tools.Problem.SimpleExpression
+    PA.inContext FirLang.Tools.Problem.SimpleExpression
         (PT.first
             (PA.oneOf
                 [ PA.lazy (\_ -> PT.parenthesized exprParser)
@@ -75,7 +75,7 @@ simpleExprParser =
 
 
 abstractionParser =
-    PA.inContext Tools.Problem.Abstraction <|
+    PA.inContext FirLang.Tools.Problem.Abstraction <|
         (PA.succeed (\var expr -> Lambda var expr)
             |. PA.oneOf [ PA.symbol (PA.Token (String.fromChar 'λ') ExpectingLambdaCharacter), PA.symbol (PA.Token "\\" ExpectingBackslash) ]
             |= rawVariableParser
@@ -96,7 +96,7 @@ abstractionParser =
 
 variableParser : PA.Parser Context Problem Expr
 variableParser =
-    PA.inContext Tools.Problem.Variable <|
+    PA.inContext FirLang.Tools.Problem.Variable <|
         (PA.variable { start = Char.isAlpha, inner = Char.isAlpha, reserved = Set.empty, expecting = ExpectingVar }
             |> PA.map Var
         )

@@ -31,6 +31,7 @@ type Msg
     | ElmUiSvgIssue Pages.ElmUiSvgIssue.Msg
     | Home_ Pages.Home_.Msg
     | Kimball Pages.Kimball.Msg
+    | NotFound Pages.NotFound.Msg
     | Sheet Pages.Sheet.Msg
     | VegaLite Pages.VegaLite.Msg
     | Stories__Basics Pages.Stories.Basics.Msg

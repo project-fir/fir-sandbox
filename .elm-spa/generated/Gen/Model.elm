@@ -32,7 +32,7 @@ type Model
     | ElmUiSvgIssue Gen.Params.ElmUiSvgIssue.Params Pages.ElmUiSvgIssue.Model
     | Home_ Gen.Params.Home_.Params Pages.Home_.Model
     | Kimball Gen.Params.Kimball.Params Pages.Kimball.Model
-    | NotFound Gen.Params.NotFound.Params
+    | NotFound Gen.Params.NotFound.Params Pages.NotFound.Model
     | Sheet Gen.Params.Sheet.Params Pages.Sheet.Model
     | Stories Gen.Params.Stories.Params
     | VegaLite Gen.Params.VegaLite.Params Pages.VegaLite.Model

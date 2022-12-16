@@ -1,7 +1,8 @@
-module Pages.NotFound exposing (view)
+module Pages.NotFound exposing (Model, Msg, page, view)
 
 import Effect exposing (Effect)
 import Element as E exposing (..)
+import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font
 import Gen.Params.NotFound exposing (Params)
@@ -65,30 +66,41 @@ viewElements model =
         [ width fill
         , height fill
         , padding 10
+        , Background.color model.theme.deadspace
         ]
-        (column
-            [ width (px 600)
+    <|
+        el
+            [ width fill
             , height fill
-            , centerX
-            , centerY
-            , Font.size 20
-            , Border.width 0
-            , Border.color model.theme.secondary
-            , spacing 10
+            , padding 10
+            , Background.color model.theme.background
             ]
-            [ paragraph [ centerY ] [ E.text "The page you requested does not exist!" ]
-            , paragraph [ centerY ]
-                [ E.text "Feel free to check out the "
-                , link (linkAttrs model)
-                    { url = "/stories"
-                    , label = text "stories"
-                    }
-                , E.text " or the "
-                , link
-                    (linkAttrs model)
-                    { url = "/"
-                    , label = text "homepage"
-                    }
+            (column
+                [ width (px 600)
+                , height fill
+                , centerX
+                , centerY
+                , Font.size 20
+                , spacing 10
                 ]
-            ]
-        )
+                [ paragraph [ centerY ] [ E.text "The page you requested does not exist!" ]
+                , paragraph [ centerY ]
+                    [ E.text "Feel free to check out the "
+                    , link (linkAttrs model)
+                        { url = "/stories"
+                        , label = text "stories"
+                        }
+                    , E.text " or the "
+                    , link
+                        (linkAttrs model)
+                        { url = "/"
+                        , label = text "homepage"
+                        }
+                    ]
+                , E.text " "
+                , E.text " "
+                , E.text " "
+                , E.text " "
+                , E.text " "
+                ]
+            )

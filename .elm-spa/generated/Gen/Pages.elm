@@ -101,6 +101,9 @@ update msg_ model_ =
         ( Msg.Kimball msg, Model.Kimball params model ) ->
             pages.kimball.update params msg model
     
+        ( Msg.NotFound msg, Model.NotFound params model ) ->
+            pages.notFound.update params msg model
+    
         ( Msg.Sheet msg, Model.Sheet params model ) ->
             pages.sheet.update params msg model
     
@@ -141,8 +144,8 @@ view model_ =
         Model.Kimball params model ->
             pages.kimball.view params model
     
-        Model.NotFound params ->
-            pages.notFound.view params ()
+        Model.NotFound params model ->
+            pages.notFound.view params model
     
         Model.Sheet params model ->
             pages.sheet.view params model
@@ -184,8 +187,8 @@ subscriptions model_ =
         Model.Kimball params model ->
             pages.kimball.subscriptions params model
     
-        Model.NotFound params ->
-            pages.notFound.subscriptions params ()
+        Model.NotFound params model ->
+            pages.notFound.subscriptions params model
     
         Model.Sheet params model ->
             pages.sheet.subscriptions params model
@@ -218,7 +221,7 @@ pages :
     , elmUiSvgIssue : Bundle Gen.Params.ElmUiSvgIssue.Params Pages.ElmUiSvgIssue.Model Pages.ElmUiSvgIssue.Msg
     , home_ : Bundle Gen.Params.Home_.Params Pages.Home_.Model Pages.Home_.Msg
     , kimball : Bundle Gen.Params.Kimball.Params Pages.Kimball.Model Pages.Kimball.Msg
-    , notFound : Static Gen.Params.NotFound.Params
+    , notFound : Bundle Gen.Params.NotFound.Params Pages.NotFound.Model Pages.NotFound.Msg
     , sheet : Bundle Gen.Params.Sheet.Params Pages.Sheet.Model Pages.Sheet.Msg
     , stories : Static Gen.Params.Stories.Params
     , vegaLite : Bundle Gen.Params.VegaLite.Params Pages.VegaLite.Model Pages.VegaLite.Msg
@@ -232,7 +235,7 @@ pages =
     , elmUiSvgIssue = bundle Pages.ElmUiSvgIssue.page Model.ElmUiSvgIssue Msg.ElmUiSvgIssue
     , home_ = bundle Pages.Home_.page Model.Home_ Msg.Home_
     , kimball = bundle Pages.Kimball.page Model.Kimball Msg.Kimball
-    , notFound = static Pages.NotFound.view Model.NotFound
+    , notFound = bundle Pages.NotFound.page Model.NotFound Msg.NotFound
     , sheet = bundle Pages.Sheet.page Model.Sheet Msg.Sheet
     , stories = static Pages.Stories.view Model.Stories
     , vegaLite = bundle Pages.VegaLite.page Model.VegaLite Msg.VegaLite

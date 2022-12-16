@@ -64,6 +64,13 @@ elements =
                         }
                     , E.text " - story for testing text-editor features"
                     ]
+                , paragraph []
+                    [ link [ Font.color theme.link ]
+                        { url = "/stories/fir-lang"
+                        , label = text "/fir-lang"
+                        }
+                    , E.text " - story for defining Fir"
+                    ]
                 ]
     in
     el

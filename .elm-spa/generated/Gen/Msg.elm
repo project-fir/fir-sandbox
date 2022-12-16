@@ -9,6 +9,7 @@ import Gen.Params.Stories
 import Gen.Params.VegaLite
 import Gen.Params.Stories.Basics
 import Gen.Params.Stories.EntityRelationshipDiagram
+import Gen.Params.Stories.FirLang
 import Gen.Params.Stories.TextEditor
 import Gen.Params.NotFound
 import Pages.Admin
@@ -20,6 +21,7 @@ import Pages.Stories
 import Pages.VegaLite
 import Pages.Stories.Basics
 import Pages.Stories.EntityRelationshipDiagram
+import Pages.Stories.FirLang
 import Pages.Stories.TextEditor
 import Pages.NotFound
 
@@ -32,5 +34,6 @@ type Msg
     | VegaLite Pages.VegaLite.Msg
     | Stories__Basics Pages.Stories.Basics.Msg
     | Stories__EntityRelationshipDiagram Pages.Stories.EntityRelationshipDiagram.Msg
+    | Stories__FirLang Pages.Stories.FirLang.Msg
     | Stories__TextEditor Pages.Stories.TextEditor.Msg
 

@@ -1,4 +1,4 @@
-module Pages.Stories.TextEditor exposing (Model, Msg, page)
+module Pages.Stories.FirLang exposing (Model, Msg, page)
 
 import Editor exposing (Editor)
 import EditorModel
@@ -103,7 +103,7 @@ subscriptions model =
 
 view : Model -> View Msg
 view model =
-    { title = "Story - Text Editor"
+    { title = "Story - Fir Lang"
     , body = viewEditor model
     }
 
@@ -116,9 +116,3 @@ viewElements model =
 viewEditor : Model -> Element Msg
 viewEditor model =
     Editor.view model.editor |> Html.map MyEditorMsg |> E.html
-
-
-type Expr
-    = Var String
-    | Lambda String Expr
-    | Apply Expr Expr

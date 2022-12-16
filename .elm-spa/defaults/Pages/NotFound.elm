@@ -1,6 +1,7 @@
 module Pages.NotFound exposing (view)
 
 import Element as E exposing (..)
+import Element.Border as Border
 import Element.Font as Font
 import View exposing (View)
 
@@ -25,15 +26,23 @@ linkAttrs =
 
 viewElements : Element msg
 viewElements =
-    el [ width fill, height fill ]
+    el
+        [ width fill
+        , height fill
+        , padding 10
+        ]
         (column
             [ width (px 600)
             , height fill
             , centerX
+            , centerY
             , Font.size 20
+            , Border.width 0
+            , Border.color blueGray
+            , spacing 10
             ]
-            [ E.text "The page you requested does not exist"
-            , paragraph []
+            [ paragraph [ centerY ] [ E.text "The page you requested does not exist!" ]
+            , paragraph [ centerY ]
                 [ E.text "Feel free to check out the "
                 , link linkAttrs
                     { url = "/stories"

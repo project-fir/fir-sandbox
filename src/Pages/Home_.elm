@@ -99,10 +99,3 @@ viewElements model =
             , el [] (E.text " ")
             , el [] (E.text " ")
             ]
-
-
-text =
-    """
-
-In the meantime, check out the stories, and stay tuned for blog posts
-"""

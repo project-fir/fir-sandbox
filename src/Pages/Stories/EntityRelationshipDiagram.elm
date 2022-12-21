@@ -1,7 +1,7 @@
 module Pages.Stories.EntityRelationshipDiagram exposing (Model, Msg, page)
 
 import Dict exposing (Dict)
-import DimensionalModel exposing (CardRenderInfo, ColumnGraph, DimModelDuckDbSourceInfo, DimensionalModel, EdgeLabel(..), KimballAssignment(..), LineSegment, PositionPx, addEdges, addNodes, columnDescFromNodeId, edgesOfType, unpackAssignment)
+import DimensionalModel exposing (CardRenderInfo, ColumnGraph, ColumnGraphEdge, DimModelDuckDbSourceInfo, DimensionalModel, EdgeFamily(..), EdgeLabel(..), KimballAssignment(..), LineSegment, PositionPx, addEdges, addNodes, columnDescFromNodeId, edgesOfFamily, unpackKimballAssignment)
 import DuckDb exposing (DuckDbColumnDescription(..), DuckDbRef, DuckDbRefString, DuckDbRef_(..), refToString, ref_ToString)
 import Effect exposing (Effect)
 import Element as E exposing (..)
@@ -12,6 +12,7 @@ import Element.Font as Font
 import Element.Input as Input
 import Gen.Params.Stories.EntityRelationshipDiagram exposing (Params)
 import Graph exposing (Edge, NodeId)
+import List.Extra
 import Page
 import Request
 import Shared
@@ -54,9 +55,9 @@ init shared =
 
         dimCols : List DuckDbColumnDescription
         dimCols =
-            [ Persisted_ { name = "id", parentRef = DuckDbTable dimRef, dataType = "String" }
-            , Persisted_ { name = "attr_1", parentRef = DuckDbTable dimRef, dataType = "String" }
+            [ Persisted_ { name = "attr_1", parentRef = DuckDbTable dimRef, dataType = "String" }
             , Persisted_ { name = "attr_2", parentRef = DuckDbTable dimRef, dataType = "String" }
+            , Persisted_ { name = "id", parentRef = DuckDbTable dimRef, dataType = "String" }
             ]
 
         factRef : DuckDbRef
@@ -84,8 +85,8 @@ init shared =
                     Persisted_ { name = "id", parentRef = DuckDbTable dimRef, dataType = "String" }
             in
             addEdges graphStep1
-                [ ( lhs, rhs, Joinable )
-                , ( rhs, lhs, Joinable )
+                [ ( lhs, rhs, Joinable lhs rhs )
+                , ( rhs, lhs, Joinable rhs lhs )
                 ]
     in
     ( { theme = shared.selectedTheme
@@ -96,7 +97,7 @@ init shared =
                 Dict.fromList
                     [ ( refToString dimRef
                       , { renderInfo =
-                            { pos = { x = 40.0, y = 175.0 }
+                            { pos = { x = 450.0, y = 170.0 }
 
                             --pos = { x = 430.0, y = 175.0 }
                             , ref = dimRef
@@ -108,7 +109,7 @@ init shared =
                       )
                     , ( refToString factRef
                       , { renderInfo =
-                            { pos = { x = 430.0, y = 325.0 }
+                            { pos = { x = 14.0, y = 50.0 }
 
                             --pos = { x = 40.0, y = 175.0 }
                             , ref = factRef
@@ -314,8 +315,24 @@ viewCanvas model =
                 (viewSvgErdCards model ++ viewLines model)
 
 
-computeLineCoordsForSingleEdge : ColumnGraph -> Dict DuckDbRefString DimModelDuckDbSourceInfo -> Edge EdgeLabel -> Maybe LineSegment
-computeLineCoordsForSingleEdge graph tableInfos edge =
+offsetHelper : Maybe DuckDbColumnDescription -> List DuckDbColumnDescription -> Float
+offsetHelper colDesc colDescs =
+    -- Default to zero if issue. Line will render but in the wrong place
+    case colDesc of
+        Just colDesc_ ->
+            case List.Extra.elemIndex colDesc_ colDescs of
+                Just i ->
+                    toFloat i + 0.5
+
+                Nothing ->
+                    0
+
+        Nothing ->
+            0
+
+
+computeLineSegmentsFromSingleEdge : ColumnGraph -> Dict DuckDbRefString DimModelDuckDbSourceInfo -> Edge ColumnGraphEdge -> Maybe LineSegment
+computeLineSegmentsFromSingleEdge graph tableInfos edge =
     let
         compute : DimModelDuckDbSourceInfo -> DimModelDuckDbSourceInfo -> LineSegment
         compute fromInfo toInfo =
@@ -339,6 +356,7 @@ computeLineCoordsForSingleEdge graph tableInfos edge =
                 x1_ : Float
                 x1_ =
                     if x2 > x1 then
+                        -- Move x1 to rhs of card
                         x1 + erdCardWidth
 
                     else
@@ -352,14 +370,40 @@ computeLineCoordsForSingleEdge graph tableInfos edge =
                     else
                         x2 + erdCardWidth
 
-                ( fromRef, fromColDescs ) =
-                    unpackAssignment fromInfo.assignment
+                ( _, fromColDescs ) =
+                    unpackKimballAssignment fromInfo.assignment
 
-                ( toRef, toColDescs ) =
-                    unpackAssignment toInfo.assignment
+                ( _, toColDescs ) =
+                    unpackKimballAssignment toInfo.assignment
+
+                fromColDesc : Maybe DuckDbColumnDescription
+                fromColDesc =
+                    case edge.label of
+                        CommonRef _ _ ->
+                            Nothing
+
+                        Joinable lhs _ ->
+                            Just lhs
+
+                toColDesc : Maybe DuckDbColumnDescription
+                toColDesc =
+                    case edge.label of
+                        CommonRef _ _ ->
+                            Nothing
+
+                        Joinable _ rhs ->
+                            Just rhs
+
+                y1Offset : Float
+                y1Offset =
+                    toFloat titleBarHeightPx + (columnBarHeightPx * offsetHelper fromColDesc fromColDescs)
+
+                y2Offset : Float
+                y2Offset =
+                    toFloat titleBarHeightPx + (columnBarHeightPx * offsetHelper toColDesc toColDescs)
             in
-            ( { x = x1_, y = y1 }
-            , { x = x2_, y = y2 }
+            ( { x = x1_, y = y1 + y1Offset }
+            , { x = x2_, y = y2 + y2Offset }
             )
 
         tableInfosFromNodeId : NodeId -> Maybe DimModelDuckDbSourceInfo
@@ -374,10 +418,10 @@ computeLineCoordsForSingleEdge graph tableInfos edge =
                     Nothing
     in
     case edge.label of
-        CommonRef ->
+        CommonRef _ _ ->
             Nothing
 
-        Joinable ->
+        Joinable _ _ ->
             case tableInfosFromNodeId edge.from of
                 Nothing ->
                     Nothing
@@ -391,14 +435,14 @@ computeLineCoordsForSingleEdge graph tableInfos edge =
                             Just (compute fromInfos toInfos)
 
 
-computeLineCoordsForEdges : ColumnGraph -> Dict DuckDbRefString DimModelDuckDbSourceInfo -> List (Edge EdgeLabel) -> List LineSegment
-computeLineCoordsForEdges graph tableInfos edges =
+computeLineSegmentsFromEdges : ColumnGraph -> Dict DuckDbRefString DimModelDuckDbSourceInfo -> List (Edge ColumnGraphEdge) -> List LineSegment
+computeLineSegmentsFromEdges graph tableInfos edges =
     -- First, iterate through all edges, generating a List of Maybe LineSegments. Then, filter out Nothings from that
     -- list, to return List (LineSegment)
     let
         helper : List (Maybe LineSegment)
         helper =
-            List.map (\lbl -> computeLineCoordsForSingleEdge graph tableInfos lbl) edges
+            List.map (\lbl -> computeLineSegmentsFromSingleEdge graph tableInfos lbl) edges
     in
     List.filterMap identity helper
 
@@ -406,15 +450,15 @@ computeLineCoordsForEdges graph tableInfos edges =
 viewLines : Model -> List (Svg Msg)
 viewLines model =
     let
-        joinables : List (Edge EdgeLabel)
+        joinables : List (Edge ColumnGraphEdge)
         joinables =
-            edgesOfType model.dimModel.graph Joinable
+            edgesOfFamily model.dimModel.graph Joinable_
 
         coords : List ( PositionPx, PositionPx )
         coords =
-            computeLineCoordsForEdges model.dimModel.graph model.dimModel.tableInfos joinables
+            computeLineSegmentsFromEdges model.dimModel.graph model.dimModel.tableInfos joinables
 
-        lineFromCoords : ( PositionPx, PositionPx ) -> Svg Msg
+        lineFromCoords : LineSegment -> Svg Msg
         lineFromCoords ( p1, p2 ) =
             S.line
                 [ SA.x1 (ST.px p1.x)
@@ -473,11 +517,15 @@ erdCardWidth =
 erdCardHeightPx : List DuckDbColumnDescription -> Float
 erdCardHeightPx colDescs =
     -- title bar + body (depends on length) + footer / padding
-    toFloat <| 41 + (25 * List.length colDescs) + 5
+    toFloat <| (titleBarHeightPx + 1) + (columnBarHeightPx * List.length colDescs) + 5
 
 
 titleBarHeightPx =
     40
+
+
+columnBarHeightPx =
+    25
 
 
 

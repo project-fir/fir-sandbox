@@ -4,20 +4,7 @@ import Bridge exposing (BackendData(..), BackendErrorMessage, DimensionalModelUp
 import Browser.Dom
 import Browser.Events as BE
 import Dict exposing (Dict)
-import DimensionalModel
-    exposing
-        ( CardRenderInfo
-        , DimModelDuckDbSourceInfo
-        , DimensionalModel
-        , DimensionalModelRef
-        , EdgeLabel(..)
-        , KimballAssignment(..)
-        , PositionPx
-        , addEdge
-        , addEdges
-        , edge2Str
-        , edgesOfType
-        )
+import DimensionalModel exposing (CardRenderInfo, DimModelDuckDbSourceInfo, DimensionalModel, DimensionalModelRef, EdgeFamily(..), EdgeLabel(..), KimballAssignment(..), PositionPx, addEdge, addEdges, edge2Str, edgesOfFamily)
 import DuckDb exposing (ColumnName, DuckDbColumn, DuckDbColumnDescription(..), DuckDbRef, DuckDbRefString, DuckDbRef_(..), PersistedDuckDbColumnDescription, fetchDuckDbTableRefs, refEquals, refToString)
 import Effect exposing (Effect)
 import Element as E exposing (..)
@@ -275,7 +262,7 @@ update msg model =
                                     let
                                         newGraph =
                                             -- NB: Add two edges, (from, to) and (to, from)
-                                            addEdge (addEdge dimModel.graph ( from, to ) Joinable) ( to, from ) Joinable
+                                            addEdge (addEdge dimModel.graph ( from, to ) (Joinable from to)) ( to, from ) (Joinable to from)
                                     in
                                     Effect.fromCmd <| sendToBackend (UpdateDimensionalModel (UpdateGraph dimModel.ref newGraph))
 
@@ -601,7 +588,7 @@ update msg model =
                                                             let
                                                                 -- NB: Add both directions, manually unpacked here
                                                                 newGraph =
-                                                                    addEdges dimModel.graph [ ( colDesc_, colDesc, Joinable ), ( colDesc, colDesc_, Joinable ) ]
+                                                                    addEdges dimModel.graph [ ( colDesc_, colDesc, Joinable colDesc_ colDesc ), ( colDesc, colDesc_, Joinable colDesc colDesc_ ) ]
                                                             in
                                                             ( Nothing, sendToBackend (UpdateDimensionalModel (UpdateGraph dimModel.ref newGraph)) )
 
@@ -1244,7 +1231,7 @@ viewMouseEventsDebugInfo model =
             (List.map (\edge -> E.text <| edge2Str edge ++ "\n")
                 (case model.selectedDimensionalModel of
                     Just dimModel ->
-                        edgesOfType dimModel.graph Joinable
+                        edgesOfFamily dimModel.graph Joinable_
 
                     Nothing ->
                         []

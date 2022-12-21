@@ -7,9 +7,7 @@ import DimensionalModel
         , DimensionalModel
         , EdgeLabel(..)
         , KimballAssignment(..)
-        , NaivePairingStrategyResult(..)
         , PositionPx
-        , Reason(..)
         )
 import DuckDb exposing (DuckDbColumnDescription(..), DuckDbRef, DuckDbRefString, DuckDbRef_(..), refEquals, refToString)
 import Graph exposing (Edge, Node)

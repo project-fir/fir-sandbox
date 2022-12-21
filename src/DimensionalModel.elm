@@ -8,9 +8,8 @@ module DimensionalModel exposing
     , EdgeLabel(..)
     , JoinableEdge
     , KimballAssignment(..)
-    , NaivePairingStrategyResult(..)
+    , LineSegment
     , PositionPx
-    , Reason(..)
     , addEdge
     , addEdges
     , addNode
@@ -28,6 +27,10 @@ import Graph exposing (Edge, Graph, Node, NodeId)
 import Graph.DOT
 import Hash exposing (Hash)
 import IntDict
+
+
+type alias LineSegment =
+    ( PositionPx, PositionPx )
 
 
 type alias PositionPx =
@@ -66,22 +69,6 @@ type alias DimModelDuckDbSourceInfo =
     , assignment : KimballAssignment DuckDbRef_ (List DuckDbColumnDescription)
     , isIncluded : Bool
     }
-
-
-type Reason
-    = AllInputTablesMustBeAssigned
-    | InputMustContainAtLeastOneFactTable
-    | InputMustContainAtLeastOneDimensionTable
-
-
-type NaivePairingStrategyResult
-    = Success DimensionalModel
-    | Fail Reason
-
-
-assembleCommonRefSubGraph : DimensionalModel -> DimensionalModel
-assembleCommonRefSubGraph dimModel =
-    dimModel
 
 
 type alias CommonRefEdge =

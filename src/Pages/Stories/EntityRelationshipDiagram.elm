@@ -1,7 +1,7 @@
-module Pages.Stories.EntityRelationshipDiagram exposing (Model, Msg, indexOf, page)
+module Pages.Stories.EntityRelationshipDiagram exposing (Model, Msg, page)
 
 import Dict exposing (Dict)
-import DimensionalModel exposing (CardRenderInfo, ColumnGraph, DimModelDuckDbSourceInfo, DimensionalModel, EdgeLabel(..), KimballAssignment(..), PositionPx, addEdges, addNodes, columnDescFromNodeId, edgesOfType, unpackAssignment)
+import DimensionalModel exposing (CardRenderInfo, ColumnGraph, DimModelDuckDbSourceInfo, DimensionalModel, EdgeLabel(..), KimballAssignment(..), LineSegment, PositionPx, addEdges, addNodes, columnDescFromNodeId, edgesOfType, unpackAssignment)
 import DuckDb exposing (DuckDbColumnDescription(..), DuckDbRef, DuckDbRefString, DuckDbRef_(..), refToString, ref_ToString)
 import Effect exposing (Effect)
 import Element as E exposing (..)
@@ -314,98 +314,93 @@ viewCanvas model =
                 (viewSvgErdCards model ++ viewLines model)
 
 
-indexOf : DuckDbRef_ -> List DuckDbColumnDescription -> Maybe Int
-indexOf ref colDescs =
-    Nothing
-
-
-computeLineCoords : ColumnGraph -> Dict DuckDbRefString DimModelDuckDbSourceInfo -> List (Edge EdgeLabel) -> List ( PositionPx, PositionPx )
-computeLineCoords graph tableInfos edges =
+computeLineCoordsForSingleEdge : ColumnGraph -> Dict DuckDbRefString DimModelDuckDbSourceInfo -> Edge EdgeLabel -> Maybe LineSegment
+computeLineCoordsForSingleEdge graph tableInfos edge =
     let
-        coordsFor : Edge EdgeLabel -> Maybe ( PositionPx, PositionPx )
-        coordsFor edge =
+        compute : DimModelDuckDbSourceInfo -> DimModelDuckDbSourceInfo -> LineSegment
+        compute fromInfo toInfo =
             let
-                cardWidthPx =
-                    250
+                x1 : Float
+                x1 =
+                    fromInfo.renderInfo.pos.x
 
-                compute : DimModelDuckDbSourceInfo -> DimModelDuckDbSourceInfo -> ( PositionPx, PositionPx )
-                compute fromInfo toInfo =
-                    let
-                        x1 : Float
-                        x1 =
-                            fromInfo.renderInfo.pos.x
+                x2 : Float
+                x2 =
+                    toInfo.renderInfo.pos.x
 
-                        x2 : Float
-                        x2 =
-                            toInfo.renderInfo.pos.x
+                y1 : Float
+                y1 =
+                    fromInfo.renderInfo.pos.y
 
-                        y1 : Float
-                        y1 =
-                            fromInfo.renderInfo.pos.y
+                y2 : Float
+                y2 =
+                    toInfo.renderInfo.pos.y
 
-                        y2 : Float
-                        y2 =
-                            toInfo.renderInfo.pos.y
+                x1_ : Float
+                x1_ =
+                    if x2 > x1 then
+                        x1 + erdCardWidth
 
-                        x1_ : Float
-                        x1_ =
-                            if x2 > x1 then
-                                x1 + cardWidthPx
+                    else
+                        x1
 
-                            else
-                                x1
+                x2_ : Float
+                x2_ =
+                    if x1 + erdCardWidth < x2 then
+                        x2
 
-                        x2_ : Float
-                        x2_ =
-                            if x1 + cardWidthPx < x2 then
-                                x2
+                    else
+                        x2 + erdCardWidth
 
-                            else
-                                x2 + cardWidthPx
+                ( fromRef, fromColDescs ) =
+                    unpackAssignment fromInfo.assignment
 
-                        ( fromRef, fromColDescs ) =
-                            unpackAssignment fromInfo.assignment
-
-                        ( toRef, toColDescs ) =
-                            unpackAssignment toInfo.assignment
-                    in
-                    ( { x = x1_, y = y1 }
-                    , { x = x2_, y = y2 }
-                    )
-
-                tableInfosFromNodeId : NodeId -> Maybe DimModelDuckDbSourceInfo
-                tableInfosFromNodeId nodeId =
-                    case columnDescFromNodeId graph nodeId of
-                        Just colDesc ->
-                            case colDesc of
-                                Persisted_ colDesc_ ->
-                                    Dict.get (ref_ToString colDesc_.parentRef) tableInfos
-
-                        Nothing ->
-                            Nothing
+                ( toRef, toColDescs ) =
+                    unpackAssignment toInfo.assignment
             in
-            case edge.label of
-                CommonRef ->
+            ( { x = x1_, y = y1 }
+            , { x = x2_, y = y2 }
+            )
+
+        tableInfosFromNodeId : NodeId -> Maybe DimModelDuckDbSourceInfo
+        tableInfosFromNodeId nodeId =
+            case columnDescFromNodeId graph nodeId of
+                Just colDesc ->
+                    case colDesc of
+                        Persisted_ colDesc_ ->
+                            Dict.get (ref_ToString colDesc_.parentRef) tableInfos
+
+                Nothing ->
+                    Nothing
+    in
+    case edge.label of
+        CommonRef ->
+            Nothing
+
+        Joinable ->
+            case tableInfosFromNodeId edge.from of
+                Nothing ->
                     Nothing
 
-                Joinable ->
-                    case tableInfosFromNodeId edge.from of
+                Just fromInfos ->
+                    case tableInfosFromNodeId edge.to of
                         Nothing ->
                             Nothing
 
-                        Just fromInfos ->
-                            case tableInfosFromNodeId edge.to of
-                                Nothing ->
-                                    Nothing
+                        Just toInfos ->
+                            Just (compute fromInfos toInfos)
 
-                                Just toInfos ->
-                                    Just (compute fromInfos toInfos)
 
-        coords : List (Maybe ( PositionPx, PositionPx ))
-        coords =
-            List.map (\lbl -> coordsFor lbl) edges
+computeLineCoordsForEdges : ColumnGraph -> Dict DuckDbRefString DimModelDuckDbSourceInfo -> List (Edge EdgeLabel) -> List LineSegment
+computeLineCoordsForEdges graph tableInfos edges =
+    -- First, iterate through all edges, generating a List of Maybe LineSegments. Then, filter out Nothings from that
+    -- list, to return List (LineSegment)
+    let
+        helper : List (Maybe LineSegment)
+        helper =
+            List.map (\lbl -> computeLineCoordsForSingleEdge graph tableInfos lbl) edges
     in
-    List.filterMap identity coords
+    List.filterMap identity helper
 
 
 viewLines : Model -> List (Svg Msg)
@@ -417,7 +412,7 @@ viewLines model =
 
         coords : List ( PositionPx, PositionPx )
         coords =
-            computeLineCoords model.dimModel.graph model.dimModel.tableInfos joinables
+            computeLineCoordsForEdges model.dimModel.graph model.dimModel.tableInfos joinables
 
         lineFromCoords : ( PositionPx, PositionPx ) -> Svg Msg
         lineFromCoords ( p1, p2 ) =

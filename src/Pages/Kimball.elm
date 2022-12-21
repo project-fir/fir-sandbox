@@ -12,9 +12,7 @@ import DimensionalModel
         , DimensionalModelRef
         , EdgeLabel(..)
         , KimballAssignment(..)
-        , NaivePairingStrategyResult(..)
         , PositionPx
-        , Reason(..)
         , addEdge
         , addEdges
         , edge2Str
@@ -86,7 +84,6 @@ type alias Model =
     --       Something to think about.. should all possible actions on dimModels be dimModel variants (similar to how I implemented
     --       the duckdb cache in Backend)?
     , selectedDimensionalModel : Maybe DimensionalModel
-    , pairingAlgoResult : Maybe NaivePairingStrategyResult
     , dropdownState : Maybe DuckDbRef
     , inspectedColumn : Maybe DuckDbColumnDescription
     , columnPairingOperation : ColumnPairingOperation
@@ -134,7 +131,6 @@ init sharedTheme =
       , viewPort = Nothing
       , proposedNewModelName = ""
       , selectedDimensionalModel = Nothing
-      , pairingAlgoResult = Nothing
       , dropdownState = Nothing
       , inspectedColumn = Nothing
       , downKeys = Set.empty

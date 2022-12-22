@@ -20,6 +20,7 @@ import Http
 import Json.Decode as JD
 import Lamdera exposing (sendToBackend)
 import Page
+import Pages.Stories.EntityRelationshipDiagram exposing (ErdSvgNodeProps, viewErdSvgNodes)
 import QueryBuilder exposing (Aggregation(..), ColumnRef, Granularity(..), TimeClass(..))
 import RemoteData exposing (RemoteData(..), WebData)
 import Request
@@ -169,7 +170,7 @@ type Msg
     | UserMouseEnteredTableRef DuckDb.DuckDbRef
     | UserToggledCardDropDown DuckDbRef
     | UserMouseLeftTableRef
-    | UserMouseEnteredNodeTitleBar DuckDb.DuckDbRef
+    | UserMouseEnteredNodeTitleBar DuckDbRef
     | UserMouseEnteredColumnDescRow DuckDbColumnDescription
     | UserClickedColumnRow DuckDbColumnDescription
     | UserMouseLeftNodeTitleBar
@@ -936,29 +937,48 @@ viewDataSourceCard model dimModelRef renderInfo kimballAssignment =
 
 viewCanvas : Model -> LayoutInfo -> Element Msg
 viewCanvas model layoutInfo =
+    --let
+    --    erdCardsSvgNode : List (Svg Msg)
+    --    erdCardsSvgNode =
+    --        let
+    --            renderHelp : DimModelDuckDbSourceInfo -> DimensionalModelRef -> Svg Msg
+    --            renderHelp info dimModelRef =
+    --                viewDataSourceCard model dimModelRef info.renderInfo info.assignment
+    --        in
+    --        case model.selectedDimensionalModel of
+    --            Nothing ->
+    --                []
+    --
+    --            Just dimModel ->
+    --                List.filterMap
+    --                    (\info ->
+    --                        case info.isIncluded of
+    --                            True ->
+    --                                Just <| renderHelp info dimModel.ref
+    --
+    --                            False ->
+    --                                Nothing
+    --                    )
+    --                    (Dict.values dimModel.tableInfos)
+    --in
     let
-        erdCardsSvgNode : List (Svg Msg)
-        erdCardsSvgNode =
-            let
-                renderHelp : DimModelDuckDbSourceInfo -> DimensionalModelRef -> Svg Msg
-                renderHelp info dimModelRef =
-                    viewDataSourceCard model dimModelRef info.renderInfo info.assignment
-            in
+        props : ErdSvgNodeProps Msg
+        props =
+            { onToggledErdCardDropdown = UserToggledCardDropDown
+            , onMouseEnteredErdCardDropdown = NoopKimball
+            , onMouseLeftErdCardDropdown = NoopKimball
+            , onHoverErdCardDropdownOption = NoopKimball
+            , onCLickErdCardDropdownOption = NoopKimball
+            }
+
+        svgNodes : List (Svg Msg)
+        svgNodes =
             case model.selectedDimensionalModel of
+                Just dimModel ->
+                    viewErdSvgNodes model props dimModel
+
                 Nothing ->
                     []
-
-                Just dimModel ->
-                    List.filterMap
-                        (\info ->
-                            case info.isIncluded of
-                                True ->
-                                    Just <| renderHelp info dimModel.ref
-
-                                False ->
-                                    Nothing
-                        )
-                        (Dict.values dimModel.tableInfos)
     in
     el
         [ Border.width 1
@@ -976,7 +996,7 @@ viewCanvas model layoutInfo =
                 , SA.height (ST.px layoutInfo.canvasElementHeight)
                 , SA.viewBox 0 0 layoutInfo.canvasElementWidth layoutInfo.canvasElementHeight
                 ]
-                []
+                svgNodes
 
 
 viewControlPanel : Model -> Element Msg

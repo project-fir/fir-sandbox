@@ -37,7 +37,10 @@ page shared req =
 
 type alias Model =
     { theme : ColorTheme
-    , dimModel : DimensionalModel
+    , dimModel1 : DimensionalModel
+    , dimModel2 : DimensionalModel
+    , dimModel3 : DimensionalModel
+    , dimModel4 : DimensionalModel
     , msgHistory : List Msg
     , isDummyDrawerOpen : Bool
     }
@@ -54,7 +57,15 @@ init shared =
         dimCols =
             [ Persisted_ { name = "attr_1", parentRef = DuckDbTable dimRef, dataType = "String" }
             , Persisted_ { name = "attr_2", parentRef = DuckDbTable dimRef, dataType = "String" }
+            , Persisted_ { name = "attr_3", parentRef = DuckDbTable dimRef, dataType = "String" }
+            , Persisted_ { name = "attr_4", parentRef = DuckDbTable dimRef, dataType = "String" }
+            , Persisted_ { name = "attr_5", parentRef = DuckDbTable dimRef, dataType = "String" }
+            , Persisted_ { name = "attr_6", parentRef = DuckDbTable dimRef, dataType = "String" }
             , Persisted_ { name = "id", parentRef = DuckDbTable dimRef, dataType = "String" }
+            , Persisted_ { name = "attr_7", parentRef = DuckDbTable dimRef, dataType = "String" }
+            , Persisted_ { name = "attr_8", parentRef = DuckDbTable dimRef, dataType = "String" }
+            , Persisted_ { name = "attr_9", parentRef = DuckDbTable dimRef, dataType = "String" }
+            , Persisted_ { name = "attr_10", parentRef = DuckDbTable dimRef, dataType = "String" }
             ]
 
         factRef : DuckDbRef
@@ -85,16 +96,16 @@ init shared =
                 [ ( lhs, rhs, Joinable lhs rhs )
                 , ( rhs, lhs, Joinable rhs lhs )
                 ]
-    in
-    ( { theme = shared.selectedTheme
-      , dimModel =
+
+        assembleDimModel : PositionPx -> PositionPx -> DimensionalModel
+        assembleDimModel p1 p2 =
             { graph = graphStep2
             , ref = "story_dim_model"
             , tableInfos =
                 Dict.fromList
                     [ ( refToString dimRef
                       , { renderInfo =
-                            { pos = { x = 450.0, y = 170.0 }
+                            { pos = p1
                             , ref = dimRef
                             , isDrawerOpen = False
                             }
@@ -104,9 +115,7 @@ init shared =
                       )
                     , ( refToString factRef
                       , { renderInfo =
-                            { pos = { x = 14.0, y = 50.0 }
-
-                            --pos = { x = 40.0, y = 175.0 }
+                            { pos = p2
                             , ref = factRef
                             , isDrawerOpen = False
                             }
@@ -116,6 +125,12 @@ init shared =
                       )
                     ]
             }
+    in
+    ( { theme = shared.selectedTheme
+      , dimModel1 = assembleDimModel { x = 450, y = 25 } { x = 100, y = 400 }
+      , dimModel2 = assembleDimModel { x = 450, y = 25 } { x = 250, y = 400 }
+      , dimModel3 = assembleDimModel { x = 150, y = 25 } { x = 250, y = 400 }
+      , dimModel4 = assembleDimModel { x = 150, y = 25 } { x = 450, y = 400 }
       , msgHistory = []
       , isDummyDrawerOpen = False
       }
@@ -150,45 +165,6 @@ update msg model =
     --     For all other cases, we publish the Msg history to the debug panel, so the tester can verify
     --     Msgs are being sent to the Elm runtime.
     case msg of
-        ToggledErdCardDropdown ref ->
-            let
-                newSourceInfo =
-                    case Dict.get (refToString ref) model.dimModel.tableInfos of
-                        Nothing ->
-                            Nothing
-
-                        Just info ->
-                            let
-                                renderInfo =
-                                    info.renderInfo
-
-                                newRenderInfo =
-                                    { renderInfo | isDrawerOpen = not renderInfo.isDrawerOpen }
-                            in
-                            Just { info | renderInfo = newRenderInfo }
-
-                newTableInfos =
-                    case newSourceInfo of
-                        Just tableInfos_ ->
-                            Dict.insert (refToString ref) tableInfos_ model.dimModel.tableInfos
-
-                        Nothing ->
-                            model.dimModel.tableInfos
-
-                dimModel =
-                    model.dimModel
-
-                newDimModel =
-                    { dimModel | tableInfos = newTableInfos }
-            in
-            ( { model
-                | msgHistory = msg :: model.msgHistory
-                , dimModel = newDimModel
-              }
-            , Effect.none
-            )
-
-        --( model, Effect.none )
         _ ->
             ( { model | msgHistory = msg :: model.msgHistory }
             , Effect.none
@@ -291,7 +267,14 @@ viewElements model =
             , Background.color model.theme.background
             , centerX
             ]
-            [ viewCanvas model
+            [ E.text "Case 1:"
+            , viewCanvas model model.dimModel1
+            , E.text "Case 2:"
+            , viewCanvas model model.dimModel2
+            , E.text "Case 3:"
+            , viewCanvas model model.dimModel3
+            , E.text "Case 4:"
+            , viewCanvas model model.dimModel4
             ]
         , column
             [ height fill
@@ -355,8 +338,8 @@ assembleErdCardPropsForSingleSource info =
     )
 
 
-viewCanvas : Model -> Element Msg
-viewCanvas model =
+viewCanvas : { r | theme : ColorTheme } -> DimensionalModel -> Element Msg
+viewCanvas r dimModel =
     let
         width_ : number
         width_ =
@@ -367,14 +350,14 @@ viewCanvas model =
             575
 
         erdCardPropsDict : DimensionalModel -> Dict DuckDbRefString (ErdSvgNodeProps Msg)
-        erdCardPropsDict dimModel =
-            Dict.fromList <| List.map (\tblInfo -> assembleErdCardPropsForSingleSource tblInfo) (Dict.values dimModel.tableInfos)
+        erdCardPropsDict dimModel_ =
+            Dict.fromList <| List.map (\tblInfo -> assembleErdCardPropsForSingleSource tblInfo) (Dict.values dimModel_.tableInfos)
     in
     el
         [ Border.width 1
-        , Border.color model.theme.black
+        , Border.color r.theme.black
         , Border.rounded 5
-        , Background.color model.theme.background
+        , Background.color r.theme.background
         , centerX
         , centerY
         ]
@@ -385,7 +368,7 @@ viewCanvas model =
                 , SA.height (ST.px height_)
                 , SA.viewBox 0 0 width_ height_
                 ]
-                (viewErdSvgNodes model (erdCardPropsDict model.dimModel) model.dimModel)
+                (viewErdSvgNodes r (erdCardPropsDict dimModel) dimModel)
 
 
 offsetHelper : Maybe DuckDbColumnDescription -> List DuckDbColumnDescription -> Float
@@ -428,7 +411,7 @@ computeLineSegmentsFromSingleEdge graph tableInfos edge =
 
                 x1_ : Float
                 x1_ =
-                    if x2 > x1 then
+                    if x2 > (x1 + (0.5 * erdCardWidth)) then
                         -- Move x1 to rhs of card
                         x1 + erdCardWidth
 
@@ -437,11 +420,11 @@ computeLineSegmentsFromSingleEdge graph tableInfos edge =
 
                 x2_ : Float
                 x2_ =
-                    if x1 + erdCardWidth < x2 then
-                        x2
+                    if x1 > (x2 + (0.5 * erdCardWidth)) || (x2 > x1 + erdCardWidth) then
+                        x2 + erdCardWidth
 
                     else
-                        x2 + erdCardWidth
+                        x2
 
                 ( _, fromColDescs ) =
                     unpackKimballAssignment fromInfo.assignment
@@ -566,7 +549,7 @@ titleBarHeightPx =
 
 
 columnBarHeightPx =
-    25
+    26
 
 
 
@@ -690,7 +673,6 @@ viewEntityRelationshipCard r dimModel kimballAssignment erdCardProps =
                     , height (px titleBarHeightPx)
                     , Border.widthEach { top = 0, bottom = 2, left = 0, right = 0 }
                     , Border.color r.theme.secondary
-                    , Events.onClick (erdCardProps.onBeginErdCardDrag duckDbRef_)
                     ]
                     [ E.text (refToString duckDbRef_)
                     , el [ alignRight ] <| dropdownMenu r erdCardProps.erdCardDropdownMenuProps
@@ -721,6 +703,7 @@ viewEntityRelationshipCard r dimModel kimballAssignment erdCardProps =
             column
                 [ width fill
                 , height fill
+                , Events.onMouseDown (erdCardProps.onBeginErdCardDrag duckDbRef_)
                 ]
                 (List.map
                     (\col ->

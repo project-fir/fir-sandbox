@@ -275,13 +275,14 @@ type alias DropDownOptionId =
     Int
 
 
-type alias DropDownProps msg =
+type alias DropDownProps msg menuId =
     { isOpen : Bool
+    , id : menuId
     , widthPx : Int
     , heightPx : Int
-    , onDrawerClick : msg
-    , onMenuMouseEnter : msg
-    , onMenuMouseLeave : msg
+    , onDrawerClick : menuId -> msg
+    , onMenuMouseEnter : menuId -> msg
+    , onMenuMouseLeave : menuId -> msg
     , isMenuHovered : Bool
     , menuBarText : String
     , options : List (DropDownOption msg)
@@ -297,7 +298,7 @@ type alias DropDownOption msg =
     }
 
 
-dropdownMenu : { r | theme : ColorTheme } -> DropDownProps msg -> Element msg
+dropdownMenu : { r | theme : ColorTheme } -> DropDownProps msg menuId -> Element msg
 dropdownMenu r props =
     let
         menuOption : DropDownOption msg -> Element msg
@@ -345,9 +346,9 @@ dropdownMenu r props =
             in
             el
                 (attrs backgroundColor
-                    ++ [ Events.onClick props.onDrawerClick
-                       , Events.onMouseEnter props.onMenuMouseEnter
-                       , Events.onMouseLeave props.onMenuMouseLeave
+                    ++ [ Events.onClick <| props.onDrawerClick props.id
+                       , Events.onMouseEnter <| props.onMenuMouseEnter props.id
+                       , Events.onMouseLeave <| props.onMenuMouseLeave props.id
                        ]
                 )
                 (row [ centerY, height fill, padding 0 ]

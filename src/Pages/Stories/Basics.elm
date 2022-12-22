@@ -11,7 +11,7 @@ import Gen.Params.Stories.Basics exposing (Params)
 import Page
 import Request
 import Shared exposing (Msg(..))
-import Ui exposing (ColorTheme, PaletteName(..), button, dropdownMenu, themeOf)
+import Ui exposing (ColorTheme, DropDownProps, PaletteName(..), button, dropdownMenu, themeOf)
 import Utils exposing (bool2Str)
 import View exposing (View)
 
@@ -53,11 +53,15 @@ init shared =
 -- UPDATE
 
 
+type alias MenuId =
+    String
+
+
 type Msg
     = Basics__UserSelectedPalette PaletteName
-    | UserToggledDrawer
-    | MouseEnteredDropDownMenu
-    | MouseLeftDropDownMenu
+    | UserToggledDrawer MenuId
+    | MouseEnteredDropDownMenu MenuId
+    | MouseLeftDropDownMenu MenuId
     | MouseEnteredOption Int
     | Noop
 
@@ -85,7 +89,7 @@ update msg model =
             , Effect.none
             )
 
-        UserToggledDrawer ->
+        UserToggledDrawer menuId ->
             ( { model
                 | isDrawerOpen = not model.isDrawerOpen
                 , hoveredOnOption = Nothing
@@ -93,12 +97,12 @@ update msg model =
             , Effect.none
             )
 
-        MouseEnteredDropDownMenu ->
+        MouseEnteredDropDownMenu menuId ->
             ( { model | isMenuHovered = True }
             , Effect.none
             )
 
-        MouseLeftDropDownMenu ->
+        MouseLeftDropDownMenu menuId ->
             ( { model | isMenuHovered = False }, Effect.none )
 
 
@@ -208,6 +212,41 @@ table r =
 elements : Model -> Element Msg
 elements model =
     let
+        testMenuId : String
+        testMenuId =
+            "test-menu"
+
+        dropDownProps : DropDownProps Msg MenuId
+        dropDownProps =
+            { isOpen = model.isDrawerOpen
+            , id = testMenuId
+            , heightPx = 20
+            , widthPx = 60
+            , onDrawerClick = UserToggledDrawer
+            , onMenuMouseEnter = MouseEnteredDropDownMenu
+            , onMenuMouseLeave = MouseLeftDropDownMenu
+            , isMenuHovered = model.isMenuHovered
+            , hoveredOnOption = model.hoveredOnOption
+            , menuBarText = "Theme"
+            , options =
+                [ { displayText = "Coffee Run"
+                  , optionId = 0
+                  , onClick = Basics__UserSelectedPalette CoffeeRun
+                  , onHover = MouseEnteredOption 0
+                  }
+                , { displayText = "Bamboo Beach"
+                  , onClick = Basics__UserSelectedPalette BambooBeach
+                  , onHover = MouseEnteredOption 1
+                  , optionId = 1
+                  }
+                , { displayText = "Nitro"
+                  , onClick = Basics__UserSelectedPalette Nitro
+                  , onHover = MouseEnteredOption 2
+                  , optionId = 2
+                  }
+                ]
+            }
+
         viewHeader : Element Msg
         viewHeader =
             el
@@ -221,36 +260,7 @@ elements model =
             <|
                 row [ padding 5, width fill ]
                     [ el [ alignLeft, Font.bold ] (E.text "Basics")
-                    , el [ Font.size 14, alignRight ]
-                        (dropdownMenu model
-                            { isOpen = model.isDrawerOpen
-                            , heightPx = 20
-                            , widthPx = 60
-                            , onDrawerClick = UserToggledDrawer
-                            , onMenuMouseEnter = MouseEnteredDropDownMenu
-                            , onMenuMouseLeave = MouseLeftDropDownMenu
-                            , isMenuHovered = model.isMenuHovered
-                            , hoveredOnOption = model.hoveredOnOption
-                            , menuBarText = "Theme"
-                            , options =
-                                [ { displayText = "Coffee Run"
-                                  , optionId = 0
-                                  , onClick = Basics__UserSelectedPalette CoffeeRun
-                                  , onHover = MouseEnteredOption 0
-                                  }
-                                , { displayText = "Bamboo Beach"
-                                  , onClick = Basics__UserSelectedPalette BambooBeach
-                                  , onHover = MouseEnteredOption 1
-                                  , optionId = 1
-                                  }
-                                , { displayText = "Nitro"
-                                  , onClick = Basics__UserSelectedPalette Nitro
-                                  , onHover = MouseEnteredOption 2
-                                  , optionId = 2
-                                  }
-                                ]
-                            }
-                        )
+                    , el [ Font.size 14, alignRight ] (dropdownMenu model dropDownProps)
                     ]
 
         viewSwatch : Color -> String -> Color -> Element Msg

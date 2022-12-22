@@ -1,7 +1,7 @@
 module Pages.Stories.EntityRelationshipDiagram exposing (ErdSvgNodeProps, Model, Msg, page, viewErdSvgNodes)
 
 import Dict exposing (Dict)
-import DimensionalModel exposing (CardRenderInfo, ColumnGraph, ColumnGraphEdge, DimModelDuckDbSourceInfo, DimensionalModel, EdgeFamily(..), EdgeLabel(..), KimballAssignment(..), LineSegment, PositionPx, addEdges, addNodes, columnDescFromNodeId, edgesOfFamily, unpackKimballAssignment)
+import DimensionalModel exposing (CardRenderInfo, ColumnGraph, ColumnGraphEdge, DimModelDuckDbSourceInfo, DimensionalModel, DimensionalModelRef, EdgeFamily(..), EdgeLabel(..), KimballAssignment(..), LineSegment, PositionPx, addEdges, addNodes, columnDescFromNodeId, edgesOfFamily, unpackKimballAssignment)
 import DuckDb exposing (DuckDbColumnDescription(..), DuckDbRef, DuckDbRefString, DuckDbRef_(..), refToString, ref_ToString)
 import Effect exposing (Effect)
 import Element as E exposing (..)
@@ -12,6 +12,7 @@ import Element.Font as Font
 import Element.Input as Input
 import Gen.Params.Stories.EntityRelationshipDiagram exposing (Params)
 import Graph exposing (Edge, NodeId)
+import Html.Events.Extra.Mouse exposing (Event)
 import List.Extra
 import Page
 import Request
@@ -32,28 +33,6 @@ page shared req =
         , view = view
         , subscriptions = subscriptions
         }
-
-
-
--- begin region: exposed UI components
-
-
-type alias ErdSvgNodeProps msg =
-    { onToggledErdCardDropdown : DuckDbRef -> msg
-    , onMouseEnteredErdCardDropdown : msg
-    , onMouseLeftErdCardDropdown : msg
-    , onHoverErdCardDropdownOption : msg
-    , onCLickErdCardDropdownOption : msg
-    }
-
-
-viewErdSvgNodes : { r | theme : ColorTheme } -> ErdSvgNodeProps msg -> DimensionalModel -> List (Svg msg)
-viewErdSvgNodes r props dimModel =
-    viewSvgErdCards r props dimModel ++ viewLines r props dimModel
-
-
-
--- end region: exposed UI components
 
 
 type alias Model =
@@ -149,30 +128,29 @@ init shared =
 
 
 type Msg
-    = UserClickedErdCardColumn
-    | UserHoveredOverErdCardColumn
-    | UserToggledErdCardDropdown DuckDbRef
-    | UserToggledDummyDropdown
-    | UserSelectedErdCardDropdownOption
-    | UserHoveredOverOption
-    | MouseEnteredErdCard
-    | Defer__DropdownOutOfScope
+    = MouseEnteredErdCard DuckDbRef
     | MouseLeftErdCard
-    | UserClickedButton
+    | MouseEnteredErdCardColumnRow DuckDbRef DuckDbColumnDescription
+    | ClickedErdCardColumnRow DuckDbRef DuckDbColumnDescription
+    | ToggledErdCardDropdown DuckDbRef
+    | MouseEnteredErdCardDropdown DuckDbRef
+    | MouseLeftErdCardDropdown DuckDbRef
+    | ClickedErdCardDropdownOption DimensionalModelRef DuckDbRef (KimballAssignment DuckDbRef_ (List DuckDbColumnDescription))
+    | BeginErdCardDrag DuckDb.DuckDbRef
+    | ContinueErdCardDrag Event
+    | ErdCardDragStopped Event
+    | ErdNoop
+    | ErdNoop_ DuckDbRef
 
 
 update : Msg -> Model -> ( Model, Effect Msg )
 update msg model =
+    -- NB: This is a visual component test, the goal is to ensure visual integrity and Msg responsiveness
+    --     Therefore, we only "actually" process Msgs that are strictly necessary for those checks.
+    --     For all other cases, we publish the Msg history to the debug panel, so the tester can verify
+    --     Msgs are being sent to the Elm runtime.
     case msg of
-        UserToggledDummyDropdown ->
-            ( { model
-                | msgHistory = msg :: model.msgHistory
-                , isDummyDrawerOpen = not model.isDummyDrawerOpen
-              }
-            , Effect.none
-            )
-
-        UserToggledErdCardDropdown ref ->
+        ToggledErdCardDropdown ref ->
             let
                 newSourceInfo =
                     case Dict.get (refToString ref) model.dimModel.tableInfos of
@@ -210,6 +188,7 @@ update msg model =
             , Effect.none
             )
 
+        --( model, Effect.none )
         _ ->
             ( { model | msgHistory = msg :: model.msgHistory }
             , Effect.none
@@ -242,35 +221,8 @@ viewDebugInfo model =
         msg2str : Msg -> String
         msg2str msg =
             case msg of
-                UserClickedErdCardColumn ->
-                    "UserClickedErdCardColumn"
-
-                UserHoveredOverErdCardColumn ->
-                    "UserHoveredOverErdCardColumn"
-
-                Defer__DropdownOutOfScope ->
-                    "Defer__DropdownOutOfScope"
-
-                UserToggledErdCardDropdown ref ->
-                    "UserToggledErdCardDropdown " ++ refToString ref
-
-                UserSelectedErdCardDropdownOption ->
-                    "UserSelectedErdCardDropdownOption"
-
-                MouseEnteredErdCard ->
-                    "UserHoveredOverErdCard"
-
-                UserClickedButton ->
-                    "UserClickedButton"
-
-                MouseLeftErdCard ->
-                    "MouseLeftErdCard"
-
-                UserHoveredOverOption ->
-                    "UserHoveredOverOption"
-
-                UserToggledDummyDropdown ->
-                    "UserToggledDummyDropdown"
+                _ ->
+                    "Some event happened!"
 
         viewMsg : Msg -> Element Msg
         viewMsg msg =
@@ -307,23 +259,70 @@ viewElements model =
         ]
 
 
+assembleErdCardPropsForSingleSource : DimModelDuckDbSourceInfo -> ( DuckDbRefString, ErdSvgNodeProps Msg )
+assembleErdCardPropsForSingleSource info =
+    let
+        ref : DuckDbRef
+        ref =
+            case info.assignment of
+                Unassigned ref_ _ ->
+                    case ref_ of
+                        DuckDbTable duckDbRef ->
+                            duckDbRef
+
+                Fact ref_ _ ->
+                    case ref_ of
+                        DuckDbTable duckDbRef ->
+                            duckDbRef
+
+                Dimension ref_ _ ->
+                    case ref_ of
+                        DuckDbTable duckDbRef ->
+                            duckDbRef
+
+        cardDropDownProps : DropDownProps Msg DuckDbRef
+        cardDropDownProps =
+            { isOpen = False
+            , id = ref
+            , widthPx = 250
+            , heightPx = 250
+            , onDrawerClick = ToggledErdCardDropdown
+            , onMenuMouseEnter = MouseEnteredErdCardDropdown
+            , onMenuMouseLeave = MouseLeftErdCardDropdown
+            , isMenuHovered = False
+            , menuBarText = "TEST"
+            , options = []
+            , hoveredOnOption = Nothing
+            }
+    in
+    ( refToString ref
+    , { id = ref
+      , onMouseEnteredErdCard = MouseEnteredErdCard
+      , onMouseLeftErdCard = MouseLeftErdCard
+      , onMouseEnteredErdCardColumnRow = MouseEnteredErdCardColumnRow
+      , onClickedErdCardColumnRow = ClickedErdCardColumnRow
+      , onBeginErdCardDrag = BeginErdCardDrag
+      , onContinueErdCardDrag = ContinueErdCardDrag
+      , onErdCardDragStopped = ErdCardDragStopped
+      , erdCardDropdownMenuProps = cardDropDownProps
+      }
+    )
+
+
 viewCanvas : Model -> Element Msg
 viewCanvas model =
     let
+        width_ : number
         width_ =
             750
 
+        height_ : number
         height_ =
             575
 
-        props : ErdSvgNodeProps Msg
-        props =
-            { onToggledErdCardDropdown = UserToggledErdCardDropdown
-            , onMouseEnteredErdCardDropdown = Defer__DropdownOutOfScope
-            , onMouseLeftErdCardDropdown = Defer__DropdownOutOfScope
-            , onHoverErdCardDropdownOption = Defer__DropdownOutOfScope
-            , onCLickErdCardDropdownOption = Defer__DropdownOutOfScope
-            }
+        erdCardPropsSet : DimensionalModel -> Dict DuckDbRefString (ErdSvgNodeProps Msg)
+        erdCardPropsSet dimModel =
+            Dict.fromList <| List.map (\tblInfo -> assembleErdCardPropsForSingleSource tblInfo) (Dict.values dimModel.tableInfos)
     in
     el
         [ Border.width 1
@@ -341,7 +340,7 @@ viewCanvas model =
                 , SA.height (ST.px height_)
                 , SA.viewBox 0 0 width_ height_
                 ]
-                (viewErdSvgNodes model props model.dimModel)
+                (viewErdSvgNodes model (erdCardPropsSet model.dimModel) model.dimModel)
 
 
 offsetHelper : Maybe DuckDbColumnDescription -> List DuckDbColumnDescription -> Float
@@ -476,8 +475,8 @@ computeLineSegmentsFromEdges graph tableInfos edges =
     List.filterMap identity helper
 
 
-viewLines : { r | theme : ColorTheme } -> ErdSvgNodeProps msg -> DimensionalModel -> List (Svg msg)
-viewLines r props dimModel =
+viewLines : { r | theme : ColorTheme } -> DimensionalModel -> List (Svg msg)
+viewLines r dimModel =
     let
         joinables : List (Edge ColumnGraphEdge)
         joinables =
@@ -499,38 +498,6 @@ viewLines r props dimModel =
                 []
     in
     List.map (\coord -> lineFromCoords coord) coords
-
-
-viewSvgErdCards : { r | theme : ColorTheme } -> ErdSvgNodeProps msg -> DimensionalModel -> List (Svg msg)
-viewSvgErdCards r props dimModel =
-    -- For each included table, render an Svg foreignObject, which is an elm-ui layout rendering a diagram card.
-    let
-        unpackColDescs : DimModelDuckDbSourceInfo -> List DuckDbColumnDescription
-        unpackColDescs sourceInfo =
-            case sourceInfo.assignment of
-                Unassigned _ columns ->
-                    columns
-
-                Fact _ columns ->
-                    columns
-
-                Dimension _ columns ->
-                    columns
-
-        foreignObjectHelper : DimModelDuckDbSourceInfo -> Svg msg
-        foreignObjectHelper duckDbSourceInfo =
-            SC.foreignObject
-                [ SA.x (ST.px duckDbSourceInfo.renderInfo.pos.x)
-                , SA.y (ST.px duckDbSourceInfo.renderInfo.pos.y)
-                , SA.width (ST.px erdCardWidth)
-                , SA.height (ST.px (erdCardHeightPx (unpackColDescs duckDbSourceInfo)))
-                ]
-                [ E.layoutWith { options = [ noStaticStyleSheet ] }
-                    []
-                    (viewEntityRelationshipCard r props dimModel duckDbSourceInfo.assignment)
-                ]
-    in
-    List.map (\info -> foreignObjectHelper info) (Dict.values dimModel.tableInfos)
 
 
 
@@ -559,14 +526,34 @@ columnBarHeightPx =
 
 
 -- end region: ERD Card constants
+-- begin region: exposed UI components
 
 
-viewEntityRelationshipCard : { r | theme : ColorTheme } -> ErdSvgNodeProps msg -> DimensionalModel -> KimballAssignment DuckDbRef_ (List DuckDbColumnDescription) -> Element msg
-viewEntityRelationshipCard r props dimModel kimballAssignment =
+type alias ErdSvgNodeProps msg =
+    { id : DuckDbRef
+    , onMouseEnteredErdCard : DuckDbRef -> msg
+    , onMouseLeftErdCard : msg
+    , onMouseEnteredErdCardColumnRow : DuckDbRef -> DuckDbColumnDescription -> msg
+    , onClickedErdCardColumnRow : DuckDbRef -> DuckDbColumnDescription -> msg
+    , onBeginErdCardDrag : DuckDbRef -> msg
+    , onContinueErdCardDrag : Event -> msg
+    , onErdCardDragStopped : Event -> msg
+    , erdCardDropdownMenuProps : DropDownProps msg DuckDbRef
+    }
+
+
+viewErdSvgNodes : { r | theme : ColorTheme } -> Dict DuckDbRefString (ErdSvgNodeProps msg) -> DimensionalModel -> List (Svg msg)
+viewErdSvgNodes r propsDict dimModel =
+    viewSvgErdCards r propsDict dimModel ++ viewLines r dimModel
+
+
+viewSvgErdCards : { r | theme : ColorTheme } -> Dict DuckDbRefString (ErdSvgNodeProps msg) -> DimensionalModel -> List (Svg msg)
+viewSvgErdCards r propsDict dimModel =
+    -- For each included table, render an Svg foreignObject, which is an elm-ui layout rendering a diagram card.
     let
-        colDescs : List DuckDbColumnDescription
-        colDescs =
-            case kimballAssignment of
+        unpackColDescs : DimModelDuckDbSourceInfo -> List DuckDbColumnDescription
+        unpackColDescs sourceInfo =
+            case sourceInfo.assignment of
                 Unassigned _ columns ->
                     columns
 
@@ -576,6 +563,35 @@ viewEntityRelationshipCard r props dimModel kimballAssignment =
                 Dimension _ columns ->
                     columns
 
+        erdCardProps : Maybe (ErdSvgNodeProps msg)
+        erdCardProps =
+            Nothing
+
+        foreignObjectHelper : DimModelDuckDbSourceInfo -> Svg msg
+        foreignObjectHelper duckDbSourceInfo =
+            SC.foreignObject
+                [ SA.x (ST.px duckDbSourceInfo.renderInfo.pos.x)
+                , SA.y (ST.px duckDbSourceInfo.renderInfo.pos.y)
+                , SA.width (ST.px erdCardWidth)
+                , SA.height (ST.px (erdCardHeightPx (unpackColDescs duckDbSourceInfo)))
+                ]
+                [ E.layoutWith { options = [ noStaticStyleSheet ] }
+                    []
+                    (case erdCardProps of
+                        Nothing ->
+                            E.none
+
+                        Just cardProps ->
+                            viewEntityRelationshipCard r dimModel duckDbSourceInfo.assignment cardProps
+                    )
+                ]
+    in
+    List.map (\( refString, info ) -> foreignObjectHelper info) (Dict.toList dimModel.tableInfos)
+
+
+viewEntityRelationshipCard : { r | theme : ColorTheme } -> DimensionalModel -> KimballAssignment DuckDbRef_ (List DuckDbColumnDescription) -> ErdSvgNodeProps msg -> Element msg
+viewEntityRelationshipCard r dimModel kimballAssignment erdCardProps =
+    let
         ( duckDbRef_, assignmentType, computedBackgroundColor ) =
             case kimballAssignment of
                 Unassigned ref _ ->
@@ -593,6 +609,18 @@ viewEntityRelationshipCard r props dimModel kimballAssignment =
                         DuckDbTable duckDbRef ->
                             ( duckDbRef, "Dimension", r.theme.primary2 )
 
+        colDescs : List DuckDbColumnDescription
+        colDescs =
+            case kimballAssignment of
+                Unassigned _ columns ->
+                    columns
+
+                Fact _ columns ->
+                    columns
+
+                Dimension _ columns ->
+                    columns
+
         viewCardTitleBar : Element msg
         viewCardTitleBar =
             let
@@ -604,36 +632,6 @@ viewEntityRelationshipCard r props dimModel kimballAssignment =
 
                         Nothing ->
                             False
-
-                dropDownProps : DropDownProps msg
-                dropDownProps =
-                    { isOpen = isDrawOpen
-                    , widthPx = 25
-                    , heightPx = titleBarHeightPx - 1
-                    , onDrawerClick = props.onToggledErdCardDropdown duckDbRef_
-                    , onMenuMouseEnter = props.onMouseEnteredErdCardDropdown
-                    , onMenuMouseLeave = props.onMouseLeftErdCardDropdown
-                    , isMenuHovered = False
-                    , menuBarText = ""
-                    , options =
-                        [ { displayText = "Apples"
-                          , optionId = 1
-                          , onClick = props.onCLickErdCardDropdownOption
-                          , onHover = props.onHoverErdCardDropdownOption
-                          }
-                        , { displayText = "Bananas"
-                          , optionId = 2
-                          , onClick = props.onCLickErdCardDropdownOption
-                          , onHover = props.onHoverErdCardDropdownOption
-                          }
-                        , { displayText = "Pears"
-                          , optionId = 2
-                          , onClick = props.onCLickErdCardDropdownOption
-                          , onHover = props.onHoverErdCardDropdownOption
-                          }
-                        ]
-                    , hoveredOnOption = Nothing
-                    }
             in
             el [ width fill, height fill, paddingXY 2 0 ]
                 (row
@@ -644,7 +642,7 @@ viewEntityRelationshipCard r props dimModel kimballAssignment =
                     , Border.color r.theme.secondary
                     ]
                     [ E.text (refToString duckDbRef_)
-                    , el [ alignRight ] <| dropdownMenu r dropDownProps
+                    , el [ alignRight ] <| dropdownMenu r erdCardProps.erdCardDropdownMenuProps
                     ]
                 )
 
@@ -692,3 +690,7 @@ viewEntityRelationshipCard r props dimModel kimballAssignment =
         [ viewCardTitleBar
         , viewCardBody
         ]
+
+
+
+-- end region: exposed UI components

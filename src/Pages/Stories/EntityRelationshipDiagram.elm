@@ -690,6 +690,7 @@ viewEntityRelationshipCard r dimModel kimballAssignment erdCardProps =
                     , height (px titleBarHeightPx)
                     , Border.widthEach { top = 0, bottom = 2, left = 0, right = 0 }
                     , Border.color r.theme.secondary
+                    , Events.onClick (erdCardProps.onBeginErdCardDrag duckDbRef_)
                     ]
                     [ E.text (refToString duckDbRef_)
                     , el [ alignRight ] <| dropdownMenu r erdCardProps.erdCardDropdownMenuProps
@@ -720,7 +721,6 @@ viewEntityRelationshipCard r dimModel kimballAssignment erdCardProps =
             column
                 [ width fill
                 , height fill
-                , Events.onClick (erdCardProps.onBeginErdCardDrag duckDbRef_)
                 ]
                 (List.map
                     (\col ->

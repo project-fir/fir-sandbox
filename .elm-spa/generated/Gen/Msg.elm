@@ -3,6 +3,7 @@ module Gen.Msg exposing (Msg(..))
 import Gen.Params.Admin
 import Gen.Params.ElmUiSvgIssue
 import Gen.Params.Home_
+import Gen.Params.IncidentReports
 import Gen.Params.Kimball
 import Gen.Params.NotFound
 import Gen.Params.Sheet
@@ -15,6 +16,7 @@ import Gen.Params.Stories.TextEditor
 import Pages.Admin
 import Pages.ElmUiSvgIssue
 import Pages.Home_
+import Pages.IncidentReports
 import Pages.Kimball
 import Pages.NotFound
 import Pages.Sheet
@@ -30,6 +32,7 @@ type Msg
     = Admin Pages.Admin.Msg
     | ElmUiSvgIssue Pages.ElmUiSvgIssue.Msg
     | Home_ Pages.Home_.Msg
+    | IncidentReports Pages.IncidentReports.Msg
     | Kimball Pages.Kimball.Msg
     | NotFound Pages.NotFound.Msg
     | Sheet Pages.Sheet.Msg

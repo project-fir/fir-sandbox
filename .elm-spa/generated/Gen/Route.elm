@@ -7,6 +7,7 @@ module Gen.Route exposing
 import Gen.Params.Admin
 import Gen.Params.ElmUiSvgIssue
 import Gen.Params.Home_
+import Gen.Params.IncidentReports
 import Gen.Params.Kimball
 import Gen.Params.NotFound
 import Gen.Params.Sheet
@@ -24,6 +25,7 @@ type Route
     = Admin
     | ElmUiSvgIssue
     | Home_
+    | IncidentReports
     | Kimball
     | NotFound
     | Sheet
@@ -45,6 +47,7 @@ routes =
     [ Parser.map Home_ Gen.Params.Home_.parser
     , Parser.map Admin Gen.Params.Admin.parser
     , Parser.map ElmUiSvgIssue Gen.Params.ElmUiSvgIssue.parser
+    , Parser.map IncidentReports Gen.Params.IncidentReports.parser
     , Parser.map Kimball Gen.Params.Kimball.parser
     , Parser.map NotFound Gen.Params.NotFound.parser
     , Parser.map Sheet Gen.Params.Sheet.parser
@@ -73,6 +76,9 @@ toHref route =
     
         Home_ ->
             joinAsHref []
+    
+        IncidentReports ->
+            joinAsHref [ "incident-reports" ]
     
         Kimball ->
             joinAsHref [ "kimball" ]

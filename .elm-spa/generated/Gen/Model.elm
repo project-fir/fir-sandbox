@@ -3,6 +3,7 @@ module Gen.Model exposing (Model(..))
 import Gen.Params.Admin
 import Gen.Params.ElmUiSvgIssue
 import Gen.Params.Home_
+import Gen.Params.IncidentReports
 import Gen.Params.Kimball
 import Gen.Params.NotFound
 import Gen.Params.Sheet
@@ -15,6 +16,7 @@ import Gen.Params.Stories.TextEditor
 import Pages.Admin
 import Pages.ElmUiSvgIssue
 import Pages.Home_
+import Pages.IncidentReports
 import Pages.Kimball
 import Pages.NotFound
 import Pages.Sheet
@@ -31,6 +33,7 @@ type Model
     | Admin Gen.Params.Admin.Params Pages.Admin.Model
     | ElmUiSvgIssue Gen.Params.ElmUiSvgIssue.Params Pages.ElmUiSvgIssue.Model
     | Home_ Gen.Params.Home_.Params Pages.Home_.Model
+    | IncidentReports Gen.Params.IncidentReports.Params Pages.IncidentReports.Model
     | Kimball Gen.Params.Kimball.Params Pages.Kimball.Model
     | NotFound Gen.Params.NotFound.Params Pages.NotFound.Model
     | Sheet Gen.Params.Sheet.Params Pages.Sheet.Model

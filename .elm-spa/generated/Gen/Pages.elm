@@ -6,6 +6,7 @@ import ElmSpa.Page
 import Gen.Params.Admin
 import Gen.Params.ElmUiSvgIssue
 import Gen.Params.Home_
+import Gen.Params.IncidentReports
 import Gen.Params.Kimball
 import Gen.Params.NotFound
 import Gen.Params.Sheet
@@ -22,6 +23,7 @@ import Page exposing (Page)
 import Pages.Admin
 import Pages.ElmUiSvgIssue
 import Pages.Home_
+import Pages.IncidentReports
 import Pages.Kimball
 import Pages.NotFound
 import Pages.Sheet
@@ -57,6 +59,9 @@ init route =
     
         Route.Home_ ->
             pages.home_.init ()
+    
+        Route.IncidentReports ->
+            pages.incidentReports.init ()
     
         Route.Kimball ->
             pages.kimball.init ()
@@ -97,6 +102,9 @@ update msg_ model_ =
     
         ( Msg.Home_ msg, Model.Home_ params model ) ->
             pages.home_.update params msg model
+    
+        ( Msg.IncidentReports msg, Model.IncidentReports params model ) ->
+            pages.incidentReports.update params msg model
     
         ( Msg.Kimball msg, Model.Kimball params model ) ->
             pages.kimball.update params msg model
@@ -141,6 +149,9 @@ view model_ =
         Model.Home_ params model ->
             pages.home_.view params model
     
+        Model.IncidentReports params model ->
+            pages.incidentReports.view params model
+    
         Model.Kimball params model ->
             pages.kimball.view params model
     
@@ -184,6 +195,9 @@ subscriptions model_ =
         Model.Home_ params model ->
             pages.home_.subscriptions params model
     
+        Model.IncidentReports params model ->
+            pages.incidentReports.subscriptions params model
+    
         Model.Kimball params model ->
             pages.kimball.subscriptions params model
     
@@ -220,6 +234,7 @@ pages :
     { admin : Bundle Gen.Params.Admin.Params Pages.Admin.Model Pages.Admin.Msg
     , elmUiSvgIssue : Bundle Gen.Params.ElmUiSvgIssue.Params Pages.ElmUiSvgIssue.Model Pages.ElmUiSvgIssue.Msg
     , home_ : Bundle Gen.Params.Home_.Params Pages.Home_.Model Pages.Home_.Msg
+    , incidentReports : Bundle Gen.Params.IncidentReports.Params Pages.IncidentReports.Model Pages.IncidentReports.Msg
     , kimball : Bundle Gen.Params.Kimball.Params Pages.Kimball.Model Pages.Kimball.Msg
     , notFound : Bundle Gen.Params.NotFound.Params Pages.NotFound.Model Pages.NotFound.Msg
     , sheet : Bundle Gen.Params.Sheet.Params Pages.Sheet.Model Pages.Sheet.Msg
@@ -234,6 +249,7 @@ pages =
     { admin = bundle Pages.Admin.page Model.Admin Msg.Admin
     , elmUiSvgIssue = bundle Pages.ElmUiSvgIssue.page Model.ElmUiSvgIssue Msg.ElmUiSvgIssue
     , home_ = bundle Pages.Home_.page Model.Home_ Msg.Home_
+    , incidentReports = bundle Pages.IncidentReports.page Model.IncidentReports Msg.IncidentReports
     , kimball = bundle Pages.Kimball.page Model.Kimball Msg.Kimball
     , notFound = bundle Pages.NotFound.page Model.NotFound Msg.NotFound
     , sheet = bundle Pages.Sheet.page Model.Sheet Msg.Sheet

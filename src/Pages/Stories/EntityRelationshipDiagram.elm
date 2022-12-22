@@ -563,12 +563,12 @@ viewSvgErdCards r propsDict dimModel =
                 Dimension _ columns ->
                     columns
 
-        erdCardProps : Maybe (ErdSvgNodeProps msg)
-        erdCardProps =
-            Nothing
+        erdCardProps : DuckDbRefString -> Maybe (ErdSvgNodeProps msg)
+        erdCardProps refString =
+            Dict.get refString propsDict
 
-        foreignObjectHelper : DimModelDuckDbSourceInfo -> Svg msg
-        foreignObjectHelper duckDbSourceInfo =
+        foreignObjectHelper : DimModelDuckDbSourceInfo -> DuckDbRefString -> Svg msg
+        foreignObjectHelper duckDbSourceInfo refString =
             SC.foreignObject
                 [ SA.x (ST.px duckDbSourceInfo.renderInfo.pos.x)
                 , SA.y (ST.px duckDbSourceInfo.renderInfo.pos.y)
@@ -577,7 +577,7 @@ viewSvgErdCards r propsDict dimModel =
                 ]
                 [ E.layoutWith { options = [ noStaticStyleSheet ] }
                     []
-                    (case erdCardProps of
+                    (case erdCardProps refString of
                         Nothing ->
                             E.none
 
@@ -586,7 +586,7 @@ viewSvgErdCards r propsDict dimModel =
                     )
                 ]
     in
-    List.map (\( refString, info ) -> foreignObjectHelper info) (Dict.toList dimModel.tableInfos)
+    List.map (\( refString, info ) -> foreignObjectHelper info refString) (Dict.toList dimModel.tableInfos)
 
 
 viewEntityRelationshipCard : { r | theme : ColorTheme } -> DimensionalModel -> KimballAssignment DuckDbRef_ (List DuckDbColumnDescription) -> ErdSvgNodeProps msg -> Element msg

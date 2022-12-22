@@ -221,14 +221,60 @@ viewDebugInfo model =
         msg2str : Msg -> String
         msg2str msg =
             case msg of
-                _ ->
-                    "Some event happened!"
+                MouseEnteredErdCard duckDbRef ->
+                    "MouseEnteredErdCard"
+
+                MouseLeftErdCard ->
+                    "MouseLeftErdCard"
+
+                MouseEnteredErdCardColumnRow duckDbRef duckDbColumnDescription ->
+                    "MouseEnteredErdCardColumnRow"
+
+                ClickedErdCardColumnRow duckDbRef duckDbColumnDescription ->
+                    "ClickedErdCardColumnRow"
+
+                ToggledErdCardDropdown duckDbRef ->
+                    "ToggledErdCardDropdown"
+
+                MouseEnteredErdCardDropdown duckDbRef ->
+                    "MouseEnteredErdCardDropdown"
+
+                MouseLeftErdCardDropdown duckDbRef ->
+                    "MouseLeftErdCardDropdown"
+
+                ClickedErdCardDropdownOption dimensionalModelRef duckDbRef kimballAssignment ->
+                    "ClickedErdCardDropdownOption"
+
+                BeginErdCardDrag duckDbRef ->
+                    "BeginErdCardDrag"
+
+                ContinueErdCardDrag event ->
+                    "ContinueErdCardDrag"
+
+                ErdCardDragStopped event ->
+                    "ErdCardDragStopped"
+
+                ErdNoop ->
+                    "ErdNoop"
+
+                ErdNoop_ duckDbRef ->
+                    "ErdNoop_"
 
         viewMsg : Msg -> Element Msg
         viewMsg msg =
             paragraph [ padding 5 ] [ E.text (msg2str msg) ]
     in
-    textColumn [ paddingXY 0 5, clipY, scrollbarY, height fill ] <|
+    textColumn
+        [ paddingXY 0 5
+        , clipY
+        , scrollbarY
+        , height fill
+        , Border.width 1
+        , width fill
+        , clipX
+        , Border.color model.theme.black
+        ]
+    <|
         [ paragraph [ Font.bold, Font.size 24 ] [ E.text "Debug info:" ]
         , paragraph [] [ E.text "Msgs:" ]
         ]
@@ -284,8 +330,8 @@ assembleErdCardPropsForSingleSource info =
         cardDropDownProps =
             { isOpen = False
             , id = ref
-            , widthPx = 250
-            , heightPx = 250
+            , widthPx = 45
+            , heightPx = 25
             , onDrawerClick = ToggledErdCardDropdown
             , onMenuMouseEnter = MouseEnteredErdCardDropdown
             , onMenuMouseLeave = MouseLeftErdCardDropdown
@@ -297,13 +343,13 @@ assembleErdCardPropsForSingleSource info =
     in
     ( refToString ref
     , { id = ref
-      , onMouseEnteredErdCard = MouseEnteredErdCard
-      , onMouseLeftErdCard = MouseLeftErdCard
-      , onMouseEnteredErdCardColumnRow = MouseEnteredErdCardColumnRow
-      , onClickedErdCardColumnRow = ClickedErdCardColumnRow
-      , onBeginErdCardDrag = BeginErdCardDrag
-      , onContinueErdCardDrag = ContinueErdCardDrag
-      , onErdCardDragStopped = ErdCardDragStopped
+      , onMouseEnteredErdCard = MouseEnteredErdCard --
+      , onMouseLeftErdCard = MouseLeftErdCard --
+      , onMouseEnteredErdCardColumnRow = MouseEnteredErdCardColumnRow --
+      , onClickedErdCardColumnRow = ClickedErdCardColumnRow --
+      , onBeginErdCardDrag = BeginErdCardDrag --
+      , onContinueErdCardDrag = ContinueErdCardDrag --
+      , onErdCardDragStopped = ErdCardDragStopped --
       , erdCardDropdownMenuProps = cardDropDownProps
       }
     )
@@ -326,8 +372,7 @@ viewCanvas model =
     in
     el
         [ Border.width 1
-
-        --, Border.color model.theme.black
+        , Border.color model.theme.black
         , Border.rounded 5
         , Background.color model.theme.background
         , centerX
@@ -686,6 +731,8 @@ viewEntityRelationshipCard r dimModel kimballAssignment erdCardProps =
         , Border.width 1
         , Border.color r.theme.secondary
         , Border.rounded 5
+        , Events.onMouseEnter (erdCardProps.onMouseEnteredErdCard duckDbRef_)
+        , Events.onMouseLeave erdCardProps.onMouseLeftErdCard
         ]
         [ viewCardTitleBar
         , viewCardBody

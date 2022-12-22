@@ -715,7 +715,12 @@ viewEntityRelationshipCard r dimModel kimballAssignment erdCardProps =
             column [ width fill, height fill ]
                 (List.map
                     (\col ->
-                        row [ width fill, paddingXY 5 3 ]
+                        row
+                            [ width fill
+                            , paddingXY 5 3
+                            , Events.onClick (erdCardProps.onClickedErdCardColumnRow duckDbRef_ col)
+                            , Events.onMouseEnter (erdCardProps.onMouseEnteredErdCardColumnRow duckDbRef_ col)
+                            ]
                             [ viewNub alignLeft
                             , el [ centerX ] (E.text (colDisplayText col))
                             , viewNub alignRight

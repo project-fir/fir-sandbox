@@ -98,8 +98,6 @@ init shared =
                     [ ( refToString dimRef
                       , { renderInfo =
                             { pos = { x = 450.0, y = 170.0 }
-
-                            --pos = { x = 430.0, y = 175.0 }
                             , ref = dimRef
                             , isDrawerOpen = False
                             }

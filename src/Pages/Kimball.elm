@@ -974,9 +974,9 @@ viewCanvas model layoutInfo =
             S.svg
                 [ SA.width (ST.px layoutInfo.canvasElementWidth)
                 , SA.height (ST.px layoutInfo.canvasElementHeight)
-                , SA.viewBox layoutInfo.viewBoxXMin layoutInfo.viewBoxYMin layoutInfo.viewBoxWidth layoutInfo.viewBoxHeight
+                , SA.viewBox 0 0 layoutInfo.canvasElementWidth layoutInfo.canvasElementHeight
                 ]
-                erdCardsSvgNode
+                []
 
 
 viewControlPanel : Model -> Element Msg

@@ -320,7 +320,7 @@ assembleErdCardPropsForSingleSource info =
             , onMenuMouseLeave = MouseLeftErdCardDropdown
             , isMenuHovered = False
             , menuBarText = "TEST"
-            , options = []
+            , options = Dict.empty
             , hoveredOnOption = Nothing
             }
     in

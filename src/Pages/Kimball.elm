@@ -728,7 +728,7 @@ assembleErdCardPropsForSingleSource info =
                         DuckDbTable duckDbRef ->
                             duckDbRef
 
-        cardDropDownProps : DropDownProps Msg DuckDbRef
+        cardDropDownProps : DropDownProps Msg DuckDbRef String
         cardDropDownProps =
             { isOpen = False
             , id = ref
@@ -739,7 +739,9 @@ assembleErdCardPropsForSingleSource info =
             , onMenuMouseLeave = KimballNoop
             , isMenuHovered = False
             , menuBarText = "TEST"
-            , options = []
+            , options =
+                Dict.fromList
+                    []
             , hoveredOnOption = Nothing
             }
     in
@@ -1027,11 +1029,11 @@ viewMouseEventsDebugInfo model =
             [ E.text ("pairing op: " ++ pairingState2Str model.columnPairingOperation)
             ]
         , paragraph [ padding 3 ]
-            [ E.text <| "veiwPort: " ++ viewPortStr
+            [ E.text <| "viewPort: " ++ viewPortStr
             ]
         , el [ Font.bold ] (E.text "Mouse Events:")
         , paragraph [ padding 3 ]
-            [ E.text <| "most recent event coord: " ++ mouseEventStr
+            [ E.text <| "most recent event coords: " ++ mouseEventStr
             ]
         , paragraph [ padding 3 ]
             [ E.text <| "drag state: " ++ dragStateStr

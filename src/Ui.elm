@@ -1,6 +1,7 @@
 module Ui exposing (ButtonProps, ColorTheme, DropDownOption, DropDownOptionId, DropDownProps, PaletteName(..), button, dropdownMenu, theme, themeOf, toAvhColor)
 
 import Color as AvhColor
+import Dict exposing (Dict)
 import Element as E exposing (..)
 import Element.Background as Background
 import Element.Border as Border
@@ -271,11 +272,7 @@ toAvhColor color =
 -- begin region: drop-down component
 
 
-type alias DropDownOptionId =
-    Int
-
-
-type alias DropDownProps msg menuId =
+type alias DropDownProps msg menuId drownDownId =
     { isOpen : Bool
     , id : menuId
     , widthPx : Int
@@ -285,14 +282,18 @@ type alias DropDownProps msg menuId =
     , onMenuMouseLeave : msg
     , isMenuHovered : Bool
     , menuBarText : String
-    , options : List (DropDownOption msg)
-    , hoveredOnOption : Maybe DropDownOptionId
+    , options : Dict drownDownId (DropDownOption msg drownDownId)
+    , hoveredOnOption : Maybe drownDownId
     }
 
 
-type alias DropDownOption msg =
+
+-- TODO: Thread through new dropDownId type param to all the stories / apps.
+
+
+type alias DropDownOption msg drownDownId =
     { displayText : String
-    , optionId : DropDownOptionId
+    , id : drownDownId
     , onClick : msg
     , onHover : msg
     }
@@ -311,7 +312,7 @@ dropdownMenu r props =
                             r.theme.background
 
                         Just opId ->
-                            if opId == op.optionId then
+                            if opId == op.id then
                                 r.theme.secondary
 
                             else
@@ -375,7 +376,7 @@ dropdownMenu r props =
                 True ->
                     el
                         [ below
-                            (column [] (List.map (\o -> menuOption o) props.options))
+                            (column [] (List.map (\o -> menuOption o) (Dict.values props.options)))
                         ]
                         menuHeader
 

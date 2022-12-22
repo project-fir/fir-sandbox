@@ -1,5 +1,6 @@
 module Pages.Stories.Basics exposing (Model, Msg, page)
 
+import Dict
 import Effect exposing (Effect)
 import Element as E exposing (..)
 import Element.Background as Background
@@ -229,22 +230,29 @@ elements model =
             , hoveredOnOption = model.hoveredOnOption
             , menuBarText = "Theme"
             , options =
-                [ { displayText = "Coffee Run"
-                  , optionId = 0
-                  , onClick = Basics__UserSelectedPalette CoffeeRun
-                  , onHover = MouseEnteredOption 0
-                  }
-                , { displayText = "Bamboo Beach"
-                  , onClick = Basics__UserSelectedPalette BambooBeach
-                  , onHover = MouseEnteredOption 1
-                  , optionId = 1
-                  }
-                , { displayText = "Nitro"
-                  , onClick = Basics__UserSelectedPalette Nitro
-                  , onHover = MouseEnteredOption 2
-                  , optionId = 2
-                  }
-                ]
+                Dict.fromList
+                    [ ( 0
+                      , { displayText = "Coffee Run"
+                        , id = 0
+                        , onClick = Basics__UserSelectedPalette CoffeeRun
+                        , onHover = MouseEnteredOption 0
+                        }
+                      )
+                    , ( 1
+                      , { displayText = "Bamboo Beach"
+                        , onClick = Basics__UserSelectedPalette BambooBeach
+                        , onHover = MouseEnteredOption 1
+                        , id = 1
+                        }
+                      )
+                    , ( 2
+                      , { displayText = "Nitro"
+                        , onClick = Basics__UserSelectedPalette Nitro
+                        , onHover = MouseEnteredOption 2
+                        , id = 2
+                        }
+                      )
+                    ]
             }
 
         viewHeader : Element Msg

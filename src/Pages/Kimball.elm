@@ -27,7 +27,7 @@ import TypedSvg as S
 import TypedSvg.Attributes as SA
 import TypedSvg.Core as SC exposing (Svg)
 import TypedSvg.Types as ST
-import Ui exposing (ColorTheme)
+import Ui exposing (ColorTheme, DropDownProps)
 import Utils exposing (KeyCode, send)
 import View exposing (View)
 
@@ -182,6 +182,8 @@ type
       -- misc. details
     | TerminateDrags
     | ClearNodeHoverState
+    | KimballNoop
+    | KimballNoop_ DuckDbRef
 
 
 type SvgViewBoxTransformation
@@ -649,6 +651,12 @@ update msg model =
                 ]
             )
 
+        KimballNoop ->
+            ( model, Effect.none )
+
+        KimballNoop_ duckDbRef ->
+            ( model, Effect.none )
+
 
 
 -- SUBSCRIPTIONS
@@ -924,48 +932,69 @@ viewDataSourceCard model dimModelRef renderInfo kimballAssignment =
         ]
 
 
+assembleErdCardPropsForSingleSource : DimModelDuckDbSourceInfo -> ( DuckDbRefString, ErdSvgNodeProps Msg )
+assembleErdCardPropsForSingleSource info =
+    let
+        ref : DuckDbRef
+        ref =
+            case info.assignment of
+                Unassigned ref_ _ ->
+                    case ref_ of
+                        DuckDbTable duckDbRef ->
+                            duckDbRef
+
+                Fact ref_ _ ->
+                    case ref_ of
+                        DuckDbTable duckDbRef ->
+                            duckDbRef
+
+                Dimension ref_ _ ->
+                    case ref_ of
+                        DuckDbTable duckDbRef ->
+                            duckDbRef
+
+        cardDropDownProps : DropDownProps Msg DuckDbRef
+        cardDropDownProps =
+            { isOpen = False
+            , id = ref
+            , widthPx = 45
+            , heightPx = 25
+            , onDrawerClick = ToggledErdCardDropdown
+            , onMenuMouseEnter = KimballNoop_
+            , onMenuMouseLeave = KimballNoop
+            , isMenuHovered = False
+            , menuBarText = "TEST"
+            , options = []
+            , hoveredOnOption = Nothing
+            }
+    in
+    ( refToString ref
+    , { id = ref
+      , onMouseEnteredErdCard = MouseEnteredErdCard
+      , onMouseLeftErdCard = MouseLeftErdCard
+      , onMouseEnteredErdCardColumnRow = MouseEnteredErdCardColumnRow
+      , onClickedErdCardColumnRow = ClickedErdCardColumnRow
+      , onBeginErdCardDrag = BeginErdCardDrag
+      , onContinueErdCardDrag = ContinueErdCardDrag
+      , onErdCardDragStopped = ErdCardDragStopped
+      , erdCardDropdownMenuProps = cardDropDownProps
+      }
+    )
+
+
 viewCanvas : Model -> LayoutInfo -> Element Msg
 viewCanvas model layoutInfo =
-    --let
-    --    erdCardsSvgNode : List (Svg Msg)
-    --    erdCardsSvgNode =
-    --        let
-    --            renderHelp : DimModelDuckDbSourceInfo -> DimensionalModelRef -> Svg Msg
-    --            renderHelp info dimModelRef =
-    --                viewDataSourceCard model dimModelRef info.renderInfo info.assignment
-    --        in
-    --        case model.selectedDimensionalModel of
-    --            Nothing ->
-    --                []
-    --
-    --            Just dimModel ->
-    --                List.filterMap
-    --                    (\info ->
-    --                        case info.isIncluded of
-    --                            True ->
-    --                                Just <| renderHelp info dimModel.ref
-    --
-    --                            False ->
-    --                                Nothing
-    --                    )
-    --                    (Dict.values dimModel.tableInfos)
-    --in
     let
-        --props : ErdSvgNodeProps Msg
-        --props =
-        --    { onToggledErdCardDropdown = ToggledErdCardDropdown
-        --    , onMouseEnteredErdCardDropdown = NoopKimball
-        --    , onMouseLeftErdCardDropdown = NoopKimball
-        --    , onHoverErdCardDropdownOption = NoopKimball
-        --    , onCLickErdCardDropdownOption = NoopKimball
-        --    }
+        erdCardPropsDict : DimensionalModel -> Dict DuckDbRefString (ErdSvgNodeProps Msg)
+        erdCardPropsDict dimModel =
+            Dict.fromList <| List.map (\tblInfo -> assembleErdCardPropsForSingleSource tblInfo) (Dict.values dimModel.tableInfos)
+
         svgNodes : List (Svg Msg)
         svgNodes =
             case model.selectedDimensionalModel of
                 Just dimModel ->
-                    []
+                    viewErdSvgNodes model (erdCardPropsDict dimModel) dimModel
 
-                --viewErdSvgNodes model props dimModel
                 Nothing ->
                     []
     in

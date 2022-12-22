@@ -282,7 +282,7 @@ type alias DropDownProps msg menuId =
     , heightPx : Int
     , onDrawerClick : menuId -> msg
     , onMenuMouseEnter : menuId -> msg
-    , onMenuMouseLeave : menuId -> msg
+    , onMenuMouseLeave : msg
     , isMenuHovered : Bool
     , menuBarText : String
     , options : List (DropDownOption msg)
@@ -348,7 +348,8 @@ dropdownMenu r props =
                 (attrs backgroundColor
                     ++ [ Events.onClick <| props.onDrawerClick props.id
                        , Events.onMouseEnter <| props.onMenuMouseEnter props.id
-                       , Events.onMouseLeave <| props.onMenuMouseLeave props.id
+
+                       --, Events.onMouseLeave <| props.onMenuMouseLeave props.id
                        ]
                 )
                 (row [ centerY, height fill, padding 0 ]

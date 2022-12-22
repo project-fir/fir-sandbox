@@ -134,7 +134,7 @@ type Msg
     | ClickedErdCardColumnRow DuckDbRef DuckDbColumnDescription
     | ToggledErdCardDropdown DuckDbRef
     | MouseEnteredErdCardDropdown DuckDbRef
-    | MouseLeftErdCardDropdown DuckDbRef
+    | MouseLeftErdCardDropdown
     | ClickedErdCardDropdownOption DimensionalModelRef DuckDbRef (KimballAssignment DuckDbRef_ (List DuckDbColumnDescription))
     | BeginErdCardDrag DuckDb.DuckDbRef
     | ContinueErdCardDrag Event
@@ -239,7 +239,7 @@ viewDebugInfo model =
                 MouseEnteredErdCardDropdown duckDbRef ->
                     "MouseEnteredErdCardDropdown"
 
-                MouseLeftErdCardDropdown duckDbRef ->
+                MouseLeftErdCardDropdown ->
                     "MouseLeftErdCardDropdown"
 
                 ClickedErdCardDropdownOption dimensionalModelRef duckDbRef kimballAssignment ->
@@ -343,13 +343,13 @@ assembleErdCardPropsForSingleSource info =
     in
     ( refToString ref
     , { id = ref
-      , onMouseEnteredErdCard = MouseEnteredErdCard --
-      , onMouseLeftErdCard = MouseLeftErdCard --
-      , onMouseEnteredErdCardColumnRow = MouseEnteredErdCardColumnRow --
-      , onClickedErdCardColumnRow = ClickedErdCardColumnRow --
-      , onBeginErdCardDrag = BeginErdCardDrag --
-      , onContinueErdCardDrag = ContinueErdCardDrag --
-      , onErdCardDragStopped = ErdCardDragStopped --
+      , onMouseEnteredErdCard = MouseEnteredErdCard
+      , onMouseLeftErdCard = MouseLeftErdCard
+      , onMouseEnteredErdCardColumnRow = MouseEnteredErdCardColumnRow
+      , onClickedErdCardColumnRow = ClickedErdCardColumnRow
+      , onBeginErdCardDrag = BeginErdCardDrag
+      , onContinueErdCardDrag = ContinueErdCardDrag
+      , onErdCardDragStopped = ErdCardDragStopped
       , erdCardDropdownMenuProps = cardDropDownProps
       }
     )
@@ -366,8 +366,8 @@ viewCanvas model =
         height_ =
             575
 
-        erdCardPropsSet : DimensionalModel -> Dict DuckDbRefString (ErdSvgNodeProps Msg)
-        erdCardPropsSet dimModel =
+        erdCardPropsDict : DimensionalModel -> Dict DuckDbRefString (ErdSvgNodeProps Msg)
+        erdCardPropsDict dimModel =
             Dict.fromList <| List.map (\tblInfo -> assembleErdCardPropsForSingleSource tblInfo) (Dict.values dimModel.tableInfos)
     in
     el
@@ -385,7 +385,7 @@ viewCanvas model =
                 , SA.height (ST.px height_)
                 , SA.viewBox 0 0 width_ height_
                 ]
-                (viewErdSvgNodes model (erdCardPropsSet model.dimModel) model.dimModel)
+                (viewErdSvgNodes model (erdCardPropsDict model.dimModel) model.dimModel)
 
 
 offsetHelper : Maybe DuckDbColumnDescription -> List DuckDbColumnDescription -> Float
@@ -592,6 +592,11 @@ viewErdSvgNodes r propsDict dimModel =
     viewSvgErdCards r propsDict dimModel ++ viewLines r dimModel
 
 
+
+-- end region: exposed UI components
+-- begin region: non-exposed UI components
+
+
 viewSvgErdCards : { r | theme : ColorTheme } -> Dict DuckDbRefString (ErdSvgNodeProps msg) -> DimensionalModel -> List (Svg msg)
 viewSvgErdCards r propsDict dimModel =
     -- For each included table, render an Svg foreignObject, which is an elm-ui layout rendering a diagram card.
@@ -712,7 +717,11 @@ viewEntityRelationshipCard r dimModel kimballAssignment erdCardProps =
                         Persisted_ desc_ ->
                             desc_.name
             in
-            column [ width fill, height fill ]
+            column
+                [ width fill
+                , height fill
+                , Events.onClick (erdCardProps.onBeginErdCardDrag duckDbRef_)
+                ]
                 (List.map
                     (\col ->
                         row
@@ -745,4 +754,4 @@ viewEntityRelationshipCard r dimModel kimballAssignment erdCardProps =
 
 
 
--- end region: exposed UI components
+-- end region: non-exposed UI components

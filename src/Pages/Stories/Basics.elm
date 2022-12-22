@@ -61,7 +61,7 @@ type Msg
     = Basics__UserSelectedPalette PaletteName
     | UserToggledDrawer MenuId
     | MouseEnteredDropDownMenu MenuId
-    | MouseLeftDropDownMenu MenuId
+    | MouseLeftDropDownMenu
     | MouseEnteredOption Int
     | Noop
 
@@ -102,7 +102,7 @@ update msg model =
             , Effect.none
             )
 
-        MouseLeftDropDownMenu menuId ->
+        MouseLeftDropDownMenu ->
             ( { model | isMenuHovered = False }, Effect.none )
 
 

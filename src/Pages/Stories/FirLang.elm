@@ -2,6 +2,7 @@ module Pages.Stories.FirLang exposing (Model, Msg, page)
 
 import Array
 import ArrayUtil as Array
+import Dict exposing (Dict)
 import Editor exposing (Editor(..))
 import EditorModel
 import EditorMsg exposing (Context, WrapOption(..))
@@ -69,7 +70,7 @@ type alias TextEditorResult =
 
 
 type alias Model =
-    { editor : Editor
+    { lineEditors : Dict LineNumber Editor
     , result : Maybe TextEditorResult
     , theme : ColorTheme
     }
@@ -95,7 +96,7 @@ config =
     , fontSize = 16
     , verticalScrollOffset = 3
     , viewMode = EditorModel.Light
-    , debugOn = True
+    , debugOn = False
     , viewLineNumbersOn = False
     , wrapOption = DontWrap
     }
@@ -104,10 +105,15 @@ config =
 init : Shared.Model -> ( Model, Effect Msg )
 init shared =
     let
+        newEditor : Editor
         newEditor =
             Editor.initWithContent text config
+
+        lineEditors : Dict LineNumber Editor
+        lineEditors =
+            Dict.fromList [ ( 1, newEditor ) ]
     in
-    ( { editor = newEditor
+    ( { lineEditors = lineEditors
       , theme = shared.selectedTheme
       , result = Nothing
       }
@@ -119,8 +125,13 @@ init shared =
 -- UPDATE
 
 
+type alias LineNumber =
+    Int
+
+
 type Msg
     = MyEditorMsg Editor.EditorMsg
+    | CaptureEditorInput LineNumber Editor.EditorMsg
 
 
 update : Msg -> Model -> ( Model, Effect Msg )
@@ -191,7 +202,7 @@ viewElements model =
                 , height (px <| textEditorHeight + textEditorDebugPanelHeight)
                 ]
               <|
-                viewEditor model
+                viewLineEditors model
             , viewResultPanel model
             ]
 
@@ -224,6 +235,16 @@ viewResultPanel model =
         (E.text resultText)
 
 
-viewEditor : Model -> Element Msg
-viewEditor model =
-    Editor.view model.editor |> Html.map MyEditorMsg |> E.html
+viewLineEditor : LineNumber -> Editor -> Element Msg
+viewLineEditor lineNo editor =
+    Editor.view editor |> Html.map MyEditorMsg |> E.html
+
+
+viewLineEditors : Model -> Element Msg
+viewLineEditors model =
+    let
+        editors : List ( LineNumber, Editor )
+        editors =
+            Dict.toList model.lineEditors
+    in
+    List.map (\( lineNo, editor ) -> viewLineEditor lineNo editor) editors

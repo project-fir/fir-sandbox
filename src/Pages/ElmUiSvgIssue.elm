@@ -142,9 +142,7 @@ viewElements model =
                 , SA.width (ST.px 250)
                 , SA.height (ST.px 450)
                 ]
-                [ E.layoutWith { options = [ noStaticStyleSheet ] }
-                    []
-                    viewCard
+                [ E.layoutWith { options = [ noStaticStyleSheet ] } [] viewCard
                 ]
 
         viewCanvas : Element Msg
@@ -164,8 +162,6 @@ viewElements model =
         , Border.color theme.secondary
         , Border.width 1
         , Border.rounded 5
-
-        --, Background.color Ui.darkishGrey
         ]
         viewCanvas
 

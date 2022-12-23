@@ -39,7 +39,8 @@ equivalent : Dict String String -> String -> String
 equivalent dict str =
     case FirLang.Lambda.Parser.parse str of
         Err err ->
-            "Parse error: " ++ Debug.toString err
+            --"Parse error: " ++ Debug.toString err
+            "Parse error: "
 
         Ok expr ->
             case rewrite dict expr of
@@ -75,7 +76,8 @@ eval : ViewStyle -> Dict String String -> String -> String
 eval viewStyle dict str =
     case FirLang.Lambda.Parser.parse str of
         Err err ->
-            "Parse error: " ++ Debug.toString err
+            --"Parse error: " ++ Debug.toString err
+            "Parse error:"
 
         Ok expr ->
             expr

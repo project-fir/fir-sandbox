@@ -68,7 +68,7 @@ type alias Model =
     --       Something to think about.. should all possible actions on dimModels be dimModel variants (similar to how I implemented
     --       the duckdb cache in Backend)?
     , selectedDimensionalModel : Maybe DimensionalModel
-    , openedDropDownId : Maybe DuckDbRef
+    , opened222 : Maybe DuckDbRef
     , inspectedColumn : Maybe DuckDbColumnDescription
     , columnPairingOperation : ColumnPairingOperation
     , downKeys : Set KeyCode
@@ -115,7 +115,7 @@ init sharedTheme =
       , viewPort = Nothing
       , proposedNewModelName = ""
       , selectedDimensionalModel = Nothing
-      , openedDropDownId = Nothing
+      , opened222 = Nothing
       , inspectedColumn = Nothing
       , downKeys = Set.empty
       , columnPairingOperation = ColumnPairingIdle
@@ -287,17 +287,17 @@ update msg model =
 
         ClickedErdCardDropdownOption dimRef duckDbRef assignment ->
             -- NB: We have the "side effect" of closing the dropdown menu
-            ( { model | openedDropDownId = Nothing }
+            ( { model | opened222 = Nothing }
             , Effect.fromCmd (sendToBackend (UpdateDimensionalModel (UpdateAssignment dimRef duckDbRef assignment)))
             )
 
         ToggledErdCardDropdown duckDbRef ->
-            case model.openedDropDownId of
+            case model.opened222 of
                 Nothing ->
-                    ( { model | openedDropDownId = Just duckDbRef }, Effect.none )
+                    ( { model | opened222 = Just duckDbRef }, Effect.none )
 
                 Just _ ->
-                    ( { model | openedDropDownId = Nothing }, Effect.none )
+                    ( { model | opened222 = Nothing }, Effect.none )
 
         GotDimensionalModelRefs refs ->
             ( { model | dimensionalModelRefs = Success_ refs }, Effect.none )
@@ -677,7 +677,7 @@ view model =
 
 
 assembleErdCardPropsForSingleSource : Maybe DuckDbRef -> DimensionalModel -> DimModelDuckDbSourceInfo -> ( DuckDbRefString, ErdSvgNodeProps Msg )
-assembleErdCardPropsForSingleSource openedDropDownId dimModel info =
+assembleErdCardPropsForSingleSource openedId dimModel info =
     let
         ( ref, colDescs ) =
             case info.assignment of
@@ -696,18 +696,16 @@ assembleErdCardPropsForSingleSource openedDropDownId dimModel info =
                         DuckDbTable duckDbRef ->
                             ( duckDbRef, colDescs_ )
 
-        isDropDownDrawerOpen : Bool
-        isDropDownDrawerOpen =
-            case openedDropDownId of
-                Nothing ->
-                    False
-
-                Just ddRef ->
-                    ddRef == info.renderInfo.ref
-
         cardDropDownProps : DropDownProps Msg DuckDbRef Int
         cardDropDownProps =
-            { isOpen = isDropDownDrawerOpen
+            { isOpen = True
+
+            --case openedId of
+            --    Just ref_ ->
+            --        ref_ == info.renderInfo.ref
+            --
+            --    Nothing ->
+            --        False
             , id = ref
             , widthPx = 45
             , heightPx = 25
@@ -762,7 +760,7 @@ viewCanvas model layoutInfo =
     let
         erdCardPropsDict : DimensionalModel -> Dict DuckDbRefString (ErdSvgNodeProps Msg)
         erdCardPropsDict dimModel =
-            Dict.fromList <| List.map (\tblInfo -> assembleErdCardPropsForSingleSource model.openedDropDownId dimModel tblInfo) (Dict.values dimModel.tableInfos)
+            Dict.fromList <| List.map (\tblInfo -> assembleErdCardPropsForSingleSource model.opened222 dimModel tblInfo) (Dict.values dimModel.tableInfos)
 
         svgNodes : List (Svg Msg)
         svgNodes =

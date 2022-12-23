@@ -1,16 +1,7 @@
 module DimensionalModelTest exposing (..)
 
 import Dict
-import DimensionalModel
-    exposing
-        ( DimModelDuckDbSourceInfo
-        , DimensionalModel
-        , EdgeLabel(..)
-        , KimballAssignment(..)
-        , NaivePairingStrategyResult(..)
-        , PositionPx
-        , Reason(..)
-        )
+import DimensionalModel exposing (ColumnGraphEdge, DimModelDuckDbSourceInfo, DimensionalModel, EdgeLabel(..), KimballAssignment(..), PositionPx)
 import DuckDb exposing (DuckDbColumnDescription(..), DuckDbRef, DuckDbRefString, DuckDbRef_(..), refEquals, refToString)
 import Graph exposing (Edge, Node)
 import Utils exposing (cartesian)
@@ -200,47 +191,59 @@ goodModel1 =
     }
 
 
-goodModel1_Expected : DimensionalModel
-goodModel1_Expected =
-    let
-        nCols1 : Int
-        nCols1 =
-            List.length table1Cols
 
-        nCols2 : Int
-        nCols2 =
-            List.length table2Cols
-
-        nodes1 : List (Node DuckDbColumnDescription)
-        nodes1 =
-            List.map2 (\col i -> { id = i, label = col }) table1Cols (List.range 1 nCols1)
-
-        nodes2 : List (Node DuckDbColumnDescription)
-        nodes2 =
-            List.map2 (\col i -> { id = i, label = col }) table1Cols (List.range (nCols1 + 1) (nCols1 + nCols2))
-
-        nodes : List (Node DuckDbColumnDescription)
-        nodes =
-            nodes1 ++ nodes2
-
-        edgesFromTable1Cols : List (Edge EdgeLabel)
-        edgesFromTable1Cols =
-            List.map (\( nodeLhs, nodeRhs ) -> { from = nodeLhs.id, to = nodeRhs.id, label = Joinable }) (cartesian nodes1 nodes1)
-
-        edgesFromTable2Cols : List (Edge EdgeLabel)
-        edgesFromTable2Cols =
-            List.map (\( nodeLhs, nodeRhs ) -> { from = nodeLhs.id, to = nodeRhs.id, label = Joinable }) (cartesian nodes2 nodes2)
-
-        edges : List (Edge EdgeLabel)
-        edges =
-            edgesFromTable1Cols ++ edgesFromTable2Cols
-    in
-    { goodModel1
-        | graph = Graph.fromNodesAndEdges nodes edges
-    }
-
-
-
+--goodModel1_Expected : DimensionalModel
+--goodModel1_Expected =
+--    let
+--        nCols1 : Int
+--        nCols1 =
+--            List.length table1Cols
+--
+--        nCols2 : Int
+--        nCols2 =
+--            List.length table2Cols
+--
+--        nodes1 : List (Node DuckDbColumnDescription)
+--        nodes1 =
+--            List.map2 (\col i -> { id = i, label = col }) table1Cols (List.range 1 nCols1)
+--
+--        nodes2 : List (Node DuckDbColumnDescription)
+--        nodes2 =
+--            List.map2 (\col i -> { id = i, label = col }) table1Cols (List.range (nCols1 + 1) (nCols1 + nCols2))
+--
+--        nodes : List (Node DuckDbColumnDescription)
+--        nodes =
+--            nodes1 ++ nodes2
+--
+--        edgesFromTable1Cols : List (Edge ColumnGraphEdge)
+--        edgesFromTable1Cols =
+--            List.map
+--                (\( nodeLhs, nodeRhs ) ->
+--                    { from = nodeLhs
+--                    , to = nodeRhs
+--                    , label = Joinable nodeLhs nodeRhs
+--                    }
+--                )
+--                (cartesian nodes1 nodes1)
+--
+--        edgesFromTable2Cols : List (Edge ColumnGraphEdge)
+--        edgesFromTable2Cols =
+--            List.map
+--                (\( nodeLhs, nodeRhs ) ->
+--                    { from = nodeLhs.id
+--                    , to = nodeRhs.id
+--                    , label = Joinable nodeLhs nodeRhs
+--                    }
+--                )
+--                (cartesian nodes2 nodes2)
+--
+--        edges : List (Edge ColumnGraphEdge)
+--        edges =
+--            edgesFromTable1Cols ++ edgesFromTable2Cols
+--    in
+--    { goodModel1
+--        | graph = Graph.fromNodesAndEdges nodes edges
+--    }
 --
 --
 --goodModel2 : DimensionalModel

@@ -4,22 +4,7 @@ import Bridge exposing (BackendData(..), BackendErrorMessage, DimensionalModelUp
 import Browser.Dom
 import Browser.Events as BE
 import Dict exposing (Dict)
-import DimensionalModel
-    exposing
-        ( CardRenderInfo
-        , DimModelDuckDbSourceInfo
-        , DimensionalModel
-        , DimensionalModelRef
-        , EdgeLabel(..)
-        , KimballAssignment(..)
-        , NaivePairingStrategyResult(..)
-        , PositionPx
-        , Reason(..)
-        , addEdge
-        , addEdges
-        , edge2Str
-        , edgesOfType
-        )
+import DimensionalModel exposing (CardRenderInfo, DimModelDuckDbSourceInfo, DimensionalModel, DimensionalModelRef, EdgeFamily(..), EdgeLabel(..), KimballAssignment(..), PositionPx, addEdge, addEdges, edge2Str, edgesOfFamily)
 import DuckDb exposing (ColumnName, DuckDbColumn, DuckDbColumnDescription(..), DuckDbRef, DuckDbRefString, DuckDbRef_(..), PersistedDuckDbColumnDescription, fetchDuckDbTableRefs, refEquals, refToString)
 import Effect exposing (Effect)
 import Element as E exposing (..)
@@ -29,14 +14,11 @@ import Element.Events as Events
 import Element.Font as Font
 import Element.Input as Input
 import Gen.Params.Kimball exposing (Params)
-import Graph
 import Html.Events.Extra.Mouse as Mouse exposing (Event)
-import Http
 import Json.Decode as JD
 import Lamdera exposing (sendToBackend)
 import Page
-import QueryBuilder exposing (Aggregation(..), ColumnRef, Granularity(..), TimeClass(..))
-import RemoteData exposing (RemoteData(..), WebData)
+import Pages.Stories.EntityRelationshipDiagram exposing (ErdSvgNodeProps, viewErdSvgNodes)
 import Request
 import Set exposing (Set)
 import Shared
@@ -45,8 +27,8 @@ import TypedSvg as S
 import TypedSvg.Attributes as SA
 import TypedSvg.Core as SC exposing (Svg)
 import TypedSvg.Types as ST
-import Ui exposing (ColorTheme, toAvhColor)
-import Utils exposing (KeyCode, keyDecoder, send)
+import Ui exposing (ColorTheme, DropDownProps)
+import Utils exposing (KeyCode, send)
 import View exposing (View)
 
 
@@ -86,8 +68,7 @@ type alias Model =
     --       Something to think about.. should all possible actions on dimModels be dimModel variants (similar to how I implemented
     --       the duckdb cache in Backend)?
     , selectedDimensionalModel : Maybe DimensionalModel
-    , pairingAlgoResult : Maybe NaivePairingStrategyResult
-    , dropdownState : Maybe DuckDbRef
+    , opened222 : Maybe DuckDbRef
     , inspectedColumn : Maybe DuckDbColumnDescription
     , columnPairingOperation : ColumnPairingOperation
     , downKeys : Set KeyCode
@@ -134,8 +115,7 @@ init sharedTheme =
       , viewPort = Nothing
       , proposedNewModelName = ""
       , selectedDimensionalModel = Nothing
-      , pairingAlgoResult = Nothing
-      , dropdownState = Nothing
+      , opened222 = Nothing
       , inspectedColumn = Nothing
       , downKeys = Set.empty
       , columnPairingOperation = ColumnPairingIdle
@@ -168,42 +148,43 @@ type alias LayoutInfo =
     }
 
 
-
--- TODO:
--- on select, check if we have, fetch from backend if we don't
--- fetch result from cache on backend
--- if exists send to frontend
--- update "Got" response
-
-
-type Msg
+type
+    Msg
+    -- Data fetches
     = FetchTableRefs
     | GotDimensionalModelRefs (List DimensionalModelRef)
     | GotDimensionalModel DimensionalModel
     | GotDuckDbTableRefsResponse (List DuckDb.DuckDbRef)
+      -- Right nav user actions
     | UserSelectedDimensionalModel DimensionalModelRef
     | UserClickedDuckDbRef DuckDb.DuckDbRef
     | UserMouseEnteredTableRef DuckDb.DuckDbRef
-    | UserToggledCardDropDown DuckDbRef
     | UserMouseLeftTableRef
-    | UserMouseEnteredNodeTitleBar DuckDb.DuckDbRef
-    | UserMouseEnteredColumnDescRow DuckDbColumnDescription
-    | UserClickedColumnRow DuckDbColumnDescription
-    | UserMouseLeftNodeTitleBar
-    | ClearNodeHoverState
-    | SvgViewBoxTransform SvgViewBoxTransformation
-    | BeginNodeDrag DuckDb.DuckDbRef
-    | DraggedAt Event
-    | DragStoppedAt Event
-    | TerminateDrags
-    | GotViewport Browser.Dom.Viewport
-    | GotResizeEvent Int Int
     | UpdatedNewDimModelName String
     | UserCreatesNewDimensionalModel DimensionalModelRef
-    | NoopKimball
-    | UserClickedKimballAssignment DimensionalModelRef DuckDbRef (KimballAssignment DuckDbRef_ (List DuckDbColumnDescription))
-    | UserClickedNub DuckDbColumnDescription
+      -- Erd Card user actions
+    | MouseEnteredErdCard DuckDbRef
+    | MouseLeftErdCard
+    | MouseEnteredErdCardColumnRow DuckDbRef DuckDbColumnDescription
+    | ClickedErdCardColumnRow DuckDbRef DuckDbColumnDescription
+    | ToggledErdCardDropdown DuckDbRef
+    | ClickedErdCardDropdownOption DimensionalModelRef DuckDbRef (KimballAssignment DuckDbRef_ (List DuckDbColumnDescription))
+    | BeginErdCardDrag DuckDb.DuckDbRef
+    | ContinueErdCardDrag Event
+    | ErdCardDragStopped Event
+      --| UserClickedNub DuckDbColumnDescription
+      -- Toolbar user actions
+    | SvgViewBoxTransform SvgViewBoxTransformation
     | UserSelectedCursorMode CursorMode
+      -- Browser events
+    | GotViewport Browser.Dom.Viewport
+    | GotResizeEvent Int Int
+      -- misc. details
+    | TerminateDrags
+    | ClearNodeHoverState
+    | KimballNoop
+    | KimballNoop_ DuckDbRef
+    | KimballNoop__ Int
 
 
 type SvgViewBoxTransformation
@@ -237,6 +218,9 @@ pairingState2Str pairingOp =
 update : Msg -> Model -> ( Model, Effect Msg )
 update msg model =
     case msg of
+        KimballNoop__ _ ->
+            ( model, Effect.none )
+
         UserSelectedCursorMode mode ->
             let
                 newPairingState =
@@ -254,7 +238,7 @@ update msg model =
             , Effect.none
             )
 
-        UserClickedColumnRow colDesc ->
+        ClickedErdCardColumnRow ref colDesc ->
             let
                 newPairingOp : ColumnPairingOperation
                 newPairingOp =
@@ -279,7 +263,7 @@ update msg model =
                                     let
                                         newGraph =
                                             -- NB: Add two edges, (from, to) and (to, from)
-                                            addEdge (addEdge dimModel.graph ( from, to ) Joinable) ( to, from ) Joinable
+                                            addEdge (addEdge dimModel.graph ( from, to ) (Joinable from to)) ( to, from ) (Joinable to from)
                                     in
                                     Effect.fromCmd <| sendToBackend (UpdateDimensionalModel (UpdateGraph dimModel.ref newGraph))
 
@@ -291,32 +275,29 @@ update msg model =
             in
             case model.cursorMode of
                 DefaultCursor ->
-                    ( model, Effect.none )
+                    -- TODO: Open inspector here
+                    ( { model | inspectedColumn = Just colDesc }, Effect.none )
 
                 ColumnPairingCursor ->
                     ( { model
-                        | inspectedColumn = Just colDesc
-                        , columnPairingOperation = newPairingOp
+                        | columnPairingOperation = newPairingOp
                       }
                     , effect
                     )
 
-        UserClickedKimballAssignment dimRef duckDbRef assignment ->
+        ClickedErdCardDropdownOption dimRef duckDbRef assignment ->
             -- NB: We have the "side effect" of closing the dropdown menu
-            ( { model | dropdownState = Nothing }
+            ( { model | opened222 = Nothing }
             , Effect.fromCmd (sendToBackend (UpdateDimensionalModel (UpdateAssignment dimRef duckDbRef assignment)))
             )
 
-        NoopKimball ->
-            ( model, Effect.none )
-
-        UserToggledCardDropDown duckDbRef ->
-            case model.dropdownState of
+        ToggledErdCardDropdown duckDbRef ->
+            case model.opened222 of
                 Nothing ->
-                    ( { model | dropdownState = Just duckDbRef }, Effect.none )
+                    ( { model | opened222 = Just duckDbRef }, Effect.none )
 
                 Just _ ->
-                    ( { model | dropdownState = Nothing }, Effect.none )
+                    ( { model | opened222 = Nothing }, Effect.none )
 
         GotDimensionalModelRefs refs ->
             ( { model | dimensionalModelRefs = Success_ refs }, Effect.none )
@@ -378,7 +359,7 @@ update msg model =
         TerminateDrags ->
             ( { model | dragState = Idle }, Effect.none )
 
-        DraggedAt mouseEvent ->
+        ContinueErdCardDrag mouseEvent ->
             let
                 ( newDragState, newDimModel ) =
                     case model.dragState of
@@ -468,7 +449,7 @@ update msg model =
             , Effect.none
             )
 
-        BeginNodeDrag ref ->
+        BeginErdCardDrag ref ->
             case model.cursorMode of
                 DefaultCursor ->
                     ( { model | dragState = DragInitiated ref }, Effect.none )
@@ -476,7 +457,7 @@ update msg model =
                 _ ->
                     ( model, Effect.none )
 
-        DragStoppedAt _ ->
+        ErdCardDragStopped _ ->
             -- NB: During a drag, client-side model is updated, but since those events are so frequent, we don't
             -- update the backend. So we update the backend from the current model data here.
             let
@@ -580,48 +561,13 @@ update msg model =
             , Effect.none
             )
 
-        UserMouseEnteredColumnDescRow colDesc ->
+        MouseEnteredErdCardColumnRow ref colDesc ->
             ( { model | hoveredOnColumnWithinCard = Just colDesc }, Effect.none )
 
-        UserClickedNub colDesc ->
-            let
-                ( newPartialEdge, cmd ) =
-                    case model.partialEdgeInProgress of
-                        Just colDesc_ ->
-                            case colDesc of
-                                Persisted_ perCol ->
-                                    case colDesc_ of
-                                        Persisted_ perCol_ ->
-                                            case perCol_.name == perCol.name && perCol_.parentRef == perCol.parentRef of
-                                                True ->
-                                                    -- User clicked same nub as already selected in model.partialEdgeInProgress
-                                                    ( Nothing, Cmd.none )
-
-                                                False ->
-                                                    case model.selectedDimensionalModel of
-                                                        -- User clicked another nub, reset partial selection to Nothing
-                                                        -- but Fire event to backend, updating graph
-                                                        Just dimModel ->
-                                                            let
-                                                                -- NB: Add both directions, manually unpacked here
-                                                                newGraph =
-                                                                    addEdges dimModel.graph [ ( colDesc_, colDesc, Joinable ), ( colDesc, colDesc_, Joinable ) ]
-                                                            in
-                                                            ( Nothing, sendToBackend (UpdateDimensionalModel (UpdateGraph dimModel.ref newGraph)) )
-
-                                                        Nothing ->
-                                                            -- degenerate case, we should never get here without having a dim model selected
-                                                            ( Nothing, Cmd.none )
-
-                        Nothing ->
-                            ( Just colDesc, Cmd.none )
-            in
-            ( { model | partialEdgeInProgress = newPartialEdge }, Effect.fromCmd cmd )
-
-        UserMouseEnteredNodeTitleBar ref ->
+        MouseEnteredErdCard ref ->
             ( { model | hoveredOnNodeTitle = Just ref }, Effect.none )
 
-        UserMouseLeftNodeTitleBar ->
+        MouseLeftErdCard ->
             ( { model
                 | hoveredOnNodeTitle = Nothing
               }
@@ -675,6 +621,12 @@ update msg model =
                 ]
             )
 
+        KimballNoop ->
+            ( model, Effect.none )
+
+        KimballNoop_ duckDbRef ->
+            ( model, Effect.none )
+
 
 
 -- SUBSCRIPTIONS
@@ -690,13 +642,13 @@ subscriptions model =
                     []
 
                 DragInitiated _ ->
-                    [ BE.onMouseMove (JD.map DraggedAt Mouse.eventDecoder)
-                    , BE.onMouseUp (JD.map DragStoppedAt Mouse.eventDecoder)
+                    [ BE.onMouseMove (JD.map ContinueErdCardDrag Mouse.eventDecoder)
+                    , BE.onMouseUp (JD.map ErdCardDragStopped Mouse.eventDecoder)
                     ]
 
                 Dragging _ _ _ _ ->
-                    [ BE.onMouseMove (JD.map DraggedAt Mouse.eventDecoder)
-                    , BE.onMouseUp (JD.map DragStoppedAt Mouse.eventDecoder)
+                    [ BE.onMouseMove (JD.map ContinueErdCardDrag Mouse.eventDecoder)
+                    , BE.onMouseUp (JD.map ErdCardDragStopped Mouse.eventDecoder)
                     ]
     in
     -- Always listen to Browser events, and key strokes, but only listen to drag events if we believe we're dragging!
@@ -724,258 +676,99 @@ view model =
     }
 
 
-viewDataSourceCard : Model -> DimensionalModelRef -> CardRenderInfo -> KimballAssignment DuckDbRef_ (List DuckDbColumnDescription) -> Svg Msg
-viewDataSourceCard model dimModelRef renderInfo kimballAssignment =
+assembleErdCardPropsForSingleSource : Maybe DuckDbRef -> DimensionalModel -> DimModelDuckDbSourceInfo -> ( DuckDbRefString, ErdSvgNodeProps Msg )
+assembleErdCardPropsForSingleSource openedId dimModel info =
     let
-        ( table_, type_, computedBackgroundColor ) =
-            case kimballAssignment of
-                Unassigned ref _ ->
-                    case ref of
+        ( ref, colDescs ) =
+            case info.assignment of
+                Unassigned ref_ colDescs_ ->
+                    case ref_ of
                         DuckDbTable duckDbRef ->
-                            ( duckDbRef, "Unassigned", model.theme.debugWarn )
+                            ( duckDbRef, colDescs_ )
 
-                Fact ref _ ->
-                    case ref of
+                Fact ref_ colDescs_ ->
+                    case ref_ of
                         DuckDbTable duckDbRef ->
-                            ( duckDbRef, "Fact", model.theme.primary1 )
+                            ( duckDbRef, colDescs_ )
 
-                Dimension ref _ ->
-                    case ref of
+                Dimension ref_ colDescs_ ->
+                    case ref_ of
                         DuckDbTable duckDbRef ->
-                            ( duckDbRef, "Dimension", model.theme.primary2 )
+                            ( duckDbRef, colDescs_ )
 
-        colDescs : List DuckDbColumnDescription
-        colDescs =
-            case kimballAssignment of
-                Unassigned _ columns ->
-                    columns
+        cardDropDownProps : DropDownProps Msg DuckDbRef Int
+        cardDropDownProps =
+            { isOpen =
+                case openedId of
+                    Just ref_ ->
+                        ref_ == info.renderInfo.ref
 
-                Fact _ columns ->
-                    columns
-
-                Dimension _ columns ->
-                    columns
-
-        title : String
-        title =
-            refToString table_
-
-        viewRowForColumnDesc : DuckDbColumnDescription -> Element Msg
-        viewRowForColumnDesc col =
-            let
-                rowBackgroundColor : Color
-                rowBackgroundColor =
-                    case model.hoveredOnColumnWithinCard of
-                        Nothing ->
-                            -- TODO: Do I need a transparent entry in ColorTheme?
-                            computedBackgroundColor
-
-                        Just col_ ->
-                            case col_ of
-                                Persisted_ perCol_ ->
-                                    case col of
-                                        Persisted_ perCol ->
-                                            case perCol.name == perCol_.name && perCol_.parentRef == perCol.parentRef of
-                                                True ->
-                                                    -- TODO: Do I need a darken entry in ColorTheme?
-                                                    model.theme.secondary
-
-                                                False ->
-                                                    computedBackgroundColor
-
-                name : String
-                name =
-                    case col of
-                        Persisted_ desc ->
-                            desc.name
-
-                viewNub : Element Msg
-                viewNub =
-                    el
-                        [ width <| px 10
-                        , height <| px 10
-                        , Border.width 1
-                        , Background.color model.theme.background
-                        , Events.onClick (UserClickedNub col)
-                        ]
-                        E.none
-            in
-            row
-                [ width E.fill
-                , moveRight 3
-                , paddingXY 5 2
-                , spacingXY 4 0
-                , Events.onMouseEnter (UserMouseEnteredColumnDescRow col)
-                , Events.onClick (UserClickedColumnRow col)
-                , Background.color rowBackgroundColor
-                ]
-                [ viewNub
-                , text name
-                , el [ alignRight ] viewNub
-                ]
-
-        viewCardElements : Element Msg
-        viewCardElements =
-            let
-                titleBarBackgroundColor : Color
-                titleBarBackgroundColor =
-                    case model.hoveredOnNodeTitle of
-                        Nothing ->
-                            computedBackgroundColor
-
-                        Just ref_ ->
-                            if refEquals renderInfo.ref ref_ then
-                                model.theme.secondary
-
-                            else
-                                computedBackgroundColor
-
-                viewTitleBar : Element Msg
-                viewTitleBar =
-                    el
-                        [ Border.widthEach { top = 0, left = 0, right = 0, bottom = 2 }
-                        , Border.color model.theme.secondary
-                        , width fill
-                        , Background.color titleBarBackgroundColor
-                        , paddingXY 0 0
-                        , Events.onClick (UserToggledCardDropDown renderInfo.ref)
-                        ]
-                    <|
-                        row
-                            [ width fill
-                            , height fill
-                            , paddingXY 5 0
-                            ]
-                            [ el [ alignLeft ] (E.text <| type_ ++ ":")
-
-                            -- some useful characters to keep handy here:
-                            -- ᐁ ᐅ ▼ ▶
-                            --
-                            , column []
-                                [ el
-                                    [ Border.width 1
-                                    , Border.color model.theme.black
-                                    , padding 2
-                                    ]
-                                    (case model.dropdownState of
-                                        Nothing ->
-                                            el [] (E.text "▼")
-
-                                        Just duckDbRef ->
-                                            case renderInfo.ref == duckDbRef of
-                                                True ->
-                                                    el
-                                                        [ E.onRight
-                                                            (column
-                                                                [ Border.color model.theme.secondary
-                                                                , Border.width 1
-                                                                , Background.color model.theme.background
-                                                                , spacing 3
-                                                                ]
-                                                                [ el
-                                                                    [ width fill
-                                                                    , height fill
-                                                                    , Events.onClick (UserClickedKimballAssignment dimModelRef renderInfo.ref (Unassigned (DuckDbTable renderInfo.ref) colDescs))
-                                                                    ]
-                                                                  <|
-                                                                    E.text "Unassigned"
-                                                                , el
-                                                                    [ width fill
-                                                                    , height fill
-                                                                    , Events.onClick (UserClickedKimballAssignment dimModelRef renderInfo.ref (Dimension (DuckDbTable renderInfo.ref) colDescs))
-                                                                    ]
-                                                                  <|
-                                                                    E.text "Dimension"
-                                                                , el
-                                                                    [ width fill
-                                                                    , height fill
-                                                                    , Events.onClick (UserClickedKimballAssignment dimModelRef renderInfo.ref (Fact (DuckDbTable renderInfo.ref) colDescs))
-                                                                    ]
-                                                                  <|
-                                                                    E.text "Fact"
-                                                                ]
-                                                            )
-                                                        ]
-                                                        (el [] <| E.text "▶")
-
-                                                False ->
-                                                    E.text "default elements"
-                                    )
-                                ]
-                            , el [ alignLeft, moveRight 10 ] (E.text title)
-                            ]
-            in
-            column
-                [ width (px <| round (erdCardWidth - 1.0))
-                , height (px <| round (erdCardHeight - 1.0))
-                , Border.color model.theme.secondary
-                , Border.width 1
-                , Border.rounded 5
-                , padding 2
-                , Background.color computedBackgroundColor
-                , Font.size 14
-                , Events.onMouseEnter (UserMouseEnteredNodeTitleBar renderInfo.ref)
-                ]
-                [ viewTitleBar
-                , column
-                    [ width (px <| round (erdCardWidth - 10.0))
-                    , height (px <| round (erdCardHeight - titleBarHeight - 0))
-                    , Events.onMouseDown (BeginNodeDrag renderInfo.ref)
+                    Nothing ->
+                        False
+            , id = ref
+            , widthPx = 75
+            , heightPx = 25
+            , onDrawerClick = ToggledErdCardDropdown
+            , onMenuMouseEnter = KimballNoop_
+            , onMenuMouseLeave = KimballNoop
+            , isMenuHovered = False
+            , menuBarText = " "
+            , options =
+                Dict.fromList
+                    [ ( 0
+                      , { displayText = "Unassigned"
+                        , id = 0
+                        , onClick = ClickedErdCardDropdownOption dimModel.ref info.renderInfo.ref (Unassigned (DuckDbTable info.renderInfo.ref) colDescs)
+                        , onHover = KimballNoop__ 0
+                        }
+                      )
+                    , ( 1
+                      , { displayText = "Dimension"
+                        , onClick = ClickedErdCardDropdownOption dimModel.ref info.renderInfo.ref (Dimension (DuckDbTable info.renderInfo.ref) colDescs)
+                        , onHover = KimballNoop__ 1
+                        , id = 1
+                        }
+                      )
+                    , ( 2
+                      , { displayText = "Fact"
+                        , onClick = ClickedErdCardDropdownOption dimModel.ref info.renderInfo.ref (Fact (DuckDbTable info.renderInfo.ref) colDescs)
+                        , onHover = KimballNoop__ 2
+                        , id = 2
+                        }
+                      )
                     ]
-                  <|
-                    List.map (\col -> viewRowForColumnDesc col) colDescs
-                ]
-
-        erdCardWidth : Float
-        erdCardWidth =
-            250
-
-        titleBarHeight : Float
-        titleBarHeight =
-            29.0
-
-        erdCardHeight : Float
-        erdCardHeight =
-            titleBarHeight + (18.0 * toFloat (List.length colDescs))
+            , hoveredOnOption = Nothing
+            }
     in
-    SC.foreignObject
-        [ SA.x (ST.px renderInfo.pos.x)
-        , SA.y (ST.px renderInfo.pos.y)
-        , SA.width (ST.px erdCardWidth)
-        , SA.height (ST.px erdCardHeight)
-        ]
-        [ E.layoutWith { options = [ noStaticStyleSheet ] }
-            [ Events.onMouseLeave ClearNodeHoverState
-            ]
-            viewCardElements
-        ]
+    ( refToString ref
+    , { id = ref
+      , onMouseEnteredErdCard = MouseEnteredErdCard
+      , onMouseLeftErdCard = MouseLeftErdCard
+      , onMouseEnteredErdCardColumnRow = MouseEnteredErdCardColumnRow
+      , onClickedErdCardColumnRow = ClickedErdCardColumnRow
+      , onBeginErdCardDrag = BeginErdCardDrag
+      , onContinueErdCardDrag = ContinueErdCardDrag
+      , onErdCardDragStopped = ErdCardDragStopped
+      , erdCardDropdownMenuProps = cardDropDownProps
+      }
+    )
 
 
 viewCanvas : Model -> LayoutInfo -> Element Msg
 viewCanvas model layoutInfo =
     let
-        erdCardsSvgNode : List (Svg Msg)
-        erdCardsSvgNode =
-            let
-                renderHelp : DimModelDuckDbSourceInfo -> DimensionalModelRef -> Svg Msg
-                renderHelp info dimModelRef =
-                    viewDataSourceCard model dimModelRef info.renderInfo info.assignment
-            in
+        erdCardPropsDict : DimensionalModel -> Dict DuckDbRefString (ErdSvgNodeProps Msg)
+        erdCardPropsDict dimModel =
+            Dict.fromList <| List.map (\tblInfo -> assembleErdCardPropsForSingleSource model.opened222 dimModel tblInfo) (Dict.values dimModel.tableInfos)
+
+        svgNodes : List (Svg Msg)
+        svgNodes =
             case model.selectedDimensionalModel of
+                Just dimModel ->
+                    viewErdSvgNodes model (erdCardPropsDict dimModel) dimModel
+
                 Nothing ->
                     []
-
-                Just dimModel ->
-                    List.filterMap
-                        (\info ->
-                            case info.isIncluded of
-                                True ->
-                                    Just <| renderHelp info dimModel.ref
-
-                                False ->
-                                    Nothing
-                        )
-                        (Dict.values dimModel.tableInfos)
     in
     el
         [ Border.width 1
@@ -991,9 +784,9 @@ viewCanvas model layoutInfo =
             S.svg
                 [ SA.width (ST.px layoutInfo.canvasElementWidth)
                 , SA.height (ST.px layoutInfo.canvasElementHeight)
-                , SA.viewBox layoutInfo.viewBoxXMin layoutInfo.viewBoxYMin layoutInfo.viewBoxWidth layoutInfo.viewBoxHeight
+                , SA.viewBox 0 0 layoutInfo.canvasElementWidth layoutInfo.canvasElementHeight
                 ]
-                erdCardsSvgNode
+                svgNodes
 
 
 viewControlPanel : Model -> Element Msg
@@ -1231,11 +1024,11 @@ viewMouseEventsDebugInfo model =
             [ E.text ("pairing op: " ++ pairingState2Str model.columnPairingOperation)
             ]
         , paragraph [ padding 3 ]
-            [ E.text <| "veiwPort: " ++ viewPortStr
+            [ E.text <| "viewPort: " ++ viewPortStr
             ]
         , el [ Font.bold ] (E.text "Mouse Events:")
         , paragraph [ padding 3 ]
-            [ E.text <| "most recent event coord: " ++ mouseEventStr
+            [ E.text <| "most recent event coords: " ++ mouseEventStr
             ]
         , paragraph [ padding 3 ]
             [ E.text <| "drag state: " ++ dragStateStr
@@ -1248,7 +1041,7 @@ viewMouseEventsDebugInfo model =
             (List.map (\edge -> E.text <| edge2Str edge ++ "\n")
                 (case model.selectedDimensionalModel of
                     Just dimModel ->
-                        edgesOfType dimModel.graph Joinable
+                        edgesOfFamily dimModel.graph Joinable_
 
                     Nothing ->
                         []

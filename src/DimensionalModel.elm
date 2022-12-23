@@ -1,16 +1,17 @@
 module DimensionalModel exposing
     ( CardRenderInfo
     , ColumnGraph
+    , ColumnGraphEdge
     , CommonRefEdge
     , DimModelDuckDbSourceInfo
     , DimensionalModel
     , DimensionalModelRef
+    , EdgeFamily(..)
     , EdgeLabel(..)
     , JoinableEdge
     , KimballAssignment(..)
-    , NaivePairingStrategyResult(..)
+    , LineSegment
     , PositionPx
-    , Reason(..)
     , addEdge
     , addEdges
     , addNode
@@ -18,8 +19,8 @@ module DimensionalModel exposing
     , columnDescFromNodeId
     , columnGraph2DotString
     , edge2Str
-    , edgesOfType
-    , unpackAssignment
+    , edgesOfFamily
+    , unpackKimballAssignment
     )
 
 import Dict exposing (Dict)
@@ -28,6 +29,10 @@ import Graph exposing (Edge, Graph, Node, NodeId)
 import Graph.DOT
 import Hash exposing (Hash)
 import IntDict
+
+
+type alias LineSegment =
+    ( PositionPx, PositionPx )
 
 
 type alias PositionPx =
@@ -68,22 +73,6 @@ type alias DimModelDuckDbSourceInfo =
     }
 
 
-type Reason
-    = AllInputTablesMustBeAssigned
-    | InputMustContainAtLeastOneFactTable
-    | InputMustContainAtLeastOneDimensionTable
-
-
-type NaivePairingStrategyResult
-    = Success DimensionalModel
-    | Fail Reason
-
-
-assembleCommonRefSubGraph : DimensionalModel -> DimensionalModel
-assembleCommonRefSubGraph dimModel =
-    dimModel
-
-
 type alias CommonRefEdge =
     Edge DuckDbRef
 
@@ -92,13 +81,22 @@ type alias JoinableEdge =
     Edge ()
 
 
-type EdgeLabel
-    = CommonRef
-    | Joinable
+type EdgeLabel lhs rhs
+    = CommonRef lhs rhs
+    | Joinable lhs rhs
+
+
+type EdgeFamily
+    = CommonRef_
+    | Joinable_
+
+
+type alias ColumnGraphEdge =
+    EdgeLabel DuckDbColumnDescription DuckDbColumnDescription
 
 
 type alias ColumnGraph =
-    Graph DuckDbColumnDescription EdgeLabel
+    Graph DuckDbColumnDescription ColumnGraphEdge
 
 
 columnDescFromNodeId : ColumnGraph -> NodeId -> Maybe DuckDbColumnDescription
@@ -124,13 +122,13 @@ columnGraph2DotString graph =
                         DuckDbTable ref ->
                             Just <| refToString ref ++ ":" ++ persistedDuckDbColumnDescription.name
 
-        edgeHelper : EdgeLabel -> Maybe String
+        edgeHelper : ColumnGraphEdge -> Maybe String
         edgeHelper e =
             case e of
-                CommonRef ->
+                CommonRef _ _ ->
                     Just "common-ref"
 
-                Joinable ->
+                Joinable _ _ ->
                     Just "joinable"
     in
     Graph.DOT.output nodeHelper edgeHelper graph
@@ -157,16 +155,16 @@ addNodes graph nodes =
     List.foldl (\node acc -> addNode acc node) graph nodes
 
 
-addEdges : ColumnGraph -> List ( DuckDbColumnDescription, DuckDbColumnDescription, EdgeLabel ) -> ColumnGraph
+addEdges : ColumnGraph -> List ( DuckDbColumnDescription, DuckDbColumnDescription, ColumnGraphEdge ) -> ColumnGraph
 addEdges graph edges =
     -- TODO: Test
     List.foldl (\( lhs, rhs, lbl ) acc -> addEdge acc ( lhs, rhs ) lbl) graph edges
 
 
-addEdge : ColumnGraph -> ( DuckDbColumnDescription, DuckDbColumnDescription ) -> EdgeLabel -> ColumnGraph
+addEdge : ColumnGraph -> ( DuckDbColumnDescription, DuckDbColumnDescription ) -> ColumnGraphEdge -> ColumnGraph
 addEdge graph ( lhs, rhs ) lbl =
     let
-        insertEdge : Edge EdgeLabel -> ColumnGraph -> ColumnGraph
+        insertEdge : Edge ColumnGraphEdge -> ColumnGraph -> ColumnGraph
         insertEdge edge =
             Graph.update edge.from
                 (\maybeCtx ->
@@ -230,28 +228,44 @@ hashColDesc colDesc =
                 (Hash.fromString perCol.dataType)
 
 
-edgesOfType : ColumnGraph -> EdgeLabel -> List (Edge EdgeLabel)
-edgesOfType graph label =
-    List.filter
-        (\e ->
-            if e.label == label then
-                True
+edgesOfFamily : ColumnGraph -> EdgeFamily -> List (Edge ColumnGraphEdge)
+edgesOfFamily graph family =
+    case family of
+        CommonRef_ ->
+            List.filter
+                (\e ->
+                    case e.label of
+                        CommonRef _ _ ->
+                            True
 
-            else
-                False
-        )
-        (Graph.edges graph)
+                        Joinable _ _ ->
+                            False
+                )
+                (Graph.edges graph)
+
+        Joinable_ ->
+            List.filter
+                (\e ->
+                    case e.label of
+                        Joinable _ _ ->
+                            True
+
+                        CommonRef _ _ ->
+                            False
+                )
+                (Graph.edges graph)
 
 
-edge2Str : Edge EdgeLabel -> String
+edge2Str : Edge ColumnGraphEdge -> String
 edge2Str e =
     String.fromInt e.from
         ++ "--"
         ++ (case e.label of
-                CommonRef ->
+                -- TODO: Where is this used? Do I want to include lhs rhs in the debug str?
+                CommonRef lhs rhs ->
                     "common-ref"
 
-                Joinable ->
+                Joinable lhs rhs ->
                     "joinable"
            )
         ++ "->"
@@ -263,8 +277,8 @@ edge2Str e =
 -- begin region: misc. utils
 
 
-unpackAssignment : KimballAssignment ref columns -> ( ref, columns )
-unpackAssignment assignment =
+unpackKimballAssignment : KimballAssignment ref columns -> ( ref, columns )
+unpackKimballAssignment assignment =
     case assignment of
         Unassigned ref colDescs ->
             ( ref, colDescs )

@@ -65,7 +65,11 @@ viewElements model =
     <|
         column
             [ height fill
-            , width fill
+            , width
+                (fill
+                    |> maximum 800
+                    |> minimum 200
+                )
             , centerX
             , Background.color model.theme.background
             , padding 5
@@ -82,10 +86,10 @@ viewElements model =
                 ]
                 [ el [ centerX, width fill ] (E.text "Fir")
                 ]
-            , paragraph [ width (px 600), centerX, centerY ]
+            , paragraph [ width fill, centerX, centerY ]
                 [ E.text "What happens when you mix SmallTalk, Excel, P5, and DuckDB with a purely functional semantic layer? I don't know either! But I'm on a journey to find out!"
                 ]
-            , paragraph [ width (px 600), centerX, centerY ]
+            , paragraph [ width fill, centerX, centerY ]
                 [ E.text "In the meantime, check out the "
                 , link [ Font.color model.theme.link, Font.underline ] { url = "/stories", label = E.text "stories" }
                 , E.text ", and "

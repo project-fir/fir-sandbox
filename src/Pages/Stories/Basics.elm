@@ -12,7 +12,7 @@ import Gen.Params.Stories.Basics exposing (Params)
 import Page
 import Request
 import Shared exposing (Msg(..))
-import Ui exposing (ColorTheme, DropDownProps, PaletteName(..), button, dropdownMenu, themeOf)
+import Ui exposing (ColorTheme, DropDownProps, PaletteName(..), SampleData, TableProps, TableVal(..), button, dropdownMenu, firTable, themeOf)
 import Utils exposing (bool2Str)
 import View exposing (View)
 
@@ -131,87 +131,21 @@ view model =
     }
 
 
-map_ : Shared.Msg -> Msg
-map_ sharedMsg =
-    case sharedMsg of
-        SetTimeZoneToLocale _ ->
-            Noop
-
-        Shared__UserSelectedPalette paletteName ->
-            Basics__UserSelectedPalette paletteName
-
-
-type alias TableProps data =
-    { data : List data
-    }
-
-
-type alias SampleData =
-    { task : String
-    , isComplete : Bool
-    }
-
-
-
---table : { r | theme : ColorTheme } -> TableProps SampleData -> Element Msg
-
-
-table : { r | theme : ColorTheme } -> Element Msg
-table r =
-    let
-        headerCellAttrs : List (Attribute Msg)
-        headerCellAttrs =
-            [ Border.color r.theme.black
-            , Border.width 1
-            , Background.color r.theme.secondary
-            , padding 5
-            ]
-
-        headerTextAttrs : String -> Element Msg
-        headerTextAttrs displayText =
-            el [ centerX, Font.bold ] (E.text displayText)
-
-        rowCellAttrs : List (Attribute msg)
-        rowCellAttrs =
-            [ width fill
-            , height fill
-            , Background.color r.theme.primary2
-            , Border.width 1
-            , Border.color r.theme.secondary
-            , padding 2
-            ]
-
-        data : List SampleData
-        data =
-            [ { task = "abstract this away"
-              , isComplete = False
-              }
-            , { task = "hard code some data"
-              , isComplete = True
-              }
-            , { task = "scrub the tub"
-              , isComplete = False
-              }
-            , { task = "feed Simon"
-              , isComplete = True
-              }
-            ]
-    in
-    E.table
-        [ width (px 600)
-        ]
-        { data = data
-        , columns =
-            [ { header = el headerCellAttrs (headerTextAttrs "task")
-              , width = px 200
-              , view = \row -> el rowCellAttrs (E.text row.task)
-              }
-            , { header = el headerCellAttrs (headerTextAttrs "is_complete")
-              , width = px 150
-              , view = \row -> el rowCellAttrs (el [] (E.text <| bool2Str row.isComplete))
-              }
-            ]
-        }
+data : List SampleData
+data =
+    [ { task = "abstract this away"
+      , isComplete = True
+      }
+    , { task = "hard code some data"
+      , isComplete = True
+      }
+    , { task = "scrub the tub"
+      , isComplete = False
+      }
+    , { task = "feed Simon"
+      , isComplete = True
+      }
+    ]
 
 
 elements : Model -> Element Msg
@@ -393,9 +327,32 @@ elements model =
                     }
                 , el [ Font.bold ] (E.text " ")
                 , el [ Font.bold ] (E.text "Sample Table:")
-                , table model
+                , firTable model tableProps
                 ]
             )
+
+
+tableProps : TableProps
+tableProps =
+    { dataDict =
+        Dict.fromList
+            [ ( "task"
+              , [ String_ "hard code data"
+                , String_ "abstract this away"
+                , String_ "scrub the tub"
+                , String_ "feed Simon"
+                ]
+              )
+            , ( "is_complete"
+              , [ Bool_ True
+                , Bool_ True
+                , Bool_ False
+                , Bool_ True
+                ]
+              )
+            ]
+    , tableWidthPx = 150
+    }
 
 
 themeName : PaletteName -> String

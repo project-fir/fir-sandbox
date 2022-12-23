@@ -20,7 +20,7 @@ rules, e.g.,
         ]
 
 Strings on the left are to be rewritten as strings on the right.
-Those on the right should be lambda tersm.
+Those on the right should be lambda terms.
 
 The eval function parses the given string, rewrites it as needed,
 applies beta reduction, and then turns this final expression
@@ -37,14 +37,14 @@ import FirLang.Lambda.Parser
 
 equivalent : Dict String String -> String -> String
 equivalent dict str =
-    case Lambda.Parser.parse str of
+    case FirLang.Lambda.Parser.parse str of
         Err err ->
             "Parse error: " ++ Debug.toString err
 
         Ok expr ->
             case rewrite dict expr of
                 Apply a b ->
-                    case ( Lambda.Expression.beta a, Lambda.Expression.beta b ) of
+                    case ( FirLang.Lambda.Expression.beta a, FirLang.Lambda.Expression.beta b ) of
                         ( Var s, Var t ) ->
                             if String.left 22 s == "TOO MANY SUBSTITUTIONS" then
                                 "LHS may be divergent"
@@ -59,7 +59,7 @@ equivalent dict str =
                                 "false"
 
                         _ ->
-                            case Lambda.Expression.equivalent a b of
+                            case FirLang.Lambda.Expression.equivalent a b of
                                 True ->
                                     "true"
 
@@ -73,17 +73,17 @@ equivalent dict str =
 {-| -}
 eval : ViewStyle -> Dict String String -> String -> String
 eval viewStyle dict str =
-    case Lambda.Parser.parse str of
+    case FirLang.Lambda.Parser.parse str of
         Err err ->
             "Parse error: " ++ Debug.toString err
 
         Ok expr ->
             expr
                 |> rewrite dict
-                |> Lambda.Expression.beta
-                |> Lambda.Expression.reduceSubscripts
+                |> FirLang.Lambda.Expression.beta
+                |> FirLang.Lambda.Expression.reduceSubscripts
                 -- |> Lambda.Expression.compressNameSpace
-                |> Lambda.Expression.toString viewStyle
+                |> FirLang.Lambda.Expression.toString viewStyle
                 |> reverseRewrite viewStyle dict
 
 
@@ -94,7 +94,7 @@ rewrite definitions expr =
             case Dict.get s definitions of
                 Just t ->
                     -- Var (parenthesize t)
-                    case Lambda.Parser.parse t of
+                    case FirLang.Lambda.Parser.parse t of
                         Ok u ->
                             u
 

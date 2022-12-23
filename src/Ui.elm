@@ -4,8 +4,12 @@ module Ui exposing
     , DropDownOption
     , DropDownProps
     , PaletteName(..)
+    , SampleData
+    , TableProps
+    , TableVal(..)
     , button
     , dropdownMenu
+    , firTable
     , theme
     , themeOf
     , toAvhColor
@@ -19,6 +23,7 @@ import Element.Border as Border
 import Element.Events as Events
 import Element.Font as Font
 import Element.Input as Input
+import Utils exposing (bool2Str)
 
 
 
@@ -427,3 +432,96 @@ button r props =
 
 
 -- end region: button component
+-- begin region: table component
+
+
+type alias SampleData =
+    { task : String
+    , isComplete : Bool
+    }
+
+
+type alias TableProps =
+    { dataDict : Dict String (List TableVal)
+    , tableWidthPx : Int
+    }
+
+
+type TableVal
+    = Int_ Int
+    | Float_ Float
+    | Bool_ Bool
+    | String_ String
+
+
+tableVal2Str : TableVal -> String
+tableVal2Str val =
+    case val of
+        Int_ int ->
+            String.fromInt int
+
+        Float_ float ->
+            String.fromFloat float
+
+        Bool_ bool ->
+            bool2Str bool
+
+        String_ string ->
+            case string of
+                "" ->
+                    " "
+
+                _ ->
+                    string
+
+
+firTable : { r | theme : ColorTheme } -> TableProps -> Element msg
+firTable r props =
+    -- TODO: Current implementation of TableProps has non-deterministic column ordering!
+    --       I'm moving on, but well-defined column ordering is something that should be implemented here
+    let
+        headerCellAttrs : List (Attribute msg)
+        headerCellAttrs =
+            [ Border.color r.theme.black
+            , Border.width 1
+            , Background.color r.theme.secondary
+            , padding 5
+            ]
+
+        headerTextAttrs : String -> Element msg
+        headerTextAttrs displayText =
+            el [ centerX, Font.bold ] (E.text displayText)
+
+        rowCellAttrs : List (Attribute msg)
+        rowCellAttrs =
+            [ width fill
+            , height fill
+            , Background.color r.theme.primary2
+            , Border.width 1
+            , Border.color r.theme.secondary
+            , padding 2
+            ]
+    in
+    row
+        [ alignLeft
+        ]
+        (Dict.values <|
+            Dict.map
+                (\colName dataCol ->
+                    E.table
+                        []
+                        { data = dataCol
+                        , columns =
+                            [ { header = el headerCellAttrs (headerTextAttrs colName)
+                              , width = px props.tableWidthPx
+                              , view = \row -> el rowCellAttrs (E.text (tableVal2Str row))
+                              }
+                            ]
+                        }
+                )
+                props.dataDict
+        )
+
+
+
+-- end region: table component

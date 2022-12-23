@@ -58,6 +58,10 @@ type alias MenuId =
     String
 
 
+type alias DropDownOptionId =
+    Int
+
+
 type Msg
     = Basics__UserSelectedPalette PaletteName
     | UserToggledDrawer MenuId
@@ -217,7 +221,7 @@ elements model =
         testMenuId =
             "test-menu"
 
-        dropDownProps : DropDownProps Msg MenuId
+        dropDownProps : DropDownProps Msg MenuId DropDownOptionId
         dropDownProps =
             { isOpen = model.isDrawerOpen
             , id = testMenuId

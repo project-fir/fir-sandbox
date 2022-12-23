@@ -68,7 +68,7 @@ type alias Model =
     --       Something to think about.. should all possible actions on dimModels be dimModel variants (similar to how I implemented
     --       the duckdb cache in Backend)?
     , selectedDimensionalModel : Maybe DimensionalModel
-    , dropdownState : Maybe DuckDbRef
+    , openedDropDownId : Maybe DuckDbRef
     , inspectedColumn : Maybe DuckDbColumnDescription
     , columnPairingOperation : ColumnPairingOperation
     , downKeys : Set KeyCode
@@ -115,7 +115,7 @@ init sharedTheme =
       , viewPort = Nothing
       , proposedNewModelName = ""
       , selectedDimensionalModel = Nothing
-      , dropdownState = Nothing
+      , openedDropDownId = Nothing
       , inspectedColumn = Nothing
       , downKeys = Set.empty
       , columnPairingOperation = ColumnPairingIdle
@@ -184,6 +184,7 @@ type
     | ClearNodeHoverState
     | KimballNoop
     | KimballNoop_ DuckDbRef
+    | KimballNoop__ Int
 
 
 type SvgViewBoxTransformation
@@ -217,6 +218,9 @@ pairingState2Str pairingOp =
 update : Msg -> Model -> ( Model, Effect Msg )
 update msg model =
     case msg of
+        KimballNoop__ _ ->
+            ( model, Effect.none )
+
         UserSelectedCursorMode mode ->
             let
                 newPairingState =
@@ -272,29 +276,28 @@ update msg model =
             case model.cursorMode of
                 DefaultCursor ->
                     -- TODO: Open inspector here
-                    ( model, Effect.none )
+                    ( { model | inspectedColumn = Just colDesc }, Effect.none )
 
                 ColumnPairingCursor ->
                     ( { model
-                        | inspectedColumn = Just colDesc
-                        , columnPairingOperation = newPairingOp
+                        | columnPairingOperation = newPairingOp
                       }
                     , effect
                     )
 
         ClickedErdCardDropdownOption dimRef duckDbRef assignment ->
             -- NB: We have the "side effect" of closing the dropdown menu
-            ( { model | dropdownState = Nothing }
+            ( { model | openedDropDownId = Nothing }
             , Effect.fromCmd (sendToBackend (UpdateDimensionalModel (UpdateAssignment dimRef duckDbRef assignment)))
             )
 
         ToggledErdCardDropdown duckDbRef ->
-            case model.dropdownState of
+            case model.openedDropDownId of
                 Nothing ->
-                    ( { model | dropdownState = Just duckDbRef }, Effect.none )
+                    ( { model | openedDropDownId = Just duckDbRef }, Effect.none )
 
                 Just _ ->
-                    ( { model | dropdownState = Nothing }, Effect.none )
+                    ( { model | openedDropDownId = Nothing }, Effect.none )
 
         GotDimensionalModelRefs refs ->
             ( { model | dimensionalModelRefs = Success_ refs }, Effect.none )
@@ -561,40 +564,6 @@ update msg model =
         MouseEnteredErdCardColumnRow ref colDesc ->
             ( { model | hoveredOnColumnWithinCard = Just colDesc }, Effect.none )
 
-        --UserClickedNub colDesc ->
-        --    let
-        --        ( newPartialEdge, cmd ) =
-        --            case model.partialEdgeInProgress of
-        --                Just colDesc_ ->
-        --                    case colDesc of
-        --                        Persisted_ perCol ->
-        --                            case colDesc_ of
-        --                                Persisted_ perCol_ ->
-        --                                    case perCol_.name == perCol.name && perCol_.parentRef == perCol.parentRef of
-        --                                        True ->
-        --                                            -- User clicked same nub as already selected in model.partialEdgeInProgress
-        --                                            ( Nothing, Cmd.none )
-        --
-        --                                        False ->
-        --                                            case model.selectedDimensionalModel of
-        --                                                -- User clicked another nub, reset partial selection to Nothing
-        --                                                -- but Fire event to backend, updating graph
-        --                                                Just dimModel ->
-        --                                                    let
-        --                                                        -- NB: Add both directions, manually unpacked here
-        --                                                        newGraph =
-        --                                                            addEdges dimModel.graph [ ( colDesc_, colDesc, Joinable colDesc_ colDesc ), ( colDesc, colDesc_, Joinable colDesc colDesc_ ) ]
-        --                                                    in
-        --                                                    ( Nothing, sendToBackend (UpdateDimensionalModel (UpdateGraph dimModel.ref newGraph)) )
-        --
-        --                                                Nothing ->
-        --                                                    -- degenerate case, we should never get here without having a dim model selected
-        --                                                    ( Nothing, Cmd.none )
-        --
-        --                Nothing ->
-        --                    ( Just colDesc, Cmd.none )
-        --    in
-        --    ( { model | partialEdgeInProgress = newPartialEdge }, Effect.fromCmd cmd )
         MouseEnteredErdCard ref ->
             ( { model | hoveredOnNodeTitle = Just ref }, Effect.none )
 
@@ -707,30 +676,38 @@ view model =
     }
 
 
-assembleErdCardPropsForSingleSource : DimModelDuckDbSourceInfo -> ( DuckDbRefString, ErdSvgNodeProps Msg )
-assembleErdCardPropsForSingleSource info =
+assembleErdCardPropsForSingleSource : Maybe DuckDbRef -> DimensionalModel -> DimModelDuckDbSourceInfo -> ( DuckDbRefString, ErdSvgNodeProps Msg )
+assembleErdCardPropsForSingleSource openedDropDownId dimModel info =
     let
-        ref : DuckDbRef
-        ref =
+        ( ref, colDescs ) =
             case info.assignment of
-                Unassigned ref_ _ ->
+                Unassigned ref_ colDescs_ ->
                     case ref_ of
                         DuckDbTable duckDbRef ->
-                            duckDbRef
+                            ( duckDbRef, colDescs_ )
 
-                Fact ref_ _ ->
+                Fact ref_ colDescs_ ->
                     case ref_ of
                         DuckDbTable duckDbRef ->
-                            duckDbRef
+                            ( duckDbRef, colDescs_ )
 
-                Dimension ref_ _ ->
+                Dimension ref_ colDescs_ ->
                     case ref_ of
                         DuckDbTable duckDbRef ->
-                            duckDbRef
+                            ( duckDbRef, colDescs_ )
 
-        cardDropDownProps : DropDownProps Msg DuckDbRef String
+        isDropDownDrawerOpen : Bool
+        isDropDownDrawerOpen =
+            case openedDropDownId of
+                Nothing ->
+                    False
+
+                Just ddRef ->
+                    ddRef == info.renderInfo.ref
+
+        cardDropDownProps : DropDownProps Msg DuckDbRef Int
         cardDropDownProps =
-            { isOpen = False
+            { isOpen = isDropDownDrawerOpen
             , id = ref
             , widthPx = 45
             , heightPx = 25
@@ -741,7 +718,28 @@ assembleErdCardPropsForSingleSource info =
             , menuBarText = "TEST"
             , options =
                 Dict.fromList
-                    []
+                    [ ( 0
+                      , { displayText = "Unassigned"
+                        , id = 0
+                        , onClick = ClickedErdCardDropdownOption dimModel.ref info.renderInfo.ref (Unassigned (DuckDbTable info.renderInfo.ref) colDescs)
+                        , onHover = KimballNoop__ 0
+                        }
+                      )
+                    , ( 1
+                      , { displayText = "Dimension"
+                        , onClick = ClickedErdCardDropdownOption dimModel.ref info.renderInfo.ref (Dimension (DuckDbTable info.renderInfo.ref) colDescs)
+                        , onHover = KimballNoop__ 1
+                        , id = 1
+                        }
+                      )
+                    , ( 2
+                      , { displayText = "Fact"
+                        , onClick = ClickedErdCardDropdownOption dimModel.ref info.renderInfo.ref (Fact (DuckDbTable info.renderInfo.ref) colDescs)
+                        , onHover = KimballNoop__ 2
+                        , id = 2
+                        }
+                      )
+                    ]
             , hoveredOnOption = Nothing
             }
     in
@@ -764,7 +762,7 @@ viewCanvas model layoutInfo =
     let
         erdCardPropsDict : DimensionalModel -> Dict DuckDbRefString (ErdSvgNodeProps Msg)
         erdCardPropsDict dimModel =
-            Dict.fromList <| List.map (\tblInfo -> assembleErdCardPropsForSingleSource tblInfo) (Dict.values dimModel.tableInfos)
+            Dict.fromList <| List.map (\tblInfo -> assembleErdCardPropsForSingleSource model.openedDropDownId dimModel tblInfo) (Dict.values dimModel.tableInfos)
 
         svgNodes : List (Svg Msg)
         svgNodes =

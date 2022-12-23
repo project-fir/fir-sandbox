@@ -21,7 +21,7 @@ import TypedSvg as S
 import TypedSvg.Attributes as SA
 import TypedSvg.Core as SC exposing (Svg)
 import TypedSvg.Types as ST
-import Ui exposing (ColorTheme, DropDownOption, DropDownOptionId, DropDownProps, button, dropdownMenu, toAvhColor)
+import Ui exposing (ColorTheme, DropDownOption, DropDownProps, button, dropdownMenu, toAvhColor)
 import View exposing (View)
 
 
@@ -154,8 +154,6 @@ type Msg
     | BeginErdCardDrag DuckDb.DuckDbRef
     | ContinueErdCardDrag Event
     | ErdCardDragStopped Event
-    | ErdNoop
-    | ErdNoop_ DuckDbRef
 
 
 update : Msg -> Model -> ( Model, Effect Msg )
@@ -198,43 +196,63 @@ viewDebugInfo model =
         msg2str msg =
             case msg of
                 MouseEnteredErdCard duckDbRef ->
-                    "MouseEnteredErdCard"
+                    "MouseEnteredErdCard " ++ refToString duckDbRef
 
                 MouseLeftErdCard ->
                     "MouseLeftErdCard"
 
                 MouseEnteredErdCardColumnRow duckDbRef duckDbColumnDescription ->
-                    "MouseEnteredErdCardColumnRow"
+                    "MouseEnteredErdCardColumnRow "
+                        ++ refToString duckDbRef
+                        ++ ":"
+                        ++ (case duckDbColumnDescription of
+                                Persisted_ persistedDuckDbColumnDescription ->
+                                    persistedDuckDbColumnDescription.name
+                           )
 
                 ClickedErdCardColumnRow duckDbRef duckDbColumnDescription ->
-                    "ClickedErdCardColumnRow"
+                    "ClickedErdCardColumnRow "
+                        ++ refToString duckDbRef
+                        ++ ":"
+                        ++ (case duckDbColumnDescription of
+                                Persisted_ persistedDuckDbColumnDescription ->
+                                    persistedDuckDbColumnDescription.name
+                           )
 
                 ToggledErdCardDropdown duckDbRef ->
-                    "ToggledErdCardDropdown"
+                    "ToggledErdCardDropdown " ++ refToString duckDbRef
 
                 MouseEnteredErdCardDropdown duckDbRef ->
-                    "MouseEnteredErdCardDropdown"
+                    "MouseEnteredErdCardDropdown " ++ refToString duckDbRef
 
                 MouseLeftErdCardDropdown ->
                     "MouseLeftErdCardDropdown"
 
                 ClickedErdCardDropdownOption dimensionalModelRef duckDbRef kimballAssignment ->
-                    "ClickedErdCardDropdownOption"
+                    "ClickedErdCardDropdownOption "
+                        ++ dimensionalModelRef
+                        ++ " - "
+                        ++ refToString duckDbRef
+                        ++ ": "
+                        ++ (case kimballAssignment of
+                                Unassigned ref columns ->
+                                    "unassigned"
+
+                                Fact ref columns ->
+                                    "fact"
+
+                                Dimension ref columns ->
+                                    "dimension"
+                           )
 
                 BeginErdCardDrag duckDbRef ->
-                    "BeginErdCardDrag"
+                    "BeginErdCardDrag " ++ refToString duckDbRef
 
                 ContinueErdCardDrag event ->
                     "ContinueErdCardDrag"
 
                 ErdCardDragStopped event ->
                     "ErdCardDragStopped"
-
-                ErdNoop ->
-                    "ErdNoop"
-
-                ErdNoop_ duckDbRef ->
-                    "ErdNoop_"
 
         viewMsg : Msg -> Element Msg
         viewMsg msg =
@@ -262,19 +280,23 @@ viewElements model =
     row [ width fill, height fill ]
         [ column
             [ height fill
-            , width (px 800)
+            , width fill
             , padding 5
             , Background.color model.theme.background
             , centerX
             ]
-            [ E.text "Case 1:"
-            , viewCanvas model model.dimModel1
-            , E.text "Case 2:"
-            , viewCanvas model model.dimModel2
-            , E.text "Case 3:"
-            , viewCanvas model model.dimModel3
-            , E.text "Case 4:"
-            , viewCanvas model model.dimModel4
+            [ row [ width fill, height fill ]
+                [ E.text "Case 1:"
+                , viewCanvas model model.dimModel1
+                , E.text "Case 2:"
+                , viewCanvas model model.dimModel2
+                ]
+            , row [ width fill, height fill ]
+                [ E.text "Case 3:"
+                , viewCanvas model model.dimModel3
+                , E.text "Case 4:"
+                , viewCanvas model model.dimModel4
+                ]
             ]
         , column
             [ height fill
@@ -309,7 +331,7 @@ assembleErdCardPropsForSingleSource info =
                         DuckDbTable duckDbRef ->
                             duckDbRef
 
-        cardDropDownProps : DropDownProps Msg DuckDbRef
+        cardDropDownProps : DropDownProps Msg DuckDbRef Int
         cardDropDownProps =
             { isOpen = False
             , id = ref
@@ -343,11 +365,11 @@ viewCanvas r dimModel =
     let
         width_ : number
         width_ =
-            750
+            600
 
         height_ : number
         height_ =
-            575
+            400
 
         erdCardPropsDict : DimensionalModel -> Dict DuckDbRefString (ErdSvgNodeProps Msg)
         erdCardPropsDict dimModel_ =
@@ -366,7 +388,7 @@ viewCanvas r dimModel =
             S.svg
                 [ SA.width (ST.px width_)
                 , SA.height (ST.px height_)
-                , SA.viewBox 0 0 width_ height_
+                , SA.viewBox 0 0 (1.5 * width_) (1.5 * height_)
                 ]
                 (viewErdSvgNodes r (erdCardPropsDict dimModel) dimModel)
 
@@ -566,7 +588,7 @@ type alias ErdSvgNodeProps msg =
     , onBeginErdCardDrag : DuckDbRef -> msg
     , onContinueErdCardDrag : Event -> msg
     , onErdCardDragStopped : Event -> msg
-    , erdCardDropdownMenuProps : DropDownProps msg DuckDbRef
+    , erdCardDropdownMenuProps : DropDownProps msg DuckDbRef Int
     }
 
 

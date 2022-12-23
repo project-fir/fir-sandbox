@@ -1,4 +1,15 @@
-module Ui exposing (ButtonProps, ColorTheme, DropDownOption, DropDownOptionId, DropDownProps, PaletteName(..), button, dropdownMenu, theme, themeOf, toAvhColor)
+module Ui exposing
+    ( ButtonProps
+    , ColorTheme
+    , DropDownOption
+    , DropDownProps
+    , PaletteName(..)
+    , button
+    , dropdownMenu
+    , theme
+    , themeOf
+    , toAvhColor
+    )
 
 import Color as AvhColor
 import Dict exposing (Dict)
@@ -299,10 +310,10 @@ type alias DropDownOption msg drownDownId =
     }
 
 
-dropdownMenu : { r | theme : ColorTheme } -> DropDownProps msg menuId -> Element msg
+dropdownMenu : { r | theme : ColorTheme } -> DropDownProps msg menuId dropdownId -> Element msg
 dropdownMenu r props =
     let
-        menuOption : DropDownOption msg -> Element msg
+        menuOption : DropDownOption msg dropdownId -> Element msg
         menuOption op =
             let
                 bkgdColor : Color

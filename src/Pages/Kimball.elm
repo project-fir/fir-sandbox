@@ -328,7 +328,7 @@ update msg model =
 
                 canvasPanelHeight : Float
                 canvasPanelHeight =
-                    viewPort.viewport.height - 85
+                    viewPort.viewport.height - 75
 
                 layout : LayoutInfo
                 layout =
@@ -784,7 +784,7 @@ viewCanvas model layoutInfo =
             S.svg
                 [ SA.width (ST.px layoutInfo.canvasElementWidth)
                 , SA.height (ST.px layoutInfo.canvasElementHeight)
-                , SA.viewBox 0 0 layoutInfo.canvasElementWidth layoutInfo.canvasElementHeight
+                , SA.viewBox layoutInfo.viewBoxXMin layoutInfo.viewBoxYMin layoutInfo.viewBoxWidth layoutInfo.viewBoxHeight
                 ]
                 svgNodes
 
@@ -881,6 +881,7 @@ viewElements model layoutInfo =
         , centerX
         , centerY
         , Background.color model.theme.deadspace
+        , padding 5
         ]
         [ column
             [ height fill

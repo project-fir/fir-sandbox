@@ -698,22 +698,21 @@ assembleErdCardPropsForSingleSource openedId dimModel info =
 
         cardDropDownProps : DropDownProps Msg DuckDbRef Int
         cardDropDownProps =
-            { isOpen = True
+            { isOpen =
+                case openedId of
+                    Just ref_ ->
+                        ref_ == info.renderInfo.ref
 
-            --case openedId of
-            --    Just ref_ ->
-            --        ref_ == info.renderInfo.ref
-            --
-            --    Nothing ->
-            --        False
+                    Nothing ->
+                        False
             , id = ref
-            , widthPx = 45
+            , widthPx = 75
             , heightPx = 25
             , onDrawerClick = ToggledErdCardDropdown
             , onMenuMouseEnter = KimballNoop_
             , onMenuMouseLeave = KimballNoop
             , isMenuHovered = False
-            , menuBarText = "TEST"
+            , menuBarText = " "
             , options =
                 Dict.fromList
                     [ ( 0

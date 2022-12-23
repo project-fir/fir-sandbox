@@ -60,7 +60,7 @@ type alias Model =
     , dimensionalModelRefs : Evergreen.V56.Bridge.BackendData (List Evergreen.V56.DimensionalModel.DimensionalModelRef)
     , proposedNewModelName : String
     , selectedDimensionalModel : Maybe Evergreen.V56.DimensionalModel.DimensionalModel
-    , openedDropDownId : Maybe Evergreen.V56.DuckDb.DuckDbRef
+    , opened222 : Maybe Evergreen.V56.DuckDb.DuckDbRef
     , inspectedColumn : Maybe Evergreen.V56.DuckDb.DuckDbColumnDescription
     , columnPairingOperation : ColumnPairingOperation
     , downKeys : Set.Set Evergreen.V56.Utils.KeyCode

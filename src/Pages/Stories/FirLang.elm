@@ -74,7 +74,7 @@ type alias TextEditorResult =
 
 type alias Model =
     { editor : Editor
-    , result : Maybe TextEditorResult
+    , evalResult : Maybe String
     , environment : Dict String String
     , theme : ColorTheme
     , debugStr : Maybe String
@@ -120,7 +120,7 @@ init shared =
     in
     ( { editor = newEditor
       , theme = shared.selectedTheme
-      , result = Nothing
+      , evalResult = Nothing
       , debugStr = Nothing
       , environment = Dict.empty
       , viewStyle = Named
@@ -254,18 +254,19 @@ update msg model =
                 results =
                     parse lines
 
-                debugStr =
-                    Just <| Debug.toString results
+                evaledResult : String
+                evaledResult =
+                    evaluate model.viewStyle model.environment lines
 
-                evaluatedReslt =
-                    evaluate model.viewStyle model.environment model.cmdLine
+                --debugStr =
+                --    Just <| Debug.toString evaledResult
             in
             ( { model
                 | editor = newEditor
+                , evalResult = Just evaledResult
 
-                --, result = Just result
-                , result = Nothing
-                , debugStr = debugStr
+                --, debugStr = debugStr
+                , debugStr = Nothing
                 , environment = env
               }
             , Effect.fromCmd <| Cmd.map MyEditorMsg cmd
@@ -328,29 +329,6 @@ viewElements model =
 viewDebugPanel : Model -> Element Msg
 viewDebugPanel model =
     let
-        debugString : String
-        debugString =
-            case model.debugStr of
-                Nothing ->
-                    " "
-
-                Just str ->
-                    str
-
-        resultText : String
-        resultText =
-            case model.result of
-                Just result ->
-                    case result of
-                        Ok value ->
-                            "valid"
-
-                        Err error ->
-                            "error!"
-
-                Nothing ->
-                    "Click into the editor and edit to trigger the parsing"
-
         viewEnvironmentInfoPanel : Dict String String -> Element Msg
         viewEnvironmentInfoPanel env =
             let
@@ -369,22 +347,39 @@ viewDebugPanel model =
                 , firTable model envTableProps
                 ]
 
-        viewResultsInfoPanel : Dict String String -> Element Msg
-        viewResultsInfoPanel results =
-            textColumn []
-                ([ paragraph [ Font.bold ] [ E.text "Results:" ] ]
-                    ++ Dict.values
-                        (Dict.map
-                            (\k v ->
-                                paragraph []
-                                    [ E.text (k ++ ": " ++ v) ]
-                            )
-                            results
-                        )
-                )
+        viewResultsInfoPanel : Maybe String -> Element Msg
+        viewResultsInfoPanel evalResult =
+            column []
+                [ paragraph [ Font.bold ] [ E.text "Eval result:" ]
+                , paragraph []
+                    [ case evalResult of
+                        Nothing ->
+                            E.text " "
+
+                        Just r ->
+                            E.text r
+                    ]
+                ]
+
+        viewDebugStringPanel : Element Msg
+        viewDebugStringPanel =
+            let
+                debugString : String
+                debugString =
+                    case model.debugStr of
+                        Nothing ->
+                            " "
+
+                        Just str ->
+                            str
+            in
+            column []
+                [ paragraph [ Font.bold ] [ E.text "Debug str (local devonly):" ]
+                , paragraph [] [ E.text debugString ]
+                ]
     in
     column
-        [ width (px 200)
+        [ width (px 450)
         , height fill
         , padding 5
         , Border.width 1
@@ -394,10 +389,15 @@ viewDebugPanel model =
         , scrollbarY
         , clipX
         , scrollbarX
+        , spacing 5
         ]
         [ viewEnvironmentInfoPanel model.environment
-        , paragraph [] [ E.text debugString ]
-        , paragraph [] [ E.text resultText ]
+
+        --, paragraph [ clipX ] [ E.text debugString ]
+        --, paragraph [] [ E.text resultText ]
+        , viewResultsInfoPanel model.evalResult
+
+        --, viewDebugStringPanel
         ]
 
 

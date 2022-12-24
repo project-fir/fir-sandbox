@@ -1,6 +1,5 @@
 module Pages.Stories.EntityRelationshipDiagram exposing (ErdSvgNodeProps, Model, Msg, page, viewErdSvgNodes)
 
-import Debug
 import Dict exposing (Dict)
 import DimensionalModel exposing (CardRenderInfo, ColumnGraph, ColumnGraphEdge, DimModelDuckDbSourceInfo, DimensionalModel, DimensionalModelRef, EdgeFamily(..), EdgeLabel(..), KimballAssignment(..), LineSegment, PositionPx, addEdges, addNodes, columnDescFromNodeId, edgesOfFamily, unpackKimballAssignment)
 import DuckDb exposing (DuckDbColumnDescription(..), DuckDbRef, DuckDbRefString, DuckDbRef_(..), refToString, ref_ToString)
@@ -441,12 +440,6 @@ computeLineSegmentsFromSingleEdge graph tableInfos edge =
 
                         Joinable _ rhs ->
                             Just rhs
-
-                _ =
-                    Debug.log <| Debug.toString fromInfo
-
-                _ =
-                    Debug.log <| Debug.toString toInfo
 
                 ( ( x1, y1 ), ( x2, y2 ) ) =
                     if fromInfo.renderInfo.pos.x < toInfo.renderInfo.pos.x then

@@ -91,10 +91,15 @@ text =
 # Note: This demo is designed for keyboard/cursor-based devices, not phones!
 #
 
-\\x.x(\\y.y)(\\z.z)
+# feel free to modify the definitions, note how the table in the right nav changes when you type!
+:let true = \\x.\\y.x
+:let false = \\x.\\y.y
+:let and = \\p.\\q.p q p
+:let or = \\p.\\q.p p q
+:let not = \\p.p (false) true
 
-:let x = 1
-:let y = 2
+
+and true true
 
 """
 

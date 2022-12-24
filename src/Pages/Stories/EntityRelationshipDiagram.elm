@@ -1,5 +1,6 @@
 module Pages.Stories.EntityRelationshipDiagram exposing (ErdSvgNodeProps, Model, Msg, page, viewErdSvgNodes)
 
+import Debug
 import Dict exposing (Dict)
 import DimensionalModel exposing (CardRenderInfo, ColumnGraph, ColumnGraphEdge, DimModelDuckDbSourceInfo, DimensionalModel, DimensionalModelRef, EdgeFamily(..), EdgeLabel(..), KimballAssignment(..), LineSegment, PositionPx, addEdges, addNodes, columnDescFromNodeId, edgesOfFamily, unpackKimballAssignment)
 import DuckDb exposing (DuckDbColumnDescription(..), DuckDbRef, DuckDbRefString, DuckDbRef_(..), refToString, ref_ToString)
@@ -414,40 +415,9 @@ computeLineSegmentsFromSingleEdge graph tableInfos edge =
     let
         compute : DimModelDuckDbSourceInfo -> DimModelDuckDbSourceInfo -> LineSegment
         compute fromInfo toInfo =
+            -- NB: This logic is a bit complex
+            --     Please only change it if you are using this story in an interactive dev session!
             let
-                x1 : Float
-                x1 =
-                    fromInfo.renderInfo.pos.x
-
-                x2 : Float
-                x2 =
-                    toInfo.renderInfo.pos.x
-
-                y1 : Float
-                y1 =
-                    fromInfo.renderInfo.pos.y
-
-                y2 : Float
-                y2 =
-                    toInfo.renderInfo.pos.y
-
-                x1_ : Float
-                x1_ =
-                    if x2 > (x1 + (0.5 * erdCardWidth)) then
-                        -- Move x1 to rhs of card
-                        x1 + erdCardWidth
-
-                    else
-                        x1
-
-                x2_ : Float
-                x2_ =
-                    if x1 > (x2 + (0.5 * erdCardWidth)) || (x2 > x1 + erdCardWidth) then
-                        x2 + erdCardWidth
-
-                    else
-                        x2
-
                 ( _, fromColDescs ) =
                     unpackKimballAssignment fromInfo.assignment
 
@@ -472,6 +442,23 @@ computeLineSegmentsFromSingleEdge graph tableInfos edge =
                         Joinable _ rhs ->
                             Just rhs
 
+                _ =
+                    Debug.log <| Debug.toString fromInfo
+
+                _ =
+                    Debug.log <| Debug.toString toInfo
+
+                ( ( x1, y1 ), ( x2, y2 ) ) =
+                    if fromInfo.renderInfo.pos.x < toInfo.renderInfo.pos.x then
+                        ( ( fromInfo.renderInfo.pos.x, fromInfo.renderInfo.pos.y )
+                        , ( toInfo.renderInfo.pos.x, toInfo.renderInfo.pos.y )
+                        )
+
+                    else
+                        ( ( toInfo.renderInfo.pos.x, toInfo.renderInfo.pos.y )
+                        , ( fromInfo.renderInfo.pos.x, fromInfo.renderInfo.pos.y )
+                        )
+
                 y1Offset : Float
                 y1Offset =
                     toFloat titleBarHeightPx + (columnBarHeightPx * offsetHelper fromColDesc fromColDescs)
@@ -479,9 +466,45 @@ computeLineSegmentsFromSingleEdge graph tableInfos edge =
                 y2Offset : Float
                 y2Offset =
                     toFloat titleBarHeightPx + (columnBarHeightPx * offsetHelper toColDesc toColDescs)
+
+                ( y1Offset_, y2Offset_ ) =
+                    if fromInfo.renderInfo.pos.x < toInfo.renderInfo.pos.x then
+                        ( y1Offset, y2Offset )
+
+                    else
+                        ( y2Offset, y1Offset )
+
+                --x2 : Float
+                --x2 =
+                --    max fromInfo.renderInfo.pos.x toInfo.renderInfo.pos.x
+                --
+                --y1 : Float
+                --y1 =
+                --    fromInfo.renderInfo.pos.y
+                --
+                --y2 : Float
+                --y2 =
+                --    toInfo.renderInfo.pos.y
+                x1_ : Float
+                x1_ =
+                    if x2 > (x1 + (0.5 * erdCardWidth)) then
+                        -- Move x1 to rhs of card
+                        x1 + erdCardWidth
+                        --x1
+
+                    else
+                        x1
+
+                x2_ : Float
+                x2_ =
+                    if x1 > (x2 + (0.5 * erdCardWidth)) || (x2 > x1 + erdCardWidth) then
+                        x2 + erdCardWidth
+
+                    else
+                        x2
             in
-            ( { x = x1_, y = y1 + y1Offset }
-            , { x = x2_, y = y2 + y2Offset }
+            ( { x = x1_ + 0, y = y1 + y1Offset_ }
+            , { x = x2_, y = y2 + y2Offset_ }
             )
 
         tableInfosFromNodeId : NodeId -> Maybe DimModelDuckDbSourceInfo

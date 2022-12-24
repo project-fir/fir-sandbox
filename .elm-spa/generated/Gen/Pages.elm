@@ -15,6 +15,7 @@ import Gen.Params.VegaLite
 import Gen.Params.Stories.Basics
 import Gen.Params.Stories.EntityRelationshipDiagram
 import Gen.Params.Stories.FirLang
+import Gen.Params.Stories.ProcessDag
 import Gen.Params.Stories.TextEditor
 import Gen.Model as Model
 import Gen.Msg as Msg
@@ -32,6 +33,7 @@ import Pages.VegaLite
 import Pages.Stories.Basics
 import Pages.Stories.EntityRelationshipDiagram
 import Pages.Stories.FirLang
+import Pages.Stories.ProcessDag
 import Pages.Stories.TextEditor
 import Request exposing (Request)
 import Shared
@@ -87,6 +89,9 @@ init route =
         Route.Stories__FirLang ->
             pages.stories__firLang.init ()
     
+        Route.Stories__ProcessDag ->
+            pages.stories__processDag.init ()
+    
         Route.Stories__TextEditor ->
             pages.stories__textEditor.init ()
 
@@ -126,6 +131,9 @@ update msg_ model_ =
     
         ( Msg.Stories__FirLang msg, Model.Stories__FirLang params model ) ->
             pages.stories__firLang.update params msg model
+    
+        ( Msg.Stories__ProcessDag msg, Model.Stories__ProcessDag params model ) ->
+            pages.stories__processDag.update params msg model
     
         ( Msg.Stories__TextEditor msg, Model.Stories__TextEditor params model ) ->
             pages.stories__textEditor.update params msg model
@@ -176,6 +184,9 @@ view model_ =
         Model.Stories__FirLang params model ->
             pages.stories__firLang.view params model
     
+        Model.Stories__ProcessDag params model ->
+            pages.stories__processDag.view params model
+    
         Model.Stories__TextEditor params model ->
             pages.stories__textEditor.view params model
 
@@ -222,6 +233,9 @@ subscriptions model_ =
         Model.Stories__FirLang params model ->
             pages.stories__firLang.subscriptions params model
     
+        Model.Stories__ProcessDag params model ->
+            pages.stories__processDag.subscriptions params model
+    
         Model.Stories__TextEditor params model ->
             pages.stories__textEditor.subscriptions params model
 
@@ -243,6 +257,7 @@ pages :
     , stories__basics : Bundle Gen.Params.Stories.Basics.Params Pages.Stories.Basics.Model Pages.Stories.Basics.Msg
     , stories__entityRelationshipDiagram : Bundle Gen.Params.Stories.EntityRelationshipDiagram.Params Pages.Stories.EntityRelationshipDiagram.Model Pages.Stories.EntityRelationshipDiagram.Msg
     , stories__firLang : Bundle Gen.Params.Stories.FirLang.Params Pages.Stories.FirLang.Model Pages.Stories.FirLang.Msg
+    , stories__processDag : Bundle Gen.Params.Stories.ProcessDag.Params Pages.Stories.ProcessDag.Model Pages.Stories.ProcessDag.Msg
     , stories__textEditor : Bundle Gen.Params.Stories.TextEditor.Params Pages.Stories.TextEditor.Model Pages.Stories.TextEditor.Msg
     }
 pages =
@@ -258,6 +273,7 @@ pages =
     , stories__basics = bundle Pages.Stories.Basics.page Model.Stories__Basics Msg.Stories__Basics
     , stories__entityRelationshipDiagram = bundle Pages.Stories.EntityRelationshipDiagram.page Model.Stories__EntityRelationshipDiagram Msg.Stories__EntityRelationshipDiagram
     , stories__firLang = bundle Pages.Stories.FirLang.page Model.Stories__FirLang Msg.Stories__FirLang
+    , stories__processDag = bundle Pages.Stories.ProcessDag.page Model.Stories__ProcessDag Msg.Stories__ProcessDag
     , stories__textEditor = bundle Pages.Stories.TextEditor.page Model.Stories__TextEditor Msg.Stories__TextEditor
     }
 

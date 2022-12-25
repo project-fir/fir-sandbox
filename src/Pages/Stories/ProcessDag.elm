@@ -1,5 +1,6 @@
 module Pages.Stories.ProcessDag exposing (Model, Msg, page)
 
+import DimensionalModel exposing (LineSegment, PositionPx)
 import Effect exposing (Effect)
 import Element as E exposing (..)
 import Element.Background as Background
@@ -9,6 +10,9 @@ import Gen.Params.Stories.ProcessDag exposing (Params)
 import Page
 import Request
 import Shared
+import Simple.Animation as Animation exposing (Animation)
+import Simple.Animation.Animated as Animated
+import Simple.Animation.Property as P
 import TypedSvg as S
 import TypedSvg.Attributes as SA
 import TypedSvg.Core as SC exposing (Svg)
@@ -146,7 +150,58 @@ viewCanvas model =
                 , SA.height (ST.px height_)
                 , SA.viewBox 0 0 width_ height_
                 ]
-                (viewDagSvgNodes model)
+                (svgNodeWithAnimation model :: viewDagSvgNodes model)
+
+
+spinAndSlide : PositionPx -> Animation
+spinAndSlide relativeDestPos =
+    Animation.steps
+        { startAt = [ P.x 0, P.y 0 ]
+        , options = [ Animation.loop ]
+        }
+        [ Animation.step 500 [ P.x relativeDestPos.x, P.y relativeDestPos.y ]
+        , Animation.wait 250
+        ]
+
+
+svgNodeWithAnimation : Model -> Svg msg
+svgNodeWithAnimation model =
+    animatedCircle (spinAndSlide { x = 150, y = 50 }) (Tuple.first (circle model)) (Tuple.second (circle model))
+
+
+circle : { r | theme : ColorTheme } -> ( List (SC.Attribute msg), List (SC.Svg msg) )
+circle model =
+    ( [ SA.x (ST.px 255)
+      , SA.y (ST.px 247)
+      , SA.width (ST.px 100)
+      , SA.height (ST.px 100)
+      , SA.rx (ST.px 15)
+      , SA.stroke (ST.Paint (toAvhColor model.theme.secondary))
+      , SA.fill (ST.Paint (toAvhColor model.theme.white))
+      ]
+    , []
+    )
+
+
+animatedCircle : Animation -> List (SC.Attribute msg) -> List (SC.Svg msg) -> SC.Svg msg
+animatedCircle =
+    animatedTypedSvg S.ellipse
+
+
+animatedTypedSvg :
+    (List (SC.Attribute msg) -> List (SC.Svg msg) -> SC.Svg msg)
+    -> Animation
+    -> List (SC.Attribute msg)
+    -> List (SC.Svg msg)
+    -> SC.Svg msg
+animatedTypedSvg node animation attributes children =
+    Animated.custom
+        (\className stylesheet ->
+            node
+                (SA.class [ className ] :: attributes)
+                (S.style [] [ SC.text stylesheet ] :: children)
+        )
+        animation
 
 
 viewDagSvgNodes : Model -> List (Svg Msg)

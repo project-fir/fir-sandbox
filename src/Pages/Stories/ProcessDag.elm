@@ -150,40 +150,46 @@ viewCanvas model =
                 , SA.height (ST.px height_)
                 , SA.viewBox 0 0 width_ height_
                 ]
-                (svgNodeWithAnimation model ( { x = 150, y = 100 }, { x = 350, y = 200 } )
-                    :: svgNodeWithAnimation model ( { x = 150, y = 300 }, { x = 350, y = 200 } )
-                    :: viewDagSvgNodes model
+                (lineSegmentWithRunner model ( { x = 150, y = 100 }, { x = 350, y = 200 } )
+                    ++ lineSegmentWithRunner model ( { x = 150, y = 300 }, { x = 350, y = 200 } )
+                    ++ viewDagSvgNodes model
                 )
 
 
-runToLoop : LineSegment -> Animation
-runToLoop lineSegment =
+lineSegmentWithRunner : { r | theme : ColorTheme } -> LineSegment -> List (Svg msg)
+lineSegmentWithRunner r lineSegment =
     let
         ( srcPos, destPos ) =
             ( Tuple.first lineSegment, Tuple.second lineSegment )
-    in
-    Animation.steps
-        { startAt = [ P.x srcPos.x, P.y srcPos.y ]
-        , options = [ Animation.loop ]
-        }
-        [ Animation.step 750 [ P.x destPos.x, P.y destPos.y ]
-        , Animation.wait 250
-        ]
 
+        loop =
+            Animation.steps
+                { startAt = [ P.x srcPos.x, P.y srcPos.y ]
+                , options = [ Animation.loop ]
+                }
+                [ Animation.step 750 [ P.x destPos.x, P.y destPos.y ]
+                , Animation.wait 250
+                ]
 
-svgNodeWithAnimation : { r | theme : ColorTheme } -> LineSegment -> Svg msg
-svgNodeWithAnimation r lineSegment =
-    let
-        runnerAnimation : Animation
-        runnerAnimation =
-            runToLoop lineSegment
+        animatedRunner : Svg msg
+        animatedRunner =
+            animatedCircle loop
+                [ SA.rx (ST.px 10)
+                , SA.stroke (ST.Paint (toAvhColor r.theme.primary2))
+                , SA.fill (ST.Paint (toAvhColor r.theme.primary1))
+                ]
+                []
     in
-    animatedCircle runnerAnimation
-        [ SA.rx (ST.px 10)
-        , SA.stroke (ST.Paint (toAvhColor r.theme.primary2))
-        , SA.fill (ST.Paint (toAvhColor r.theme.primary1))
+    [ S.line
+        [ SA.x1 (ST.px srcPos.x)
+        , SA.y1 (ST.px srcPos.y)
+        , SA.x2 (ST.px destPos.x)
+        , SA.y2 (ST.px destPos.y)
+        , SA.stroke (ST.Paint (toAvhColor r.theme.black))
         ]
         []
+    , animatedRunner
+    ]
 
 
 animatedCircle : Animation -> List (SC.Attribute msg) -> List (SC.Svg msg) -> SC.Svg msg
@@ -239,22 +245,15 @@ viewDagSvgNodes model =
         , SA.fill (ST.Paint (toAvhColor model.theme.white))
         ]
         []
-    , S.line
-        [ SA.x1 (ST.px 150)
-        , SA.y1 (ST.px 100)
-        , SA.x2 (ST.px 350)
-        , SA.y2 (ST.px 200)
-        , SA.stroke (ST.Paint (toAvhColor model.theme.black))
-        ]
-        []
-    , S.line
-        [ SA.x1 (ST.px 150)
-        , SA.y1 (ST.px 300)
-        , SA.x2 (ST.px 350)
-        , SA.y2 (ST.px 200)
-        , SA.stroke (ST.Paint (toAvhColor model.theme.black))
-        ]
-        []
+
+    --, S.line
+    --    [ SA.x1 (ST.px 150)
+    --    , SA.y1 (ST.px 300)
+    --    , SA.x2 (ST.px 350)
+    --    , SA.y2 (ST.px 200)
+    --    , SA.stroke (ST.Paint (toAvhColor model.theme.black))
+    --    ]
+    --    []
     ]
 
 

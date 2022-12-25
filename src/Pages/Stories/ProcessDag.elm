@@ -150,7 +150,10 @@ viewCanvas model =
                 , SA.height (ST.px height_)
                 , SA.viewBox 0 0 width_ height_
                 ]
-                (svgNodeWithAnimation model ( { x = 150, y = 100 }, { x = 350, y = 200 } ) :: viewDagSvgNodes model)
+                (svgNodeWithAnimation model ( { x = 150, y = 100 }, { x = 350, y = 200 } )
+                    :: svgNodeWithAnimation model ( { x = 150, y = 300 }, { x = 350, y = 200 } )
+                    :: viewDagSvgNodes model
+                )
 
 
 runToLoop : LineSegment -> Animation
@@ -168,28 +171,19 @@ runToLoop lineSegment =
         ]
 
 
-svgNodeWithAnimation : Model -> LineSegment -> Svg msg
-svgNodeWithAnimation model lineSegment =
+svgNodeWithAnimation : { r | theme : ColorTheme } -> LineSegment -> Svg msg
+svgNodeWithAnimation r lineSegment =
     let
         runnerAnimation : Animation
         runnerAnimation =
             runToLoop lineSegment
     in
-    animatedCircle runnerAnimation (Tuple.first (circle model)) (Tuple.second (circle model))
-
-
-circle : { r | theme : ColorTheme } -> ( List (SC.Attribute msg), List (SC.Svg msg) )
-circle r =
-    ( [ SA.x (ST.px 255)
-      , SA.y (ST.px 247)
-      , SA.width (ST.px 100)
-      , SA.height (ST.px 100)
-      , SA.rx (ST.px 15)
-      , SA.stroke (ST.Paint (toAvhColor r.theme.secondary))
-      , SA.fill (ST.Paint (toAvhColor r.theme.white))
-      ]
-    , []
-    )
+    animatedCircle runnerAnimation
+        [ SA.rx (ST.px 10)
+        , SA.stroke (ST.Paint (toAvhColor r.theme.primary2))
+        , SA.fill (ST.Paint (toAvhColor r.theme.primary1))
+        ]
+        []
 
 
 animatedCircle : Animation -> List (SC.Attribute msg) -> List (SC.Svg msg) -> SC.Svg msg
@@ -259,24 +253,6 @@ viewDagSvgNodes model =
         , SA.x2 (ST.px 350)
         , SA.y2 (ST.px 200)
         , SA.stroke (ST.Paint (toAvhColor model.theme.black))
-        ]
-        []
-    , S.ellipse
-        [ SA.cx (ST.px 150)
-        , SA.cy (ST.px 300)
-        , SA.rx (ST.px 10)
-        , SA.ry (ST.px 10)
-        , SA.fill (ST.Paint (toAvhColor model.theme.primary1))
-        , SA.stroke (ST.Paint (toAvhColor model.theme.primary2))
-        ]
-        []
-    , S.ellipse
-        [ SA.cx (ST.px 150)
-        , SA.cy (ST.px 100)
-        , SA.rx (ST.px 10)
-        , SA.ry (ST.px 10)
-        , SA.fill (ST.Paint (toAvhColor model.theme.primary1))
-        , SA.stroke (ST.Paint (toAvhColor model.theme.primary2))
         ]
         []
     ]

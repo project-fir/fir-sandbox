@@ -153,39 +153,48 @@ viewCanvas model =
                 (svgNodeWithAnimation model :: viewDagSvgNodes model)
 
 
-spinAndSlide : PositionPx -> Animation
-spinAndSlide relativeDestPos =
+runToLoop : LineSegment -> Animation
+runToLoop lineSegment =
+    let
+        ( srcPos, destPos ) =
+            ( Tuple.first lineSegment, Tuple.second lineSegment )
+    in
     Animation.steps
-        { startAt = [ P.x 0, P.y 0 ]
+        { startAt = [ P.x srcPos.x, P.y srcPos.y ]
         , options = [ Animation.loop ]
         }
-        [ Animation.step 500 [ P.x relativeDestPos.x, P.y relativeDestPos.y ]
+        [ Animation.step 750 [ P.x destPos.x, P.y destPos.y ]
         , Animation.wait 250
         ]
 
 
 svgNodeWithAnimation : Model -> Svg msg
 svgNodeWithAnimation model =
-    animatedCircle (spinAndSlide { x = 150, y = 50 }) (Tuple.first (circle model)) (Tuple.second (circle model))
+    let
+        runnerAnimation : Animation
+        runnerAnimation =
+            runToLoop ( { x = 150, y = 50 }, { x = 550, y = 143 } )
+    in
+    animatedCircle runnerAnimation (Tuple.first (circle model)) (Tuple.second (circle model))
 
 
 circle : { r | theme : ColorTheme } -> ( List (SC.Attribute msg), List (SC.Svg msg) )
-circle model =
+circle r =
     ( [ SA.x (ST.px 255)
       , SA.y (ST.px 247)
       , SA.width (ST.px 100)
       , SA.height (ST.px 100)
       , SA.rx (ST.px 15)
-      , SA.stroke (ST.Paint (toAvhColor model.theme.secondary))
-      , SA.fill (ST.Paint (toAvhColor model.theme.white))
+      , SA.stroke (ST.Paint (toAvhColor r.theme.secondary))
+      , SA.fill (ST.Paint (toAvhColor r.theme.white))
       ]
     , []
     )
 
 
 animatedCircle : Animation -> List (SC.Attribute msg) -> List (SC.Svg msg) -> SC.Svg msg
-animatedCircle =
-    animatedTypedSvg S.ellipse
+animatedCircle animation =
+    animatedTypedSvg S.ellipse animation
 
 
 animatedTypedSvg :

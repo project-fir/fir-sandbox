@@ -298,7 +298,7 @@ subscriptions model =
 
 view : Model -> View Msg
 view model =
-    { title = "Story - Fir Lang"
+    { title = "Story | FirLang"
     , body = viewElements model
     }
 

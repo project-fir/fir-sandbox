@@ -1,18 +1,26 @@
 module Pages.Stories.ProcessDag exposing (Model, Msg, page)
 
 import Effect exposing (Effect)
+import Element as E exposing (..)
+import Element.Background as Background
+import Element.Border as Border
+import Element.Font as Font
 import Gen.Params.Stories.ProcessDag exposing (Params)
 import Page
 import Request
 import Shared
+import TypedSvg as S
+import TypedSvg.Attributes as SA
+import TypedSvg.Core as SC exposing (Svg)
+import TypedSvg.Types as ST
+import Ui exposing (ColorTheme, toAvhColor)
 import View exposing (View)
-import Page
 
 
 page : Shared.Model -> Request.With Params -> Page.With Model Msg
-page shared req =
+page shared _ =
     Page.advanced
-        { init = init
+        { init = init shared
         , update = update
         , view = view
         , subscriptions = subscriptions
@@ -24,13 +32,18 @@ page shared req =
 
 
 type alias Model =
-    {}
+    { theme : ColorTheme
+    }
 
 
-init : ( Model, Effect Msg )
-init =
-    ( {
-    }, Effect.none )
+init : Shared.Model -> ( Model, Effect Msg )
+init shared =
+    ( { theme = shared.selectedTheme
+      }
+    , Effect.none
+    )
+
+
 
 -- UPDATE
 
@@ -61,11 +74,171 @@ subscriptions model =
 
 view : Model -> View Msg
 view model =
-    View.placeholder "Stories.ProcessDag"
+    { title = "Story | Process DAG"
+    , body = el [ width fill, height fill, Background.color model.theme.deadspace, padding 5 ] <| viewElements model
+    }
+
+
+viewDebugInfo : Model -> Element Msg
+viewDebugInfo model =
+    textColumn
+        [ paddingXY 0 5
+        , clipY
+        , scrollbarY
+        , height fill
+        , Border.width 1
+        , width fill
+        , clipX
+        , Border.color model.theme.black
+        ]
+    <|
+        [ paragraph [ Font.bold, Font.size 24 ] [ E.text "Debug info:" ]
+        ]
+
+
+viewElements : Model -> Element Msg
+viewElements model =
+    row [ width fill, height fill ]
+        [ column
+            [ height fill
+            , width fill
+            , padding 5
+            , Background.color model.theme.background
+            , centerX
+            ]
+            [ viewCanvas model
+            ]
+        , column
+            [ height fill
+            , width (px 250)
+            , padding 5
+            , Background.color model.theme.background
+            , centerX
+            ]
+            [ viewDebugInfo model
+            ]
+        ]
+
+
+viewCanvas : Model -> Element Msg
+viewCanvas model =
+    let
+        width_ : number
+        width_ =
+            600
+
+        height_ : number
+        height_ =
+            400
+    in
+    el
+        [ Border.width 1
+        , Border.color model.theme.black
+        , Border.rounded 5
+        , Background.color model.theme.background
+        , centerX
+        , centerY
+        ]
+    <|
+        E.html <|
+            S.svg
+                [ SA.width (ST.px width_)
+                , SA.height (ST.px height_)
+                , SA.viewBox 0 0 width_ height_
+                ]
+                (viewDagSvgNodes model)
+
+
+viewDagSvgNodes : Model -> List (Svg Msg)
+viewDagSvgNodes model =
+    [ S.rect
+        [ SA.x (ST.px 50)
+        , SA.y (ST.px 50)
+        , SA.width (ST.px 100)
+        , SA.height (ST.px 100)
+        , SA.rx (ST.px 15)
+        , SA.stroke (ST.Paint (toAvhColor model.theme.secondary))
+        , SA.fill (ST.Paint (toAvhColor model.theme.white))
+        ]
+        []
+    , S.rect
+        [ SA.x (ST.px 50)
+        , SA.y (ST.px 250)
+        , SA.width (ST.px 100)
+        , SA.height (ST.px 100)
+        , SA.rx (ST.px 15)
+        , SA.stroke (ST.Paint (toAvhColor model.theme.secondary))
+        , SA.fill (ST.Paint (toAvhColor model.theme.white))
+        ]
+        []
+    , S.rect
+        [ SA.x (ST.px 350)
+        , SA.y (ST.px 150)
+        , SA.width (ST.px 100)
+        , SA.height (ST.px 100)
+        , SA.rx (ST.px 15)
+        , SA.stroke (ST.Paint (toAvhColor model.theme.secondary))
+        , SA.fill (ST.Paint (toAvhColor model.theme.white))
+        ]
+        []
+    , S.line
+        [ SA.x1 (ST.px 150)
+        , SA.y1 (ST.px 100)
+        , SA.x2 (ST.px 350)
+        , SA.y2 (ST.px 200)
+        , SA.stroke (ST.Paint (toAvhColor model.theme.black))
+        ]
+        []
+    , S.line
+        [ SA.x1 (ST.px 150)
+        , SA.y1 (ST.px 300)
+        , SA.x2 (ST.px 350)
+        , SA.y2 (ST.px 200)
+        , SA.stroke (ST.Paint (toAvhColor model.theme.black))
+        ]
+        []
+    , S.ellipse
+        [ SA.cx (ST.px 150)
+        , SA.cy (ST.px 300)
+        , SA.rx (ST.px 10)
+        , SA.ry (ST.px 10)
+        , SA.fill (ST.Paint (toAvhColor model.theme.primary1))
+        , SA.stroke (ST.Paint (toAvhColor model.theme.primary2))
+        ]
+        []
+    , S.ellipse
+        [ SA.cx (ST.px 150)
+        , SA.cy (ST.px 100)
+        , SA.rx (ST.px 10)
+        , SA.ry (ST.px 10)
+        , SA.fill (ST.Paint (toAvhColor model.theme.primary1))
+        , SA.stroke (ST.Paint (toAvhColor model.theme.primary2))
+        ]
+        []
+    ]
 
 
 
-"""
+-- begin region: ERD Card constants
+-- NB: These constants are shared among several functions in this story, but are not intended to be exposed
+--     if you think you need to expose, I recommend first trying to implement the functionality in this module
+-- end region: ERD Card constants
+-- begin region: exposed UI components
+
+
+type alias ProcessDagProps =
+    { id : String
+    }
+
+
+
+-- end region: exposed UI components
+-- begin region: non-exposed UI components
+-- end region: non-exposed UI components
+
+
+s =
+    """
 Process Dag
 
 What do I mean by a process dag?
@@ -150,21 +323,4 @@ facts:
  * product is shipped to store
  * product sells, maybe
  * product collect dust
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 """

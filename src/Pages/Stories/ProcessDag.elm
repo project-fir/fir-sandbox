@@ -150,7 +150,7 @@ viewCanvas model =
                 , SA.height (ST.px height_)
                 , SA.viewBox 0 0 width_ height_
                 ]
-                (svgNodeWithAnimation model :: viewDagSvgNodes model)
+                (svgNodeWithAnimation model ( { x = 150, y = 100 }, { x = 350, y = 200 } ) :: viewDagSvgNodes model)
 
 
 runToLoop : LineSegment -> Animation
@@ -168,12 +168,12 @@ runToLoop lineSegment =
         ]
 
 
-svgNodeWithAnimation : Model -> Svg msg
-svgNodeWithAnimation model =
+svgNodeWithAnimation : Model -> LineSegment -> Svg msg
+svgNodeWithAnimation model lineSegment =
     let
         runnerAnimation : Animation
         runnerAnimation =
-            runToLoop ( { x = 150, y = 50 }, { x = 550, y = 143 } )
+            runToLoop lineSegment
     in
     animatedCircle runnerAnimation (Tuple.first (circle model)) (Tuple.second (circle model))
 

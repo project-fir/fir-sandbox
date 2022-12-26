@@ -1,6 +1,5 @@
 module Pages.Stories.ProcessDag exposing (Model, Msg, page)
 
-import Dict exposing (Dict)
 import DimensionalModel exposing (LineSegment, Position)
 import Effect exposing (Effect)
 import Element as E exposing (..)
@@ -331,35 +330,12 @@ viewDagSvgNodes model =
         , SA.fill (ST.Paint (toAvhColor model.theme.white))
         ]
         []
-
-    --, S.line
-    --    [ SA.x1 (ST.px 150)
-    --    , SA.y1 (ST.px 300)
-    --    , SA.x2 (ST.px 350)
-    --    , SA.y2 (ST.px 200)
-    --    , SA.stroke (ST.Paint (toAvhColor model.theme.black))
-    --    ]
-    --    []
     ]
-
-
-
--- begin region: ERD Card constants
--- NB: These constants are shared among several functions in this story, but are not intended to be exposed
---     if you think you need to expose, I recommend first trying to implement the functionality in this module
--- end region: ERD Card constants
--- begin region: exposed UI components
 
 
 type alias ProcessDagProps =
     { id : String
     }
-
-
-
--- end region: exposed UI components
--- begin region: non-exposed UI components
--- end region: non-exposed UI components
 
 
 s =

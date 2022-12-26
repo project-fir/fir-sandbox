@@ -4,7 +4,7 @@ import Bridge exposing (BackendData(..), BackendErrorMessage, DimensionalModelUp
 import Browser.Dom
 import Browser.Events as BE
 import Dict exposing (Dict)
-import DimensionalModel exposing (CardRenderInfo, DimModelDuckDbSourceInfo, DimensionalModel, DimensionalModelRef, EdgeFamily(..), EdgeLabel(..), KimballAssignment(..), PositionPx, addEdge, addEdges, edge2Str, edgesOfFamily)
+import DimensionalModel exposing (CardRenderInfo, DimModelDuckDbSourceInfo, DimensionalModel, DimensionalModelRef, EdgeFamily(..), EdgeLabel(..), KimballAssignment(..), Position, addEdge, addEdges, edge2Str, edgesOfFamily)
 import DuckDb exposing (ColumnName, DuckDbColumn, DuckDbColumnDescription(..), DuckDbRef, DuckDbRefString, DuckDbRef_(..), PersistedDuckDbColumnDescription, fetchDuckDbTableRefs, refEquals, refToString)
 import Effect exposing (Effect)
 import Element as E exposing (..)
@@ -480,7 +480,7 @@ update msg model =
                             case model.selectedDimensionalModel of
                                 Just dimModel ->
                                     let
-                                        newPos : Maybe PositionPx
+                                        newPos : Maybe Position
                                         newPos =
                                             case Dict.get (refToString ref_) dimModel.tableInfos of
                                                 Just info ->

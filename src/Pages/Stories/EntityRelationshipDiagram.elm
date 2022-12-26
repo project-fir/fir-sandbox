@@ -1,7 +1,7 @@
 module Pages.Stories.EntityRelationshipDiagram exposing (ErdSvgNodeProps, Model, Msg, page, viewErdSvgNodes)
 
 import Dict exposing (Dict)
-import DimensionalModel exposing (CardRenderInfo, ColumnGraph, ColumnGraphEdge, DimModelDuckDbSourceInfo, DimensionalModel, DimensionalModelRef, EdgeFamily(..), EdgeLabel(..), KimballAssignment(..), LineSegment, PositionPx, addEdges, addNodes, columnDescFromNodeId, edgesOfFamily, unpackKimballAssignment)
+import DimensionalModel exposing (CardRenderInfo, ColumnGraph, ColumnGraphEdge, DimModelDuckDbSourceInfo, DimensionalModel, DimensionalModelRef, EdgeFamily(..), EdgeLabel(..), KimballAssignment(..), LineSegment, Position, addEdges, addNodes, columnDescFromNodeId, edgesOfFamily, unpackKimballAssignment)
 import DuckDb exposing (DuckDbColumnDescription(..), DuckDbRef, DuckDbRefString, DuckDbRef_(..), refToString, ref_ToString)
 import Effect exposing (Effect)
 import Element as E exposing (..)
@@ -97,7 +97,7 @@ init shared =
                 , ( rhs, lhs, Joinable rhs lhs )
                 ]
 
-        assembleDimModel : PositionPx -> PositionPx -> DimensionalModel
+        assembleDimModel : Position -> Position -> DimensionalModel
         assembleDimModel p1 p2 =
             { graph = graphStep2
             , ref = "story_dim_model"
@@ -548,7 +548,7 @@ viewLines r dimModel =
         joinables =
             edgesOfFamily dimModel.graph Joinable_
 
-        coords : List ( PositionPx, PositionPx )
+        coords : List ( Position, Position )
         coords =
             computeLineSegmentsFromEdges dimModel.graph dimModel.tableInfos joinables
 

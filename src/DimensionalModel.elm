@@ -11,7 +11,7 @@ module DimensionalModel exposing
     , JoinableEdge
     , KimballAssignment(..)
     , LineSegment
-    , PositionPx
+    , Position
     , addEdge
     , addEdges
     , addNode
@@ -32,17 +32,17 @@ import IntDict
 
 
 type alias LineSegment =
-    ( PositionPx, PositionPx )
+    ( Position, Position )
 
 
-type alias PositionPx =
+type alias Position =
     { x : Float
     , y : Float
     }
 
 
 type alias CardRenderInfo =
-    { pos : PositionPx
+    { pos : Position
     , ref : DuckDb.DuckDbRef
     , isDrawerOpen : Bool
     }

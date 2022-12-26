@@ -1,7 +1,7 @@
 module DimensionalModelTest exposing (..)
 
 import Dict
-import DimensionalModel exposing (ColumnGraphEdge, DimModelDuckDbSourceInfo, DimensionalModel, EdgeLabel(..), KimballAssignment(..), PositionPx)
+import DimensionalModel exposing (ColumnGraphEdge, DimModelDuckDbSourceInfo, DimensionalModel, EdgeLabel(..), KimballAssignment(..), Position)
 import DuckDb exposing (DuckDbColumnDescription(..), DuckDbRef, DuckDbRefString, DuckDbRef_(..), refEquals, refToString)
 import Graph exposing (Edge, Node)
 import Utils exposing (cartesian)
@@ -22,7 +22,7 @@ import Utils exposing (cartesian)
 --        ]
 
 
-defaultPos : PositionPx
+defaultPos : Position
 defaultPos =
     -- NB: Positions shouldn't matter for things tested in these tests, so assigning
     --     all cards to be rendered to the same point shouldn't matter.

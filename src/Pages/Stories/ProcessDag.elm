@@ -1,6 +1,7 @@
 module Pages.Stories.ProcessDag exposing (Model, Msg, page)
 
-import DimensionalModel exposing (LineSegment, PositionPx)
+import Dict exposing (Dict)
+import DimensionalModel exposing (LineSegment, Position)
 import Effect exposing (Effect)
 import Element as E exposing (..)
 import Element.Background as Background
@@ -79,7 +80,15 @@ subscriptions model =
 view : Model -> View Msg
 view model =
     { title = "Story | Process DAG"
-    , body = el [ width fill, height fill, Background.color model.theme.deadspace, padding 5 ] <| viewElements model
+    , body =
+        el
+            [ width fill
+            , height fill
+            , Background.color model.theme.deadspace
+            , padding 5
+            ]
+        <|
+            viewElements model
     }
 
 
@@ -124,6 +133,79 @@ viewElements model =
         ]
 
 
+processRect : { r | theme : ColorTheme } -> Position -> Svg msg
+processRect r pos =
+    let
+        w =
+            250
+
+        h =
+            150
+
+        rad =
+            15
+    in
+    S.rect
+        [ SA.x (ST.px pos.x)
+        , SA.y (ST.px pos.y)
+        , SA.width (ST.px w)
+        , SA.height (ST.px h)
+        , SA.rx (ST.px rad)
+        , SA.stroke (ST.Paint (toAvhColor r.theme.secondary))
+        , SA.fill (ST.Paint (toAvhColor r.theme.white))
+        ]
+        []
+
+
+dagChildrenList : List ( Position, LineSegment )
+dagChildrenList =
+    []
+
+
+dag : DagNode DagNodeInfo
+dag =
+    DagNode
+        { data =
+            { name = "node_1"
+            , pos = { x = 100, y = 100 }
+            }
+        , children =
+            [ DagNode
+                { data =
+                    { name = "node_2"
+                    , pos = { x = 200, y = 200 }
+                    }
+                , children =
+                    [ DagNode
+                        { data =
+                            { name = "node_3"
+                            , pos = { x = 300, y = 300 }
+                            }
+                        , children = []
+                        }
+                    ]
+                }
+            , DagNode
+                { data =
+                    { name = "node_4"
+                    , pos = { x = 400, y = 400 }
+                    }
+                , children = []
+                }
+            ]
+        }
+
+
+type DagNode d
+    = DagNode { data : d, children : List (DagNode d) }
+
+
+type alias DagNodeInfo =
+    { name : String
+    , pos : Position
+    }
+
+
 viewCanvas : Model -> Element Msg
 viewCanvas model =
     let
@@ -143,21 +225,21 @@ viewCanvas model =
         , centerX
         , centerY
         ]
-    <|
-        E.html <|
+        (E.html <|
             S.svg
                 [ SA.width (ST.px width_)
                 , SA.height (ST.px height_)
                 , SA.viewBox 0 0 width_ height_
                 ]
-                (lineSegmentWithRunner model ( { x = 150, y = 100 }, { x = 350, y = 200 } )
-                    ++ lineSegmentWithRunner model ( { x = 150, y = 300 }, { x = 350, y = 200 } )
+                (lineSegmentWithRunner model ( { x = 150, y = 100 }, { x = 350, y = 200 } ) 10 0
+                    ++ lineSegmentWithRunner model ( { x = 150, y = 300 }, { x = 350, y = 200 } ) 10 0
                     ++ viewDagSvgNodes model
                 )
+        )
 
 
-lineSegmentWithRunner : { r | theme : ColorTheme } -> LineSegment -> List (Svg msg)
-lineSegmentWithRunner r lineSegment =
+lineSegmentWithRunner : { r | theme : ColorTheme } -> LineSegment -> Float -> Int -> List (Svg msg)
+lineSegmentWithRunner r lineSegment runnerRadius delayMs =
     let
         ( srcPos, destPos ) =
             ( Tuple.first lineSegment, Tuple.second lineSegment )
@@ -167,14 +249,15 @@ lineSegmentWithRunner r lineSegment =
                 { startAt = [ P.x srcPos.x, P.y srcPos.y ]
                 , options = [ Animation.loop ]
                 }
-                [ Animation.step 750 [ P.x destPos.x, P.y destPos.y ]
-                , Animation.wait 250
+                [ Animation.wait delayMs
+                , Animation.step 750 [ P.x destPos.x, P.y destPos.y ]
+                , Animation.wait 100
                 ]
 
         animatedRunner : Svg msg
         animatedRunner =
-            animatedCircle loop
-                [ SA.rx (ST.px 10)
+            animatedEllipse loop
+                [ SA.rx (ST.px runnerRadius)
                 , SA.stroke (ST.Paint (toAvhColor r.theme.primary2))
                 , SA.fill (ST.Paint (toAvhColor r.theme.primary1))
                 ]
@@ -192,18 +275,21 @@ lineSegmentWithRunner r lineSegment =
     ]
 
 
-animatedCircle : Animation -> List (SC.Attribute msg) -> List (SC.Svg msg) -> SC.Svg msg
-animatedCircle animation =
-    animatedTypedSvg S.ellipse animation
+animatedEllipse : Animation -> List (SC.Attribute msg) -> List (SC.Svg msg) -> SC.Svg msg
+animatedEllipse animation =
+    typedSvgAnimationHelper S.ellipse animation
 
 
-animatedTypedSvg :
+typedSvgAnimationHelper :
     (List (SC.Attribute msg) -> List (SC.Svg msg) -> SC.Svg msg)
     -> Animation
     -> List (SC.Attribute msg)
     -> List (SC.Svg msg)
     -> SC.Svg msg
-animatedTypedSvg node animation attributes children =
+typedSvgAnimationHelper node animation attributes children =
+    -- Stare at this function signature long enough, and it'll actually start to make sense
+    -- however, I discourage direct usage of this, see the functions "animated<shape>", where <shape>
+    -- is line, rect, ellipse, etc.
     Animated.custom
         (\className stylesheet ->
             node

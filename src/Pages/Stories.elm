@@ -59,6 +59,13 @@ elements =
                     ]
                 , paragraph []
                     [ link [ Font.color theme.link ]
+                        { url = "/stories/process-dag"
+                        , label = text "/process-dag"
+                        }
+                    , E.text " - story for process dag animations"
+                    ]
+                , paragraph []
+                    [ link [ Font.color theme.link ]
                         { url = "/stories/text-editor"
                         , label = text "/text-editor"
                         }

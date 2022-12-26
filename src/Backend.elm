@@ -2,7 +2,7 @@ module Backend exposing (..)
 
 import Bridge exposing (BackendErrorMessage, DeliveryEnvelope(..), DimensionalModelUpdate(..), DuckDbCache, DuckDbCache_(..), DuckDbMetaDataCacheEntry, ToBackend(..), defaultColdCache)
 import Dict exposing (Dict)
-import DimensionalModel exposing (CardRenderInfo, ColumnGraphEdge, DimModelDuckDbSourceInfo, DimensionalModel, DimensionalModelRef, EdgeLabel(..), KimballAssignment(..), PositionPx, addEdges, addNodes)
+import DimensionalModel exposing (CardRenderInfo, ColumnGraphEdge, DimModelDuckDbSourceInfo, DimensionalModel, DimensionalModelRef, EdgeLabel(..), KimballAssignment(..), Position, addEdges, addNodes)
 import DuckDb exposing (DuckDbColumnDescription, DuckDbRef, DuckDbRefString, DuckDbRef_(..), fetchDuckDbTableRefs, pingServer, queryDuckDbMeta, refToString, taskBuildDateDimTable)
 import Graph
 import Lamdera exposing (ClientId, SessionId, broadcast, sendToFrontend)

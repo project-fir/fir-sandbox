@@ -4,8 +4,13 @@ services:
   elm-test-rs:
     image: gcr.io/fir-sandbox-326008/lamdera-ci:latest
     command: ./.cloudbuild/bin/elm-test-rs
-#    image: lamdera-ci:local
-#    command: bash
+    working_dir: /build
+    networks:
+      - lamdera-ci-network
+
+  lamdera-check:
+    image: gcr.io/fir-sandbox-326008/lamdera-ci:latest
+    command: lamdera check
     working_dir: /build
     networks:
       - lamdera-ci-network

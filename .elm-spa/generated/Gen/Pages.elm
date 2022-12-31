@@ -13,10 +13,10 @@ import Gen.Params.Sheet
 import Gen.Params.Stories
 import Gen.Params.VegaLite
 import Gen.Params.Stories.Basics
+import Gen.Params.Stories.DuckdbClient
 import Gen.Params.Stories.EntityRelationshipDiagram
 import Gen.Params.Stories.FirLang
 import Gen.Params.Stories.ProcessDag
-import Gen.Params.Stories.TextEditor
 import Gen.Model as Model
 import Gen.Msg as Msg
 import Gen.Route as Route exposing (Route)
@@ -31,10 +31,10 @@ import Pages.Sheet
 import Pages.Stories
 import Pages.VegaLite
 import Pages.Stories.Basics
+import Pages.Stories.DuckdbClient
 import Pages.Stories.EntityRelationshipDiagram
 import Pages.Stories.FirLang
 import Pages.Stories.ProcessDag
-import Pages.Stories.TextEditor
 import Request exposing (Request)
 import Shared
 import Task
@@ -83,6 +83,9 @@ init route =
         Route.Stories__Basics ->
             pages.stories__basics.init ()
     
+        Route.Stories__DuckdbClient ->
+            pages.stories__duckdbClient.init ()
+    
         Route.Stories__EntityRelationshipDiagram ->
             pages.stories__entityRelationshipDiagram.init ()
     
@@ -91,9 +94,6 @@ init route =
     
         Route.Stories__ProcessDag ->
             pages.stories__processDag.init ()
-    
-        Route.Stories__TextEditor ->
-            pages.stories__textEditor.init ()
 
 
 update : Msg -> Model -> Shared.Model -> Url -> Key -> ( Model, Effect Msg )
@@ -126,6 +126,9 @@ update msg_ model_ =
         ( Msg.Stories__Basics msg, Model.Stories__Basics params model ) ->
             pages.stories__basics.update params msg model
     
+        ( Msg.Stories__DuckdbClient msg, Model.Stories__DuckdbClient params model ) ->
+            pages.stories__duckdbClient.update params msg model
+    
         ( Msg.Stories__EntityRelationshipDiagram msg, Model.Stories__EntityRelationshipDiagram params model ) ->
             pages.stories__entityRelationshipDiagram.update params msg model
     
@@ -134,9 +137,6 @@ update msg_ model_ =
     
         ( Msg.Stories__ProcessDag msg, Model.Stories__ProcessDag params model ) ->
             pages.stories__processDag.update params msg model
-    
-        ( Msg.Stories__TextEditor msg, Model.Stories__TextEditor params model ) ->
-            pages.stories__textEditor.update params msg model
 
         _ ->
             \_ _ _ -> ( model_, Effect.none )
@@ -178,6 +178,9 @@ view model_ =
         Model.Stories__Basics params model ->
             pages.stories__basics.view params model
     
+        Model.Stories__DuckdbClient params model ->
+            pages.stories__duckdbClient.view params model
+    
         Model.Stories__EntityRelationshipDiagram params model ->
             pages.stories__entityRelationshipDiagram.view params model
     
@@ -186,9 +189,6 @@ view model_ =
     
         Model.Stories__ProcessDag params model ->
             pages.stories__processDag.view params model
-    
-        Model.Stories__TextEditor params model ->
-            pages.stories__textEditor.view params model
 
 
 subscriptions : Model -> Shared.Model -> Url -> Key -> Sub Msg
@@ -227,6 +227,9 @@ subscriptions model_ =
         Model.Stories__Basics params model ->
             pages.stories__basics.subscriptions params model
     
+        Model.Stories__DuckdbClient params model ->
+            pages.stories__duckdbClient.subscriptions params model
+    
         Model.Stories__EntityRelationshipDiagram params model ->
             pages.stories__entityRelationshipDiagram.subscriptions params model
     
@@ -235,9 +238,6 @@ subscriptions model_ =
     
         Model.Stories__ProcessDag params model ->
             pages.stories__processDag.subscriptions params model
-    
-        Model.Stories__TextEditor params model ->
-            pages.stories__textEditor.subscriptions params model
 
 
 
@@ -255,10 +255,10 @@ pages :
     , stories : Static Gen.Params.Stories.Params
     , vegaLite : Bundle Gen.Params.VegaLite.Params Pages.VegaLite.Model Pages.VegaLite.Msg
     , stories__basics : Bundle Gen.Params.Stories.Basics.Params Pages.Stories.Basics.Model Pages.Stories.Basics.Msg
+    , stories__duckdbClient : Bundle Gen.Params.Stories.DuckdbClient.Params Pages.Stories.DuckdbClient.Model Pages.Stories.DuckdbClient.Msg
     , stories__entityRelationshipDiagram : Bundle Gen.Params.Stories.EntityRelationshipDiagram.Params Pages.Stories.EntityRelationshipDiagram.Model Pages.Stories.EntityRelationshipDiagram.Msg
     , stories__firLang : Bundle Gen.Params.Stories.FirLang.Params Pages.Stories.FirLang.Model Pages.Stories.FirLang.Msg
     , stories__processDag : Bundle Gen.Params.Stories.ProcessDag.Params Pages.Stories.ProcessDag.Model Pages.Stories.ProcessDag.Msg
-    , stories__textEditor : Bundle Gen.Params.Stories.TextEditor.Params Pages.Stories.TextEditor.Model Pages.Stories.TextEditor.Msg
     }
 pages =
     { admin = bundle Pages.Admin.page Model.Admin Msg.Admin
@@ -271,10 +271,10 @@ pages =
     , stories = static Pages.Stories.view Model.Stories
     , vegaLite = bundle Pages.VegaLite.page Model.VegaLite Msg.VegaLite
     , stories__basics = bundle Pages.Stories.Basics.page Model.Stories__Basics Msg.Stories__Basics
+    , stories__duckdbClient = bundle Pages.Stories.DuckdbClient.page Model.Stories__DuckdbClient Msg.Stories__DuckdbClient
     , stories__entityRelationshipDiagram = bundle Pages.Stories.EntityRelationshipDiagram.page Model.Stories__EntityRelationshipDiagram Msg.Stories__EntityRelationshipDiagram
     , stories__firLang = bundle Pages.Stories.FirLang.page Model.Stories__FirLang Msg.Stories__FirLang
     , stories__processDag = bundle Pages.Stories.ProcessDag.page Model.Stories__ProcessDag Msg.Stories__ProcessDag
-    , stories__textEditor = bundle Pages.Stories.TextEditor.page Model.Stories__TextEditor Msg.Stories__TextEditor
     }
 
 

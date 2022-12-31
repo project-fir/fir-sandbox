@@ -14,10 +14,10 @@ import Gen.Params.Sheet
 import Gen.Params.Stories
 import Gen.Params.VegaLite
 import Gen.Params.Stories.Basics
+import Gen.Params.Stories.DuckdbClient
 import Gen.Params.Stories.EntityRelationshipDiagram
 import Gen.Params.Stories.FirLang
 import Gen.Params.Stories.ProcessDag
-import Gen.Params.Stories.TextEditor
 import Url exposing (Url)
 import Url.Parser as Parser exposing ((</>), Parser)
 
@@ -33,10 +33,10 @@ type Route
     | Stories
     | VegaLite
     | Stories__Basics
+    | Stories__DuckdbClient
     | Stories__EntityRelationshipDiagram
     | Stories__FirLang
     | Stories__ProcessDag
-    | Stories__TextEditor
 
 
 fromUrl : Url -> Route
@@ -56,10 +56,10 @@ routes =
     , Parser.map Stories Gen.Params.Stories.parser
     , Parser.map VegaLite Gen.Params.VegaLite.parser
     , Parser.map Stories__Basics Gen.Params.Stories.Basics.parser
+    , Parser.map Stories__DuckdbClient Gen.Params.Stories.DuckdbClient.parser
     , Parser.map Stories__EntityRelationshipDiagram Gen.Params.Stories.EntityRelationshipDiagram.parser
     , Parser.map Stories__FirLang Gen.Params.Stories.FirLang.parser
     , Parser.map Stories__ProcessDag Gen.Params.Stories.ProcessDag.parser
-    , Parser.map Stories__TextEditor Gen.Params.Stories.TextEditor.parser
     ]
 
 
@@ -101,6 +101,9 @@ toHref route =
         Stories__Basics ->
             joinAsHref [ "stories", "basics" ]
     
+        Stories__DuckdbClient ->
+            joinAsHref [ "stories", "duckdb-client" ]
+    
         Stories__EntityRelationshipDiagram ->
             joinAsHref [ "stories", "entity-relationship-diagram" ]
     
@@ -109,7 +112,4 @@ toHref route =
     
         Stories__ProcessDag ->
             joinAsHref [ "stories", "process-dag" ]
-    
-        Stories__TextEditor ->
-            joinAsHref [ "stories", "text-editor" ]
 

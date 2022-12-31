@@ -66,10 +66,10 @@ elements =
                     ]
                 , paragraph []
                     [ link [ Font.color theme.link ]
-                        { url = "/stories/text-editor"
-                        , label = text "/text-editor"
+                        { url = "/stories/duckdb-client"
+                        , label = text "/duckdb-client"
                         }
-                    , E.text " - story for testing text-editor features"
+                    , E.text " - story for testing DuckDB features, but may also useful for exploratory work"
                     ]
                 , paragraph []
                     [ link [ Font.color theme.link ]

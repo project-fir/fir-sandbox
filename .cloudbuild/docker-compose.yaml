@@ -8,9 +8,8 @@ services:
     networks:
       - lamdera-ci-network
 
-  lamdera-check:
+  shell-cmd:
     image: gcr.io/fir-sandbox-326008/lamdera-ci:latest
-    command: lamdera check
     working_dir: /build
     networks:
       - lamdera-ci-network

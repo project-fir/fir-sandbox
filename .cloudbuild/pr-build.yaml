@@ -15,14 +15,15 @@ steps:
     name: 'gcr.io/cloud-builders/gsutil'
     args: ['cp', 'gs://project-fir-api-maintenance/id_ed25519', '~/.ssh/id_ed25519' ]
 
-  - id: Add `lamdera` remote to git
-    name: 'git'
-    args: ['remote', 'add', 'lamdera', 'git@apps.lamdera.com:fir-sandbox-2.git' ]
-
   # pre-emptive cleanup, in case previous run failed etc
   - name: 'docker/compose:1.29.2'
     dir: '.cloudbuild'
     args: ['down']
+
+  - id: Add `lamdera` remote to git
+    name: 'docker/compose:1.29.2'
+    dir: '.cloudbuild'
+    args: ['run', 'shell-cmd', 'git remove add lamdera git@apps.lamdera.com:fir-sandbox-2.git']
 
   # run Elm tests
   - name: 'docker/compose:1.29.2'
@@ -32,7 +33,7 @@ steps:
   # run Lamdera check - this validates Evergreen migrations
   - name: 'docker/compose:1.29.2'
     dir: '.cloudbuild'
-    args: ['run', 'lamdera-check']
+    args: ['run', 'shell-cmd', 'lamdera-check']
 
   # clean up after ourselves
   - name: 'docker/compose:1.29.2'

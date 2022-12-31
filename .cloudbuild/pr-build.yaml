@@ -7,6 +7,14 @@ steps:
     name: 'gcr.io/cloud-builders/gsutil'
     args: ['cp', 'gs://project-fir-api-maintenance/lamdera-auth-token', '~/.elm/.lamdera-cli' ]
 
+  - id: ssh git public key
+    name: 'gcr.io/cloud-builders/gsutil'
+    args: ['cp', 'gs://project-fir-api-maintenance/id_ed25519.pub', '~/.ssh/id_ed25519.pub' ]
+
+  - id: ssh git private key
+    name: 'gcr.io/cloud-builders/gsutil'
+    args: ['cp', 'gs://project-fir-api-maintenance/id_ed25519', '~/.ssh/id_ed25519' ]
+
   - id: Add `lamdera` remote to git
     name: 'git'
     args: ['remote', 'add', 'lamdera', 'git@apps.lamdera.com:fir-sandbox-2.git' ]

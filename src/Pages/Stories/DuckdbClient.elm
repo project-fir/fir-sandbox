@@ -12,7 +12,7 @@ import Element.Border as Border
 import Element.Events as Events
 import Element.Font as Font
 import Element.Input as Input
-import Gen.Params.Stories.TextEditor exposing (Params)
+import Gen.Params.Stories.DuckdbClient exposing (Params)
 import Html
 import Page
 import Request

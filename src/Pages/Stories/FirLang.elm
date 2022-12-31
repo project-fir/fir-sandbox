@@ -19,7 +19,7 @@ import FirLang.Lambda.Expression as Lambda exposing (Expr, ViewStyle(..))
 import FirLang.Lambda.Parser exposing (parse)
 import FirLang.Tools.Advanced.Parser as PA
 import FirLang.Tools.Problem exposing (Problem)
-import Gen.Params.Stories.TextEditor exposing (Params)
+import Gen.Params.Stories.FirLang exposing (Params)
 import Html
 import List.Extra
 import Page

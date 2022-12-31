@@ -24,7 +24,7 @@ module DimensionalModel exposing
     )
 
 import Dict exposing (Dict)
-import DuckDb exposing (DuckDbColumnDescription(..), DuckDbRef, DuckDbRefString, DuckDbRef_(..), refToString, ref_ToString)
+import FirApi exposing (DuckDbColumnDescription(..), DuckDbRef, DuckDbRefString, DuckDbRef_(..), refToString, ref_ToString)
 import Graph exposing (Edge, Graph, Node, NodeId)
 import Graph.DOT
 import Hash exposing (Hash)
@@ -43,7 +43,7 @@ type alias Position =
 
 type alias CardRenderInfo =
     { pos : Position
-    , ref : DuckDb.DuckDbRef
+    , ref : FirApi.DuckDbRef
     , isDrawerOpen : Bool
     }
 

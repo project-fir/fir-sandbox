@@ -12,12 +12,15 @@ import Element.Border as Border
 import Element.Events as Events
 import Element.Font as Font
 import Element.Input as Input
+import FirApi exposing (PingResponse, pingServer)
 import Gen.Params.Stories.DuckdbClient exposing (Params)
 import Html
+import Http
 import Page
 import Request
 import Shared
 import Task
+import Time exposing (Posix)
 import Ui exposing (ColorTheme)
 import View exposing (View)
 
@@ -41,7 +44,40 @@ type alias Model =
     { editor : Editor
     , theme : ColorTheme
     , viewStatus : ViewStatus
+    , firApiStatus : FirApiStatus
     }
+
+
+
+-- begin region: fir-api-status logic
+
+
+scaleFromZeroPeriodMs =
+    250
+
+
+cyclesUntilExhaustion =
+    -- NB: There are 60,000 ms in a minute, poll for 30 seconds before exhaustion
+    round (3.0e4 / scaleFromZeroPeriodMs)
+
+
+readyPeriodMs : Float
+readyPeriodMs =
+    -- when we know FirApi status is green, poll every 10 seconds, to keep it awake
+    1.0e4
+
+
+type
+    FirApiStatus
+    -- Accepts period between polls, in ms, and number of attempts thus far
+    = AwaitingScaleFromZero Float Int
+      -- Accepts period between polls, when ready
+    | ApiReady Float
+    | ExhaustedWaitingPeriod
+
+
+
+-- end region: fir-api-status logic
 
 
 type ViewStatus
@@ -80,9 +116,11 @@ Hello, is it me you're looking for!?
 """
 
 
-config : EditorModel.Config
-config =
-    { width = 600 -- 1200
+defaultEditorConfig : EditorModel.Config
+defaultEditorConfig =
+    -- NB: width and height values are placeholders until screen size is returned to our Model,
+    --     we don't render the editor until that happens, so the particular values here shouldn't matter.
+    { width = 600
     , height = 500
     , fontSize = 16
     , verticalScrollOffset = 3
@@ -100,11 +138,12 @@ init shared =
     let
         newEditor : Editor
         newEditor =
-            Editor.initWithContent text config
+            Editor.initWithContent text defaultEditorConfig
     in
     ( { editor = newEditor
       , theme = shared.selectedTheme
       , viewStatus = AwaitingViewportInfo
+      , firApiStatus = AwaitingScaleFromZero scaleFromZeroPeriodMs 0
       }
     , Effect.fromCmd (Task.perform GotViewport Browser.Dom.getViewport)
     )
@@ -118,11 +157,45 @@ type Msg
     = MyEditorMsg Editor.EditorMsg
     | GotViewport Browser.Dom.Viewport
     | GotResizeEvent Int Int
+    | Tick_PingFirApi Posix
+    | Got_PingResponse Int (Result Http.Error PingResponse)
 
 
 update : Msg -> Model -> ( Model, Effect Msg )
 update msg model =
     case msg of
+        Got_PingResponse count err ->
+            case err of
+                Ok value ->
+                    -- Change FirApi status to green
+                    ( { model | firApiStatus = ApiReady readyPeriodMs }, Effect.none )
+
+                Err error ->
+                    case count > cyclesUntilExhaustion of
+                        True ->
+                            -- exhausted attempt, update model
+                            ( { model | firApiStatus = ExhaustedWaitingPeriod }, Effect.none )
+
+                        False ->
+                            -- noop, continue
+                            ( model, Effect.none )
+
+        Tick_PingFirApi _ ->
+            case model.firApiStatus of
+                AwaitingScaleFromZero ms attemptCount ->
+                    -- we are awaiting scaling, and assuming it'll come up
+                    ( { model | firApiStatus = AwaitingScaleFromZero ms (attemptCount + 1) }
+                    , Effect.fromCmd (pingServer (Just <| scaleFromZeroPeriodMs - 20) (Got_PingResponse attemptCount))
+                    )
+
+                ApiReady int ->
+                    -- we have already reported api is green, verify
+                    ( model, Effect.none )
+
+                ExhaustedWaitingPeriod ->
+                    -- noop
+                    ( model, Effect.none )
+
         GotViewport viewPort ->
             let
                 layoutInfo : LayoutInfo
@@ -159,7 +232,23 @@ update msg model =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Sub.batch [ BE.onResize GotResizeEvent ]
+    let
+        firApiPollPeriod =
+            case model.firApiStatus of
+                AwaitingScaleFromZero ms _ ->
+                    ms
+
+                ApiReady ms ->
+                    ms
+
+                ExhaustedWaitingPeriod ->
+                    -- An unfeasibly long period, to stop polling (until user refreshes)
+                    1.0e10
+    in
+    Sub.batch
+        [ BE.onResize GotResizeEvent
+        , Time.every firApiPollPeriod Tick_PingFirApi
+        ]
 
 
 
@@ -168,7 +257,7 @@ subscriptions model =
 
 view : Model -> View Msg
 view model =
-    { title = "Story | Text Editor"
+    { title = "Story | DuckDB Client"
     , body =
         case model.viewStatus of
             AwaitingViewportInfo ->
@@ -186,6 +275,7 @@ viewElements model layoutInfo =
         , height fill
         , Background.color model.theme.deadspace
         , padding 3
+        , Font.size 16
         ]
     <|
         column
@@ -209,7 +299,7 @@ viewElements model layoutInfo =
                     , Border.width 1
                     , Border.rounded 3
                     ]
-                    (viewNav model)
+                    (viewNavPanel model)
                 , el
                     [ width (fillPortion (100 - layoutInfo.navWidthPct))
                     , height fill
@@ -246,9 +336,36 @@ viewEditorPanel model =
         viewEditor
 
 
-viewNav : Model -> Element Msg
-viewNav model =
-    el [ width fill, height fill, centerX, centerY ] (E.text "Nav goes here")
+viewFirApiStatus : ColorTheme -> FirApiStatus -> Element Msg
+viewFirApiStatus theme status =
+    let
+        panelEl =
+            el [ width fill, centerX ]
+    in
+    case status of
+        AwaitingScaleFromZero _ attemptCount ->
+            panelEl (E.text <| "Polling server, attempt " ++ String.fromInt attemptCount)
+
+        ApiReady _ ->
+            panelEl (E.text "Fir API ready! ")
+
+        ExhaustedWaitingPeriod ->
+            panelEl
+                (paragraph
+                    [ Background.color theme.debugAlert
+                    , Font.bold
+                    , padding 2
+                    ]
+                    [ E.text "All attempts to reach Fir API have been exhausted, this likely means something server-side is broken!" ]
+                )
+
+
+viewNavPanel : Model -> Element Msg
+viewNavPanel model =
+    column [ width fill, height fill, centerX, centerY ]
+        [ viewFirApiStatus model.theme model.firApiStatus
+        , E.text "Nav goes here"
+        ]
 
 
 viewDataTable : Model -> Element Msg

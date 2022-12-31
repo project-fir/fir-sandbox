@@ -2,7 +2,7 @@ module Bridge exposing (..)
 
 import Dict exposing (Dict)
 import DimensionalModel exposing (ColumnGraph, DimensionalModel, DimensionalModelRef, KimballAssignment, Position)
-import DuckDb exposing (DuckDbColumnDescription, DuckDbRef, DuckDbRefString, DuckDbRef_)
+import FirApi exposing (DuckDbColumnDescription, DuckDbRef, DuckDbRefString, DuckDbRef_)
 
 
 type ToBackend

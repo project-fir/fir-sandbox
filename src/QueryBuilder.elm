@@ -1,6 +1,6 @@
 module QueryBuilder exposing (..)
 
-import DuckDb exposing (DuckDbRef, refToString)
+import FirApi exposing (DuckDbRef, refToString)
 import Utils exposing (collapseWhitespace)
 
 

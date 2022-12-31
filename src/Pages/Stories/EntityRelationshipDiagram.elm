@@ -2,7 +2,6 @@ module Pages.Stories.EntityRelationshipDiagram exposing (ErdSvgNodeProps, Model,
 
 import Dict exposing (Dict)
 import DimensionalModel exposing (CardRenderInfo, ColumnGraph, ColumnGraphEdge, DimModelDuckDbSourceInfo, DimensionalModel, DimensionalModelRef, EdgeFamily(..), EdgeLabel(..), KimballAssignment(..), LineSegment, Position, addEdges, addNodes, columnDescFromNodeId, edgesOfFamily, unpackKimballAssignment)
-import DuckDb exposing (DuckDbColumnDescription(..), DuckDbRef, DuckDbRefString, DuckDbRef_(..), refToString, ref_ToString)
 import Effect exposing (Effect)
 import Element as E exposing (..)
 import Element.Background as Background
@@ -10,6 +9,7 @@ import Element.Border as Border
 import Element.Events as Events
 import Element.Font as Font
 import Element.Input as Input
+import FirApi exposing (DuckDbColumnDescription(..), DuckDbRef, DuckDbRefString, DuckDbRef_(..), refToString, ref_ToString)
 import Gen.Params.Stories.EntityRelationshipDiagram exposing (Params)
 import Graph exposing (Edge, NodeId)
 import Html.Events.Extra.Mouse exposing (Event)
@@ -151,7 +151,7 @@ type Msg
     | MouseEnteredErdCardDropdown DuckDbRef
     | MouseLeftErdCardDropdown
     | ClickedErdCardDropdownOption DimensionalModelRef DuckDbRef (KimballAssignment DuckDbRef_ (List DuckDbColumnDescription))
-    | BeginErdCardDrag DuckDb.DuckDbRef
+    | BeginErdCardDrag FirApi.DuckDbRef
     | ContinueErdCardDrag Event
     | ErdCardDragStopped Event
 

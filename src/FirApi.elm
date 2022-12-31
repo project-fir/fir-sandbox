@@ -1,8 +1,8 @@
-module DuckDb exposing (ColumnName, DuckDbColumn(..), DuckDbColumnDescription(..), DuckDbMetaResponse, DuckDbQueryResponse, DuckDbRef, DuckDbRefString, DuckDbRef_(..), DuckDbRefsResponse, PersistedDuckDbColumn, PersistedDuckDbColumnDescription, PingResponse, Ref, SchemaName, TableName, Val(..), fetchDuckDbTableRefs, pingServer, queryDuckDb, queryDuckDbMeta, refEquals, refToString, ref_ToString, taskBuildDateDimTable, uploadFile)
+module FirApi exposing (ColumnName, DuckDbColumn(..), DuckDbColumnDescription(..), DuckDbMetaResponse, DuckDbQueryResponse, DuckDbRef, DuckDbRefString, DuckDbRef_(..), DuckDbRefsResponse, PersistedDuckDbColumn, PersistedDuckDbColumnDescription, PingResponse, Ref, SchemaName, TableName, Val(..), fetchDuckDbTableRefs, pingServer, queryDuckDb, queryDuckDbMeta, refEquals, refToString, ref_ToString, taskBuildDateDimTable, uploadFile)
 
 import Config exposing (apiHost)
 import File exposing (File)
-import Http exposing (Error(..))
+import Http exposing (Error(..), emptyBody)
 import ISO8601 as Iso
 import Json.Decode as JD
 import Json.Encode as JE
@@ -17,7 +17,7 @@ type
 
 
 
--- begin region: DuckDb-specific types
+-- begin region: FirApi-specific types
 --
 -- A DuckDbRef points to a SQL-queryable source, the current fir-api only exposes DuckDB tables and views, but a URI to a
 -- .parquet file could be supported, with backend changes (and likely some import conventions I've yet to think through)
@@ -110,8 +110,8 @@ type
 
 
 
--- end region: DuckDb-specific types
--- begin region: fir-api DuckDb response types
+-- end region: FirApi-specific types
+-- begin region: fir-api FirApi response types
 
 
 type alias PingResponse =
@@ -141,24 +141,29 @@ type alias DuckDbRefsResponse =
 
 
 
--- end region: fir-api DuckDb response types
+-- end region: fir-api FirApi response types
 -- begin region: fir-api HTTP utility functions
 --
 -- TODO: The two DuckDB query decoders needs to support the variants of DuckDbRef, like View
 --       currently I've hardcoded Table
 
 
-pingServer : (Result Error PingResponse -> msg) -> Cmd msg
-pingServer onResponse =
+pingServer : Maybe Float -> (Result Error PingResponse -> msg) -> Cmd msg
+pingServer timeoutMs onResponse =
     let
         pingResponseDecoder : JD.Decoder PingResponse
         pingResponseDecoder =
             JD.map PingResponse
                 (JD.field "message" JD.string)
     in
-    Http.get
-        { url = apiHost ++ "/ping"
+    Http.request
+        { method = "GET"
+        , headers = []
+        , url = apiHost ++ "/ping"
+        , body = emptyBody
         , expect = Http.expectJson onResponse pingResponseDecoder
+        , timeout = timeoutMs
+        , tracker = Nothing
         }
 
 

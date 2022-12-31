@@ -1,7 +1,7 @@
 module QueryBuilderTest exposing (..)
 
-import DuckDb exposing (DuckDbRef)
 import Expect exposing (Expectation)
+import FirApi exposing (DuckDbRef)
 import Fuzz exposing (Fuzzer, int, list, string)
 import QueryBuilder exposing (Aggregation(..), Granularity(..), KimballColumn(..), TimeClass(..), queryBuilder)
 import Test exposing (Test, describe, test)

@@ -1,7 +1,7 @@
 module VegaUtilsTest exposing (..)
 
-import DuckDb exposing (DuckDbColumn(..), DuckDbRef_(..), Val(..))
 import Expect exposing (Expectation)
+import FirApi exposing (DuckDbColumn(..), DuckDbRef_(..), Val(..))
 import Fuzz exposing (Fuzzer, int, list, string)
 import Test exposing (..)
 import VegaUtils exposing (ColumnParamed, mapColToFloatCol, mapColToIntegerCol, mapColToStringCol)

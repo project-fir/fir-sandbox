@@ -5,7 +5,7 @@ steps:
 
   - id: Pull down Lamdera auth token, save to expected path
     name: 'gcr.io/cloud-builders/gsutil'
-    args: [ 'cp', 'gs://project-fir-api-maintenance/', '~/.elm/.lamdera-cli' ]
+    args: [ 'cp', 'gs://project-fir-api-maintenance/lamdera-auth-token', '~/.elm/.lamdera-cli' ]
 
   # pre-emptive cleanup, in case previous run failed etc
   - name: 'docker/compose:1.29.2'

@@ -26,7 +26,7 @@ RUN npm install -g elm elm-test elm-review elm-spa
 RUN curl https://static.lamdera.com/bin/linux/lamdera -o /usr/local/bin/lamdera
 RUN chmod a+x /usr/local/bin/lamdera
 
-# Lamdera make has the side-effect of fetching required elm packages.
+# Running `lamdera make` has the side-effect of fetching required elm packages.
 # This is so elm-test-rs succeeds
 RUN elm-spa gen
 RUN lamdera make src/Frontend.elm src/Backend.elm

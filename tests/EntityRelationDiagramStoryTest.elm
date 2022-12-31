@@ -1,7 +1,7 @@
 module EntityRelationDiagramStoryTest exposing (..)
 
-import DuckDb exposing (DuckDbColumnDescription(..), DuckDbRef_(..))
 import Expect exposing (Expectation)
+import FirApi exposing (DuckDbColumnDescription(..), DuckDbRef_(..))
 import Pages.Stories.EntityRelationshipDiagram as Erd
 import Test exposing (Test, describe, test)
 

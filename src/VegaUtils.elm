@@ -1,6 +1,6 @@
 module VegaUtils exposing (..)
 
-import DuckDb exposing (DuckDbColumn(..), Val(..))
+import FirApi exposing (DuckDbColumn(..), Val(..))
 import Utils exposing (removeNothingsFromList)
 
 

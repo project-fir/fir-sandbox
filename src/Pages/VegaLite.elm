@@ -5,7 +5,6 @@ module Pages.VegaLite exposing (Model, Msg, page)
 --import VegaLite as VL
 
 import Dict exposing (Dict)
-import DuckDb exposing (ColumnName, DuckDbColumnDescription(..), DuckDbMetaResponse, fetchDuckDbTableRefs, queryDuckDb, queryDuckDbMeta, refToString)
 import Effect exposing (Effect)
 import Element as E exposing (..)
 import Element.Background as Background
@@ -13,6 +12,7 @@ import Element.Border as Border
 import Element.Events exposing (..)
 import Element.Font as Font
 import Element.Input as Input
+import FirApi exposing (ColumnName, DuckDbColumnDescription(..), DuckDbMetaResponse, fetchDuckDbTableRefs, queryDuckDb, queryDuckDbMeta, refToString)
 import Gen.Params.VegaLite exposing (Params)
 import Html.Attributes as HA
 import Http exposing (Error(..))
@@ -49,11 +49,11 @@ type Position
 
 type alias Model =
     { --spec : Maybe VL.Spec
-      duckDbForPlotResponse : WebData DuckDb.DuckDbQueryResponse
-    , duckDbMetaResponse : WebData DuckDb.DuckDbMetaResponse
-    , duckDbTableRefs : WebData DuckDb.DuckDbRefsResponse
-    , selectedTableRef : Maybe DuckDb.DuckDbRef
-    , hoveredOnTableRef : Maybe DuckDb.DuckDbRef
+      duckDbForPlotResponse : WebData FirApi.DuckDbQueryResponse
+    , duckDbMetaResponse : WebData FirApi.DuckDbMetaResponse
+    , duckDbTableRefs : WebData FirApi.DuckDbRefsResponse
+    , selectedTableRef : Maybe FirApi.DuckDbRef
+    , hoveredOnTableRef : Maybe FirApi.DuckDbRef
 
     --, dragDrop : DragDrop.Model Int Position
     , data : { count : Int, position : Position }
@@ -99,12 +99,12 @@ type Msg
     = FetchPlotData
       --| RenderPlot
     | FetchTableRefs
-    | FetchMetaDataForRef DuckDb.DuckDbRef
-    | GotDuckDbResponse (Result Http.Error DuckDb.DuckDbQueryResponse)
-    | GotDuckDbMetaResponse (Result Http.Error DuckDb.DuckDbMetaResponse)
-    | GotDuckDbTableRefsResponse (Result Http.Error DuckDb.DuckDbRefsResponse)
-    | UserSelectedTableRef DuckDb.DuckDbRef
-    | UserMouseEnteredTableRef DuckDb.DuckDbRef
+    | FetchMetaDataForRef FirApi.DuckDbRef
+    | GotDuckDbResponse (Result Http.Error FirApi.DuckDbQueryResponse)
+    | GotDuckDbMetaResponse (Result Http.Error FirApi.DuckDbMetaResponse)
+    | GotDuckDbTableRefsResponse (Result Http.Error FirApi.DuckDbRefsResponse)
+    | UserSelectedTableRef FirApi.DuckDbRef
+    | UserMouseEnteredTableRef FirApi.DuckDbRef
     | UserMouseLeftTableRef
       --| DragDropMsg (DragDrop.Msg Int Position)
     | UserClickKimballColumnTab KimballColumn
@@ -893,7 +893,7 @@ viewTableRefs model =
 
         Success refsResponse ->
             let
-                refsSelector : List DuckDb.DuckDbRef -> Element Msg
+                refsSelector : List FirApi.DuckDbRef -> Element Msg
                 refsSelector refs =
                     let
                         backgroundColorFor ref =
@@ -944,7 +944,7 @@ viewTableRefs model =
                                     else
                                         theme.background
 
-                        ui : DuckDb.DuckDbRef -> Element Msg
+                        ui : FirApi.DuckDbRef -> Element Msg
                         ui ref =
                             row
                                 [ width E.fill

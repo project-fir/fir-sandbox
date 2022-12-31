@@ -2,7 +2,7 @@ module DimensionalModelTest exposing (..)
 
 import Dict
 import DimensionalModel exposing (ColumnGraphEdge, DimModelDuckDbSourceInfo, DimensionalModel, EdgeLabel(..), KimballAssignment(..), Position)
-import DuckDb exposing (DuckDbColumnDescription(..), DuckDbRef, DuckDbRefString, DuckDbRef_(..), refEquals, refToString)
+import FirApi exposing (DuckDbColumnDescription(..), DuckDbRef, DuckDbRefString, DuckDbRef_(..), refEquals, refToString)
 import Graph exposing (Edge, Node)
 import Utils exposing (cartesian)
 

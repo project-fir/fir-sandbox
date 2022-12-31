@@ -5,7 +5,6 @@ import Browser.Dom
 import Browser.Events as BE
 import Dict exposing (Dict)
 import DimensionalModel exposing (CardRenderInfo, DimModelDuckDbSourceInfo, DimensionalModel, DimensionalModelRef, EdgeFamily(..), EdgeLabel(..), KimballAssignment(..), Position, addEdge, addEdges, edge2Str, edgesOfFamily)
-import DuckDb exposing (ColumnName, DuckDbColumn, DuckDbColumnDescription(..), DuckDbRef, DuckDbRefString, DuckDbRef_(..), PersistedDuckDbColumnDescription, fetchDuckDbTableRefs, refEquals, refToString)
 import Effect exposing (Effect)
 import Element as E exposing (..)
 import Element.Background as Background
@@ -13,6 +12,7 @@ import Element.Border as Border
 import Element.Events as Events
 import Element.Font as Font
 import Element.Input as Input
+import FirApi exposing (ColumnName, DuckDbColumn, DuckDbColumnDescription(..), DuckDbRef, DuckDbRefString, DuckDbRef_(..), PersistedDuckDbColumnDescription, fetchDuckDbTableRefs, refEquals, refToString)
 import Gen.Params.Kimball exposing (Params)
 import Html.Events.Extra.Mouse as Mouse exposing (Event)
 import Json.Decode as JD
@@ -51,11 +51,11 @@ type alias RefString =
 
 
 type alias Model =
-    { duckDbRefs : BackendData (List DuckDb.DuckDbRef)
-    , selectedTableRef : Maybe DuckDb.DuckDbRef
-    , hoveredOnTableRef : Maybe DuckDb.DuckDbRef
+    { duckDbRefs : BackendData (List FirApi.DuckDbRef)
+    , selectedTableRef : Maybe FirApi.DuckDbRef
+    , hoveredOnTableRef : Maybe FirApi.DuckDbRef
     , pageRenderStatus : PageRenderStatus
-    , hoveredOnNodeTitle : Maybe DuckDb.DuckDbRef
+    , hoveredOnNodeTitle : Maybe FirApi.DuckDbRef
     , hoveredOnColumnWithinCard : Maybe DuckDbColumnDescription
     , partialEdgeInProgress : Maybe DuckDbColumnDescription
     , dragState : DragState
@@ -84,8 +84,8 @@ type alias DropdownState =
 
 type DragState
     = Idle
-    | DragInitiated DuckDb.DuckDbRef
-    | Dragging DuckDb.DuckDbRef (Maybe Event) Event CardRenderInfo
+    | DragInitiated FirApi.DuckDbRef
+    | Dragging FirApi.DuckDbRef (Maybe Event) Event CardRenderInfo
 
 
 type PageRenderStatus
@@ -154,11 +154,11 @@ type
     = FetchTableRefs
     | GotDimensionalModelRefs (List DimensionalModelRef)
     | GotDimensionalModel DimensionalModel
-    | GotDuckDbTableRefsResponse (List DuckDb.DuckDbRef)
+    | GotDuckDbTableRefsResponse (List FirApi.DuckDbRef)
       -- Right nav user actions
     | UserSelectedDimensionalModel DimensionalModelRef
-    | UserClickedDuckDbRef DuckDb.DuckDbRef
-    | UserMouseEnteredTableRef DuckDb.DuckDbRef
+    | UserClickedDuckDbRef FirApi.DuckDbRef
+    | UserMouseEnteredTableRef FirApi.DuckDbRef
     | UserMouseLeftTableRef
     | UpdatedNewDimModelName String
     | UserCreatesNewDimensionalModel DimensionalModelRef
@@ -169,7 +169,7 @@ type
     | ClickedErdCardColumnRow DuckDbRef DuckDbColumnDescription
     | ToggledErdCardDropdown DuckDbRef
     | ClickedErdCardDropdownOption DimensionalModelRef DuckDbRef (KimballAssignment DuckDbRef_ (List DuckDbColumnDescription))
-    | BeginErdCardDrag DuckDb.DuckDbRef
+    | BeginErdCardDrag FirApi.DuckDbRef
     | ContinueErdCardDrag Event
     | ErdCardDragStopped Event
       --| UserClickedNub DuckDbColumnDescription
@@ -1131,7 +1131,7 @@ viewTableRefs model selectedDimModel =
 
         Success_ refs ->
             let
-                refsSelector : List DuckDb.DuckDbRef -> Element Msg
+                refsSelector : List FirApi.DuckDbRef -> Element Msg
                 refsSelector refs_ =
                     let
                         backgroundColorFor : DuckDbRef -> Color
@@ -1187,7 +1187,7 @@ viewTableRefs model selectedDimModel =
                                 Nothing ->
                                     model.theme.background
 
-                        ui : DuckDb.DuckDbRef -> Element Msg
+                        ui : FirApi.DuckDbRef -> Element Msg
                         ui ref =
                             row
                                 [ width E.fill

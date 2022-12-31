@@ -5,7 +5,7 @@ import Browser
 import Browser.Navigation exposing (Key)
 import Dict exposing (Dict)
 import DimensionalModel exposing (DimensionalModel, DimensionalModelRef, KimballAssignment, Position)
-import DuckDb exposing (DuckDbColumnDescription, DuckDbMetaResponse, DuckDbRef, DuckDbRefString, DuckDbRef_, DuckDbRefsResponse, PingResponse)
+import FirApi exposing (DuckDbColumnDescription, DuckDbMetaResponse, DuckDbRef, DuckDbRefString, DuckDbRef_, DuckDbRefsResponse, PingResponse)
 import Gen.Pages as Pages
 import Graph exposing (Graph)
 import Http

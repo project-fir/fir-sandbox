@@ -3,7 +3,7 @@ module Backend exposing (..)
 import Bridge exposing (BackendErrorMessage, DeliveryEnvelope(..), DimensionalModelUpdate(..), DuckDbCache, DuckDbCache_(..), DuckDbMetaDataCacheEntry, ToBackend(..), defaultColdCache)
 import Dict exposing (Dict)
 import DimensionalModel exposing (CardRenderInfo, ColumnGraphEdge, DimModelDuckDbSourceInfo, DimensionalModel, DimensionalModelRef, EdgeLabel(..), KimballAssignment(..), Position, addEdges, addNodes)
-import DuckDb exposing (DuckDbColumnDescription, DuckDbRef, DuckDbRefString, DuckDbRef_(..), fetchDuckDbTableRefs, pingServer, queryDuckDbMeta, refToString, taskBuildDateDimTable)
+import FirApi exposing (DuckDbColumnDescription, DuckDbRef, DuckDbRefString, DuckDbRef_(..), fetchDuckDbTableRefs, pingServer, queryDuckDbMeta, refToString, taskBuildDateDimTable)
 import Graph
 import Lamdera exposing (ClientId, SessionId, broadcast, sendToFrontend)
 import RemoteData exposing (RemoteData(..))
@@ -55,7 +55,7 @@ update msg model =
                     ( model, Cmd.none )
 
         PingServer ->
-            ( { model | serverPingStatus = Loading }, pingServer GotPingResponse )
+            ( { model | serverPingStatus = Loading }, pingServer Nothing GotPingResponse )
 
         GotPingResponse result ->
             case result of

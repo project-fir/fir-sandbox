@@ -3,7 +3,6 @@ module Pages.Admin exposing (Model, Msg(..), page)
 import Bridge exposing (DuckDbCache, DuckDbCache_(..), DuckDbMetaDataCacheEntry, ToBackend(..))
 import Dict exposing (Dict)
 import DimensionalModel exposing (DimensionalModel, DimensionalModelRef, columnGraph2DotString)
-import DuckDb exposing (DuckDbRef, refToString)
 import Effect exposing (Effect)
 import Element as E exposing (..)
 import Element.Background as Background
@@ -11,6 +10,7 @@ import Element.Border as Border
 import Element.Events as Events
 import Element.Font as Font
 import Element.Input as Input
+import FirApi exposing (DuckDbRef, refToString)
 import Gen.Params.Admin exposing (Params)
 import Lamdera exposing (SessionId, sendToBackend)
 import Page
@@ -313,7 +313,7 @@ viewQuadrant1_BackendDataManagement model =
                         , Border.rounded 3
                         , padding 5
                         ]
-                        (E.text "Refresh DuckDb Cache")
+                        (E.text "Refresh FirApi Cache")
                 }
 
         viewCacheRefreshStatus : Element Msg
@@ -322,7 +322,7 @@ viewQuadrant1_BackendDataManagement model =
                 str =
                     case model.cacheRefreshStatus of
                         Nothing ->
-                            "<-- Click to refresh Lamdera Backend of DuckDb meta data"
+                            "<-- Click to refresh Lamdera Backend of FirApi meta data"
 
                         Just statusStr ->
                             statusStr

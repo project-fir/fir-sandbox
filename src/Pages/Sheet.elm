@@ -5,7 +5,6 @@ import Array2D exposing (Array2D, ColIx, RowIx, colCount, fromListOfLists, getCo
 import Browser.Dom
 import Browser.Events as Events
 import Config exposing (apiHost)
-import DuckDb exposing (DuckDbColumn(..), DuckDbMetaResponse, DuckDbQueryResponse, DuckDbRef, DuckDbRefsResponse, fetchDuckDbTableRefs, queryDuckDb, refEquals, refToString, uploadFile)
 import Effect exposing (Effect)
 import Element as E exposing (..)
 import Element.Background as Background
@@ -15,6 +14,7 @@ import Element.Font as Font
 import Element.Input as Input
 import File exposing (File)
 import File.Select as Select
+import FirApi exposing (DuckDbColumn(..), DuckDbMetaResponse, DuckDbQueryResponse, DuckDbRef, DuckDbRefsResponse, fetchDuckDbTableRefs, queryDuckDb, refEquals, refToString, uploadFile)
 import Gen.Params.Sheet exposing (Params)
 import Html as H
 import Html.Attributes as HA
@@ -297,7 +297,7 @@ init =
 mapColumnsToSheet : List DuckDbColumn -> SheetEnvelope
 mapColumnsToSheet cols =
     let
-        mapVal : Maybe DuckDb.Val -> CellElement
+        mapVal : Maybe FirApi.Val -> CellElement
         mapVal v =
             case v of
                 Nothing ->
@@ -305,22 +305,22 @@ mapColumnsToSheet cols =
 
                 Just val ->
                     case val of
-                        DuckDb.Varchar_ var ->
+                        FirApi.Varchar_ var ->
                             String_ var
 
-                        DuckDb.Int_ i ->
+                        FirApi.Int_ i ->
                             Int_ i
 
-                        DuckDb.Time_ t ->
+                        FirApi.Time_ t ->
                             Time_ t
 
-                        DuckDb.Bool_ b ->
+                        FirApi.Bool_ b ->
                             Bool_ b
 
-                        DuckDb.Float_ f ->
+                        FirApi.Float_ f ->
                             Float_ f
 
-                        DuckDb.Unknown ->
+                        FirApi.Unknown ->
                             Empty
 
         -- lol is "list of lists", but I'm also laughing at how inefficient this is

@@ -33,7 +33,7 @@ steps:
   # run Lamdera check - this validates Evergreen migrations
   - name: 'docker/compose:1.29.2'
     dir: '.cloudbuild'
-    args: ['run', 'shell-cmd', 'lamdera-check']
+    args: ['run', 'lamdera-check']
 
   # clean up after ourselves
   - name: 'docker/compose:1.29.2'

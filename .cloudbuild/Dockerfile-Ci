@@ -5,8 +5,7 @@ RUN apt-get install -y \
     curl \
     libtinfo5 \
     git \
-    wget \
-    xdg-utils  # <-- this package is very hefty and a whopping 319MB! But is required for lamdera login
+    wget
 
 # create directory to work in
 RUN mkdir /build

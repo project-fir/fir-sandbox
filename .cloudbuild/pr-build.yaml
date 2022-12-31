@@ -23,7 +23,7 @@ steps:
   - id: Add `lamdera` remote to git
     name: 'docker/compose:1.29.2'
     dir: '.cloudbuild'
-    args: ['run', 'shell-cmd', 'git remove add lamdera git@apps.lamdera.com:fir-sandbox-2.git']
+    args: ['run', 'add-lamdera-remote-to-git']
 
   # run Elm tests
   - name: 'docker/compose:1.29.2'

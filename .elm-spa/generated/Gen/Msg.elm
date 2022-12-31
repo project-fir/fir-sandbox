@@ -10,10 +10,10 @@ import Gen.Params.Sheet
 import Gen.Params.Stories
 import Gen.Params.VegaLite
 import Gen.Params.Stories.Basics
+import Gen.Params.Stories.DuckdbClient
 import Gen.Params.Stories.EntityRelationshipDiagram
 import Gen.Params.Stories.FirLang
 import Gen.Params.Stories.ProcessDag
-import Gen.Params.Stories.TextEditor
 import Pages.Admin
 import Pages.ElmUiSvgIssue
 import Pages.Home_
@@ -24,10 +24,10 @@ import Pages.Sheet
 import Pages.Stories
 import Pages.VegaLite
 import Pages.Stories.Basics
+import Pages.Stories.DuckdbClient
 import Pages.Stories.EntityRelationshipDiagram
 import Pages.Stories.FirLang
 import Pages.Stories.ProcessDag
-import Pages.Stories.TextEditor
 
 
 type Msg
@@ -40,8 +40,8 @@ type Msg
     | Sheet Pages.Sheet.Msg
     | VegaLite Pages.VegaLite.Msg
     | Stories__Basics Pages.Stories.Basics.Msg
+    | Stories__DuckdbClient Pages.Stories.DuckdbClient.Msg
     | Stories__EntityRelationshipDiagram Pages.Stories.EntityRelationshipDiagram.Msg
     | Stories__FirLang Pages.Stories.FirLang.Msg
     | Stories__ProcessDag Pages.Stories.ProcessDag.Msg
-    | Stories__TextEditor Pages.Stories.TextEditor.Msg
 

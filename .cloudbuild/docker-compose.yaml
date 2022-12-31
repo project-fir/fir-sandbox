@@ -13,14 +13,16 @@ services:
     working_dir: /build
     networks:
       - lamdera-ci-network
-    command: git remote add lamdera git@apps.lamdera.com:fir-sandbox-2.git
+    command: |
+      git remote add lamdera git@apps.lamdera.com:fir-sandbox-2.git
+      git remote -v
 
   lamdera-check:
     image: gcr.io/fir-sandbox-326008/lamdera-ci:latest
     working_dir: /build
     networks:
       - lamdera-ci-network
-    command: lamdera check
+    command: git remote -v
 
 networks:
   lamdera-ci-network:

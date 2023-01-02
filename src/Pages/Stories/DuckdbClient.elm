@@ -12,16 +12,17 @@ import Element.Border as Border
 import Element.Events as Events
 import Element.Font as Font
 import Element.Input as Input
-import FirApi exposing (PingResponse, pingServer)
+import FirApi exposing (DuckDbRef, DuckDbRefsResponse, PingResponse, fetchDuckDbTableRefs, pingServer)
 import Gen.Params.Stories.DuckdbClient exposing (Params)
 import Html
 import Http
 import Page
+import RemoteData exposing (RemoteData(..))
 import Request
 import Shared
 import Task
 import Time exposing (Posix)
-import Ui exposing (ColorTheme)
+import Ui exposing (ButtonProps, ColorTheme, button)
 import View exposing (View)
 
 
@@ -45,6 +46,7 @@ type alias Model =
     , theme : ColorTheme
     , viewStatus : ViewStatus
     , firApiStatus : FirApiStatus
+    , duckDbRefs : RemoteData Http.Error (List DuckDbRef)
     }
 
 
@@ -53,7 +55,7 @@ type alias Model =
 
 
 scaleFromZeroPeriodMs =
-    250
+    1000
 
 
 cyclesUntilExhaustion =
@@ -112,7 +114,7 @@ computeLayoutInfo viewPort =
 text : String
 text =
     """
-Hello, is it me you're looking for!?
+select * from finnhub.company_news
 """
 
 
@@ -143,7 +145,8 @@ init shared =
     ( { editor = newEditor
       , theme = shared.selectedTheme
       , viewStatus = AwaitingViewportInfo
-      , firApiStatus = AwaitingScaleFromZero scaleFromZeroPeriodMs 0
+      , firApiStatus = AwaitingScaleFromZero scaleFromZeroPeriodMs 1
+      , duckDbRefs = NotAsked
       }
     , Effect.fromCmd (Task.perform GotViewport Browser.Dom.getViewport)
     )
@@ -159,16 +162,41 @@ type Msg
     | GotResizeEvent Int Int
     | Tick_PingFirApi Posix
     | Got_PingResponse Int (Result Http.Error PingResponse)
+    | Got_DuckDbRefsResponse (Result Http.Error DuckDbRefsResponse)
+    | UserClickedQueryButton
 
 
 update : Msg -> Model -> ( Model, Effect Msg )
 update msg model =
     case msg of
+        Got_DuckDbRefsResponse resp ->
+            case resp of
+                Ok resp_ ->
+                    ( { model | duckDbRefs = Success resp_.refs }, Effect.none )
+
+                Err error ->
+                    ( { model | duckDbRefs = Failure error }, Effect.none )
+
+        UserClickedQueryButton ->
+            ( model, Effect.none )
+
         Got_PingResponse count err ->
             case err of
-                Ok value ->
-                    -- Change FirApi status to green
-                    ( { model | firApiStatus = ApiReady readyPeriodMs }, Effect.none )
+                Ok _ ->
+                    let
+                        effect =
+                            case model.duckDbRefs of
+                                Success _ ->
+                                    -- this may occur if backend connection was lost for a sec, but refs remain in
+                                    -- memory
+                                    Effect.none
+
+                                _ ->
+                                    -- we receive a 200 from the server and don't have refs in memory, go fetch them
+                                    Effect.fromCmd (fetchDuckDbTableRefs Got_DuckDbRefsResponse)
+                    in
+                    -- Change FirApi status to green, fetch duckdb refs if we don't already have them in memory
+                    ( { model | firApiStatus = ApiReady readyPeriodMs }, effect )
 
                 Err error ->
                     case count > cyclesUntilExhaustion of
@@ -185,7 +213,7 @@ update msg model =
                 AwaitingScaleFromZero ms attemptCount ->
                     -- we are awaiting scaling, and assuming it'll come up
                     ( { model | firApiStatus = AwaitingScaleFromZero ms (attemptCount + 1) }
-                    , Effect.fromCmd (pingServer (Just <| scaleFromZeroPeriodMs - 20) (Got_PingResponse attemptCount))
+                    , Effect.fromCmd (pingServer (Just <| scaleFromZeroPeriodMs - 150) (Got_PingResponse attemptCount))
                     )
 
                 ApiReady int ->
@@ -268,6 +296,24 @@ view model =
     }
 
 
+viewToolbar : Model -> Element Msg
+viewToolbar model =
+    let
+        buttonProps : ButtonProps Msg
+        buttonProps =
+            { onClick = Just UserClickedQueryButton
+            , displayText = "Query"
+            }
+    in
+    el
+        [ width fill
+        , height (px 40)
+        , Border.color model.theme.debugAlert
+        , Background.color model.theme.background
+        ]
+        (el [ centerX, centerY ] <| button model buttonProps)
+
+
 viewElements : Model -> LayoutInfo -> Element Msg
 viewElements model layoutInfo =
     el
@@ -283,7 +329,7 @@ viewElements model layoutInfo =
             , centerY
             , padding 5
             , spacing 5
-            , Background.color model.theme.background
+            , Background.color model.theme.deadspace
             , width fill
             , height fill
             ]
@@ -300,14 +346,16 @@ viewElements model layoutInfo =
                     , Border.rounded 3
                     ]
                     (viewNavPanel model)
-                , el
+                , column
                     [ width (fillPortion (100 - layoutInfo.navWidthPct))
                     , height fill
                     , Border.color model.theme.secondary
                     , Border.width 1
                     , Border.rounded 3
                     ]
-                    (viewEditorPanel model)
+                    [ viewEditorPanel model
+                    , viewToolbar model
+                    ]
                 ]
             , el
                 [ width fill
@@ -362,15 +410,75 @@ viewFirApiStatus theme status =
 
 viewNavPanel : Model -> Element Msg
 viewNavPanel model =
-    column [ width fill, height fill, centerX, centerY ]
+    let
+        navRefElements =
+            case model.duckDbRefs of
+                NotAsked ->
+                    E.none
+
+                Loading ->
+                    E.none
+
+                Failure e ->
+                    let
+                        partialElements =
+                            el [ Background.color model.theme.debugAlert, Font.bold ]
+                    in
+                    case e of
+                        Http.BadUrl string ->
+                            partialElements (E.text string)
+
+                        Http.Timeout ->
+                            partialElements (E.text "Request timed out.")
+
+                        Http.NetworkError ->
+                            partialElements (E.text "Network error")
+
+                        Http.BadStatus status ->
+                            partialElements (E.text <| "Bad status: " ++ String.fromInt status)
+
+                        Http.BadBody body ->
+                            partialElements (E.text <| "Bad body: " ++ body)
+
+                Success refs ->
+                    let
+                        viewRef : DuckDbRef -> Element Msg
+                        viewRef ref =
+                            el
+                                [ width fill
+                                ]
+                                (E.text <| ref.schemaName ++ "." ++ ref.tableName)
+                    in
+                    column
+                        [ width fill
+                        , height fill
+                        , spacing 5
+                        , clipX
+                        , scrollbarX
+                        ]
+                        (List.map (\ref -> viewRef ref) refs)
+    in
+    column
+        [ width fill
+        , height fill
+        , centerX
+        , centerY
+        , Background.color model.theme.background
+        ]
         [ viewFirApiStatus model.theme model.firApiStatus
-        , E.text "Nav goes here"
+        , paragraph [] [ E.text "TODO: Tree nav view goes here, below is a placeholder implementation" ]
+        , navRefElements
         ]
 
 
 viewDataTable : Model -> Element Msg
 viewDataTable model =
-    el [ width fill, height fill, centerX, centerY ] (E.text "Data table goes here")
+    el
+        [ width fill
+        , height fill
+        , Background.color model.theme.background
+        ]
+        (el [ centerX, centerY ] <| E.text "Data table goes here")
 
 
 viewDebugPanel : Model -> Element Msg
@@ -388,5 +496,5 @@ viewDebugPanel model =
         , scrollbarX
         , spacing 5
         ]
-        [ E.text "TODO: Do I want a debug panel in this story???"
+        [ E.text "TODO: Yes, I do want a debug panel here. This page will perform simple query parsing to supply duckdb fallback refs, that'll need debugging!"
         ]

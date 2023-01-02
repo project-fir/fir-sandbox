@@ -299,19 +299,19 @@ queryDuckDb query allowFallback refs onResponse =
         }
 
 
-queryDuckDbMeta : String -> Bool -> List DuckDbRef -> (Result Error DuckDbMetaResponse -> msg) -> Cmd msg
-queryDuckDbMeta query allowFallback refs onResponse =
-    -- NB: Fetching metadata is essentially a query with 'LIMIT 0' implied.
-    --     Here, we're assuming the caller of this function is supplying such a query
-    --     This is in-lieu of SQL parsing, which when complete, can be used to enforce such
-    --     a constraint server-side.
+queryDuckDbMeta : DuckDbRef -> (Result Error DuckDbMetaResponse -> msg) -> Cmd msg
+queryDuckDbMeta ref onResponse =
     let
+        query : String
+        query =
+            "select * from " ++ refToString ref ++ " limit 0"
+
         duckDbQueryEncoder : JE.Value
         duckDbQueryEncoder =
             JE.object
                 [ ( "query_str", JE.string query )
-                , ( "allow_blob_fallback", JE.bool allowFallback )
-                , ( "fallback_table_refs", JE.list refEncoder refs )
+                , ( "allow_blob_fallback", JE.bool True )
+                , ( "fallback_table_refs", JE.list refEncoder [ ref ] )
                 ]
 
         duckDbMetaResponseDecoder : JD.Decoder DuckDbMetaResponse

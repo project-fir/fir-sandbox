@@ -110,13 +110,8 @@ update msg model =
                             )
 
                         r :: rs ->
-                            let
-                                queryStr : String
-                                queryStr =
-                                    "select * from " ++ refToString r ++ " limit 0"
-                            in
                             ( { model | duckDbCache = Warming oldCache partialInProgressCache rs }
-                            , queryDuckDbMeta queryStr True [ r ] Cache_GotDuckDbMetaDataResponse
+                            , queryDuckDbMeta r Cache_GotDuckDbMetaDataResponse
                             )
 
                 _ ->

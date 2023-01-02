@@ -214,12 +214,7 @@ update msg model =
                     ( { model | duckDbTableRefs = Failure err }, Effect.none )
 
         FetchMetaDataForRef ref ->
-            let
-                -- NB: A bit hacky, but we submit a query with limit 0, and use the same response without vals
-                queryStr =
-                    "select * from " ++ refToString ref ++ " limit 0"
-            in
-            ( { model | duckDbTableRefs = Loading }, Effect.fromCmd <| queryDuckDbMeta queryStr True [ ref ] GotDuckDbMetaResponse )
+            ( { model | duckDbTableRefs = Loading }, Effect.fromCmd <| queryDuckDbMeta ref GotDuckDbMetaResponse )
 
         GotDuckDbMetaResponse response ->
             case response of
@@ -280,7 +275,7 @@ update msg model =
                     "select * from " ++ refToString ref ++ " limit 0"
             in
             ( { model | duckDbMetaResponse = Loading, selectedTableRef = Just ref }
-            , Effect.fromCmd <| queryDuckDbMeta queryStr True [ ref ] GotDuckDbMetaResponse
+            , Effect.fromCmd <| queryDuckDbMeta ref GotDuckDbMetaResponse
             )
 
         UserMouseEnteredTableRef ref ->

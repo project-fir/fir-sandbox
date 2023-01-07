@@ -10,15 +10,10 @@ type LocalDevModes
 
 
 pointTo =
-    PointToLocalDevFastApi
+    PointToProduction
 
 
 apiHost =
-    --case Env.mode of
-    --    Env.Production ->
-    --        "https://fir-api.robsoko.tech"
-    --
-    --    _ ->
     case pointTo of
         PointToLocalDevFastApi ->
             "http://localhost:8889"

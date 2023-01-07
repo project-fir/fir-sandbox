@@ -214,14 +214,13 @@ taskBuildDateDimTable startDate endDate ref onResponse =
 
 
 queryDuckDb : String -> Bool -> List DuckDbRef -> (Result Error DuckDbQueryResponse -> msg) -> Cmd msg
-queryDuckDb query allowFallback refs onResponse =
+queryDuckDb query _ refs onResponse =
     let
         duckDbQueryEncoder : JE.Value
         duckDbQueryEncoder =
             JE.object
                 [ ( "query_str", JE.string query )
-                , ( "allow_blob_fallback", JE.bool allowFallback )
-                , ( "fallback_table_refs", JE.list refEncoder refs )
+                , ( "referred_to_refs", JE.list refEncoder refs )
                 ]
 
         duckDbQueryResponseDecoder : JD.Decoder DuckDbQueryResponse

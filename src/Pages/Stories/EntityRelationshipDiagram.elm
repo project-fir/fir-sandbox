@@ -9,7 +9,7 @@ import Element.Border as Border
 import Element.Events as Events
 import Element.Font as Font
 import Element.Input as Input
-import FirApi exposing (DuckDbColumnDescription(..), DuckDbRef, DuckDbRefString, DuckDbRef_(..), refToString, ref_ToString)
+import FirApi exposing (DuckDbColumnDescription, DuckDbRef, DuckDbRefString, DuckDbRef_(..), refToString, ref_ToString)
 import Gen.Params.Stories.EntityRelationshipDiagram exposing (Params)
 import Graph exposing (Edge, NodeId)
 import Html.Events.Extra.Mouse exposing (Event)
@@ -55,17 +55,17 @@ init shared =
 
         dimCols : List DuckDbColumnDescription
         dimCols =
-            [ Persisted_ { name = "attr_1", parentRef = DuckDbTable dimRef, dataType = "String" }
-            , Persisted_ { name = "attr_2", parentRef = DuckDbTable dimRef, dataType = "String" }
-            , Persisted_ { name = "attr_3", parentRef = DuckDbTable dimRef, dataType = "String" }
-            , Persisted_ { name = "attr_4", parentRef = DuckDbTable dimRef, dataType = "String" }
-            , Persisted_ { name = "attr_5", parentRef = DuckDbTable dimRef, dataType = "String" }
-            , Persisted_ { name = "attr_6", parentRef = DuckDbTable dimRef, dataType = "String" }
-            , Persisted_ { name = "id", parentRef = DuckDbTable dimRef, dataType = "String" }
-            , Persisted_ { name = "attr_7", parentRef = DuckDbTable dimRef, dataType = "String" }
-            , Persisted_ { name = "attr_8", parentRef = DuckDbTable dimRef, dataType = "String" }
-            , Persisted_ { name = "attr_9", parentRef = DuckDbTable dimRef, dataType = "String" }
-            , Persisted_ { name = "attr_10", parentRef = DuckDbTable dimRef, dataType = "String" }
+            [ { name = "attr_1", parentRef = DuckDbTable dimRef, dataType = "String" }
+            , { name = "attr_2", parentRef = DuckDbTable dimRef, dataType = "String" }
+            , { name = "attr_3", parentRef = DuckDbTable dimRef, dataType = "String" }
+            , { name = "attr_4", parentRef = DuckDbTable dimRef, dataType = "String" }
+            , { name = "attr_5", parentRef = DuckDbTable dimRef, dataType = "String" }
+            , { name = "attr_6", parentRef = DuckDbTable dimRef, dataType = "String" }
+            , { name = "id", parentRef = DuckDbTable dimRef, dataType = "String" }
+            , { name = "attr_7", parentRef = DuckDbTable dimRef, dataType = "String" }
+            , { name = "attr_8", parentRef = DuckDbTable dimRef, dataType = "String" }
+            , { name = "attr_9", parentRef = DuckDbTable dimRef, dataType = "String" }
+            , { name = "attr_10", parentRef = DuckDbTable dimRef, dataType = "String" }
             ]
 
         factRef : DuckDbRef
@@ -74,9 +74,9 @@ init shared =
 
         factCols : List DuckDbColumnDescription
         factCols =
-            [ Persisted_ { name = "fact_id", parentRef = DuckDbTable factRef, dataType = "String" }
-            , Persisted_ { name = "dim_key", parentRef = DuckDbTable factRef, dataType = "String" }
-            , Persisted_ { name = "measure_1", parentRef = DuckDbTable factRef, dataType = "Float" }
+            [ { name = "fact_id", parentRef = DuckDbTable factRef, dataType = "String" }
+            , { name = "dim_key", parentRef = DuckDbTable factRef, dataType = "String" }
+            , { name = "measure_1", parentRef = DuckDbTable factRef, dataType = "Float" }
             ]
 
         graphStep1 : ColumnGraph
@@ -87,10 +87,10 @@ init shared =
         graphStep2 =
             let
                 lhs =
-                    Persisted_ { name = "dim_key", parentRef = DuckDbTable factRef, dataType = "String" }
+                    { name = "dim_key", parentRef = DuckDbTable factRef, dataType = "String" }
 
                 rhs =
-                    Persisted_ { name = "id", parentRef = DuckDbTable dimRef, dataType = "String" }
+                    { name = "id", parentRef = DuckDbTable dimRef, dataType = "String" }
             in
             addEdges graphStep1
                 [ ( lhs, rhs, Joinable lhs rhs )
@@ -205,19 +205,13 @@ viewDebugInfo model =
                     "MouseEnteredErdCardColumnRow "
                         ++ refToString duckDbRef
                         ++ ":"
-                        ++ (case duckDbColumnDescription of
-                                Persisted_ persistedDuckDbColumnDescription ->
-                                    persistedDuckDbColumnDescription.name
-                           )
+                        ++ duckDbColumnDescription.name
 
                 ClickedErdCardColumnRow duckDbRef duckDbColumnDescription ->
                     "ClickedErdCardColumnRow "
                         ++ refToString duckDbRef
                         ++ ":"
-                        ++ (case duckDbColumnDescription of
-                                Persisted_ persistedDuckDbColumnDescription ->
-                                    persistedDuckDbColumnDescription.name
-                           )
+                        ++ duckDbColumnDescription.name
 
                 ToggledErdCardDropdown duckDbRef ->
                     "ToggledErdCardDropdown " ++ refToString duckDbRef
@@ -504,9 +498,7 @@ computeLineSegmentsFromSingleEdge graph tableInfos edge =
         tableInfosFromNodeId nodeId =
             case columnDescFromNodeId graph nodeId of
                 Just colDesc ->
-                    case colDesc of
-                        Persisted_ colDesc_ ->
-                            Dict.get (ref_ToString colDesc_.parentRef) tableInfos
+                    Dict.get (ref_ToString colDesc.parentRef) tableInfos
 
                 Nothing ->
                     Nothing
@@ -734,9 +726,7 @@ viewEntityRelationshipCard r dimModel kimballAssignment erdCardProps =
 
                 colDisplayText : DuckDbColumnDescription -> String
                 colDisplayText desc =
-                    case desc of
-                        Persisted_ desc_ ->
-                            desc_.name
+                    desc.name
             in
             column
                 [ width fill

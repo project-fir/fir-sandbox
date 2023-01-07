@@ -1,9 +1,5 @@
 module Pages.VegaLite exposing (Model, Msg, page)
 
---import Html5.DragDrop as DragDrop
---import PortDefs exposing (dragStart, elmToJS)
---import VegaLite as VL
-
 import Dict exposing (Dict)
 import Effect exposing (Effect)
 import Element as E exposing (..)
@@ -12,7 +8,16 @@ import Element.Border as Border
 import Element.Events exposing (..)
 import Element.Font as Font
 import Element.Input as Input
-import FirApi exposing (ColumnName, DuckDbColumnDescription(..), DuckDbMetaResponse, fetchDuckDbTableRefs, queryDuckDb, queryDuckDbMeta, refToString)
+import FirApi
+    exposing
+        ( ColumnName
+        , DuckDbColumnDescription
+        , DuckDbMetaResponse
+        , fetchDuckDbTableRefs
+        , fetchMetaDataForRef
+        , queryDuckDb
+        , refToString
+        )
 import Gen.Params.VegaLite exposing (Params)
 import Html.Attributes as HA
 import Http exposing (Error(..))
@@ -214,7 +219,7 @@ update msg model =
                     ( { model | duckDbTableRefs = Failure err }, Effect.none )
 
         FetchMetaDataForRef ref ->
-            ( { model | duckDbTableRefs = Loading }, Effect.fromCmd <| queryDuckDbMeta ref GotDuckDbMetaResponse )
+            ( { model | duckDbTableRefs = Loading }, Effect.fromCmd <| fetchMetaDataForRef ref GotDuckDbMetaResponse )
 
         GotDuckDbMetaResponse response ->
             case response of
@@ -275,7 +280,7 @@ update msg model =
                     "select * from " ++ refToString ref ++ " limit 0"
             in
             ( { model | duckDbMetaResponse = Loading, selectedTableRef = Just ref }
-            , Effect.fromCmd <| queryDuckDbMeta ref GotDuckDbMetaResponse
+            , Effect.fromCmd <| fetchMetaDataForRef ref GotDuckDbMetaResponse
             )
 
         UserMouseEnteredTableRef ref ->
@@ -630,9 +635,7 @@ mapToKimball r =
                 _ ->
                     Error colDesc.name
     in
-    case r of
-        Persisted_ colDesc ->
-            mapDataType colDesc
+    mapDataType r
 
 
 colorAssociatedWith : KimballColumn -> E.Color

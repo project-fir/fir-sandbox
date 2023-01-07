@@ -12,7 +12,7 @@ import Element.Border as Border
 import Element.Events as Events
 import Element.Font as Font
 import Element.Input as Input
-import FirApi exposing (DuckDbRef, DuckDbRefsResponse, PingResponse, fetchDuckDbTableRefs, pingServer, refToString)
+import FirApi exposing (DuckDbColumnDescription, DuckDbMetaResponse, DuckDbRef, DuckDbRefsResponse, PingResponse, fetchDuckDbTableRefs, fetchMetaDataForRef, pingServer, refToString)
 import Gen.Params.Stories.DuckdbClient exposing (Params)
 import Html
 import Http
@@ -47,7 +47,9 @@ type alias Model =
     , viewStatus : ViewStatus
     , firApiStatus : FirApiStatus
     , duckDbRefs : RemoteData Http.Error (List DuckDbRef)
-    , duckDbRefToInspect : Maybe DuckDbRef
+
+    --, duckDbRefToInspect : Maybe DuckDbRef
+    , duckDbRefInspectionData : RemoteData Http.Error DuckDbMetaResponse
     }
 
 
@@ -153,7 +155,9 @@ init shared =
       , viewStatus = AwaitingViewportInfo
       , firApiStatus = AwaitingScaleFromZero scaleFromZeroPeriodMs 1
       , duckDbRefs = NotAsked
-      , duckDbRefToInspect = Nothing
+
+      --, duckDbRefToInspect = Nothing
+      , duckDbRefInspectionData = NotAsked
       }
     , Effect.fromCmd (Task.perform GotViewport Browser.Dom.getViewport)
     )
@@ -170,6 +174,7 @@ type Msg
     | Tick_PingFirApi Posix
     | Got_PingResponse Int (Result Http.Error PingResponse)
     | Got_DuckDbRefsResponse (Result Http.Error DuckDbRefsResponse)
+    | Got_DuckDbMetaDataResponse (Result Http.Error DuckDbMetaResponse)
     | UserClickedQueryButton
     | UserClickedDuckDbRefToInspect DuckDbRef
 
@@ -177,8 +182,18 @@ type Msg
 update : Msg -> Model -> ( Model, Effect Msg )
 update msg model =
     case msg of
+        Got_DuckDbMetaDataResponse resp ->
+            case resp of
+                Ok resp_ ->
+                    ( { model | duckDbRefInspectionData = Success resp_ }, Effect.none )
+
+                Err error ->
+                    ( { model | duckDbRefInspectionData = Failure error }, Effect.none )
+
         UserClickedDuckDbRefToInspect ref ->
-            ( { model | duckDbRefToInspect = Just ref }, Effect.none )
+            ( { model | duckDbRefInspectionData = Loading }
+            , Effect.fromCmd <| fetchMetaDataForRef ref Got_DuckDbMetaDataResponse
+            )
 
         Got_DuckDbRefsResponse resp ->
             case resp of
@@ -463,29 +478,67 @@ viewNavPanel model =
                     let
                         viewRef : DuckDbRef -> Element Msg
                         viewRef ref =
-                            el
-                                [ width fill
-                                , Events.onClick (UserClickedDuckDbRefToInspect ref)
+                            let
+                                -- HACK: Unsure why I can't clipX
+                                refString =
+                                    ref.schemaName ++ "." ++ ref.tableName
+
+                                refString_ =
+                                    if String.length refString > 30 then
+                                        String.slice 0 30 refString ++ "..."
+
+                                    else
+                                        refString
+                            in
+                            paragraph
+                                [ Events.onClick (UserClickedDuckDbRefToInspect ref)
+
+                                --, clipX
                                 ]
-                                (E.text <| ref.schemaName ++ "." ++ ref.tableName)
+                                [ E.text refString_ ]
                     in
                     column
-                        [ width fill
-                        , height fill
-                        , spacing 5
-                        , clipX
-                        , scrollbarX
+                        [ spacing 5
+
+                        --, clipX
                         ]
                         (List.map (\ref -> viewRef ref) refs)
 
-        viewDuckDbRefInspectionPanel : Maybe DuckDbRef -> Element Msg
-        viewDuckDbRefInspectionPanel ref =
-            case ref of
-                Just ref_ ->
-                    E.text (refToString ref_)
-
-                Nothing ->
+        viewDuckDbRefInspectionPanel : RemoteData Http.Error DuckDbMetaResponse -> Element Msg
+        viewDuckDbRefInspectionPanel metadata =
+            case metadata of
+                NotAsked ->
                     E.text "Select a ref"
+
+                Loading ->
+                    E.none
+
+                Failure e ->
+                    case e of
+                        Http.BadUrl string ->
+                            E.text string
+
+                        Http.Timeout ->
+                            E.text "Timed out."
+
+                        Http.NetworkError ->
+                            E.text "Network error."
+
+                        Http.BadStatus httpStatus ->
+                            E.text <| "Http bad status: " ++ String.fromInt httpStatus
+
+                        Http.BadBody body ->
+                            E.text <| "Bad body: " ++ body
+
+                Success resp ->
+                    let
+                        viewColumnDescription : DuckDbColumnDescription -> Element Msg
+                        viewColumnDescription colDesc =
+                            paragraph [] [ E.text (colDesc.name ++ "[" ++ colDesc.dataType ++ "]") ]
+                    in
+                    column [] <|
+                        paragraph [] [ E.text <| refToString resp.ref ]
+                            :: List.map (\colDesc -> viewColumnDescription colDesc) resp.columnDescriptions
     in
     column
         [ width fill
@@ -495,12 +548,16 @@ viewNavPanel model =
         , Background.color model.theme.background
         ]
         [ viewFirApiStatus model.theme model.firApiStatus
-        , paragraph [] [ E.text "TODO: Tree nav view goes here, below is a placeholder implementation" ]
+        , paragraph [] [ E.text "TODO: Tree nav view goes here" ]
         , el
-            [ width fill
-            , height <| fillPortion 50
-            , clipY
+            [ height <| fillPortion 50
+            , width fill
+
+            --, clipY
             , scrollbarY
+            , scrollbarX
+
+            --, clip
             ]
             navRefElements
         , el
@@ -520,7 +577,7 @@ viewNavPanel model =
             , clipY
             , scrollbarY
             ]
-            (viewDuckDbRefInspectionPanel model.duckDbRefToInspect)
+            (viewDuckDbRefInspectionPanel model.duckDbRefInspectionData)
         ]
 
 

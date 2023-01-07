@@ -10,7 +10,7 @@ type LocalDevModes
 
 
 pointTo =
-    PointToProduction
+    PointToLocalDevFastApi
 
 
 apiHost =
@@ -21,7 +21,7 @@ apiHost =
     --    _ ->
     case pointTo of
         PointToLocalDevFastApi ->
-            "http://localhost:8000"
+            "http://localhost:8889"
 
         PointToLocalGunicorn ->
             "http://localhost:8080"

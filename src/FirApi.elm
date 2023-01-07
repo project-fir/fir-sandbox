@@ -1,4 +1,29 @@
-module FirApi exposing (ColumnName, DuckDbColumn(..), DuckDbColumnDescription(..), DuckDbMetaResponse, DuckDbQueryResponse, DuckDbRef, DuckDbRefString, DuckDbRef_(..), DuckDbRefsResponse, PersistedDuckDbColumn, PersistedDuckDbColumnDescription, PingResponse, Ref, SchemaName, TableName, Val(..), fetchDuckDbTableRefs, pingServer, queryDuckDb, queryDuckDbMeta, refEquals, refToString, ref_ToString, taskBuildDateDimTable, uploadFile)
+module FirApi exposing
+    ( ColumnName
+    , DuckDbColumn(..)
+    , DuckDbColumnDescription
+    , DuckDbMetaResponse
+    , DuckDbQueryResponse
+    , DuckDbRef
+    , DuckDbRefString
+    , DuckDbRef_(..)
+    , DuckDbRefsResponse
+    , PersistedDuckDbColumn
+    , PingResponse
+    , Ref
+    , SchemaName
+    , TableName
+    , Val(..)
+    , fetchDuckDbTableRefs
+    , fetchMetaDataForRef
+    , pingServer
+    , queryDuckDb
+    , refEquals
+    , refToString
+    , ref_ToString
+    , taskBuildDateDimTable
+    , uploadFile
+    )
 
 import Config exposing (apiHost)
 import File exposing (File)
@@ -84,13 +109,11 @@ type alias PersistedDuckDbColumn =
     }
 
 
-type
-    DuckDbColumnDescription
-    -- TODO: Computed column support
-    = Persisted_ PersistedDuckDbColumnDescription
+
+-- TODO: ColumnDescription might be a custom type, with this as a variant when I support computed columns
 
 
-type alias PersistedDuckDbColumnDescription =
+type alias DuckDbColumnDescription =
     -- Just the metadata for a DuckDbColumn
     { name : ColumnName
     , parentRef : DuckDbRef_
@@ -131,7 +154,7 @@ type alias DuckDbQueryResponse =
 
 type alias DuckDbMetaResponse =
     { columnDescriptions : List DuckDbColumnDescription
-    , refs : List DuckDbRef
+    , ref : DuckDbRef
     }
 
 
@@ -299,38 +322,25 @@ queryDuckDb query allowFallback refs onResponse =
         }
 
 
-queryDuckDbMeta : DuckDbRef -> (Result Error DuckDbMetaResponse -> msg) -> Cmd msg
-queryDuckDbMeta ref onResponse =
+fetchMetaDataForRef : DuckDbRef -> (Result Error DuckDbMetaResponse -> msg) -> Cmd msg
+fetchMetaDataForRef ref onResponse =
     let
-        query : String
-        query =
-            "select * from " ++ refToString ref ++ " limit 0"
-
-        duckDbQueryEncoder : JE.Value
-        duckDbQueryEncoder =
-            JE.object
-                [ ( "query_str", JE.string query )
-                , ( "allow_blob_fallback", JE.bool True )
-                , ( "fallback_table_refs", JE.list refEncoder [ ref ] )
-                ]
-
         duckDbMetaResponseDecoder : JD.Decoder DuckDbMetaResponse
         duckDbMetaResponseDecoder =
             let
-                columnDescriptionDecoder : JD.Decoder PersistedDuckDbColumnDescription
+                columnDescriptionDecoder : JD.Decoder DuckDbColumnDescription
                 columnDescriptionDecoder =
-                    JD.map3 PersistedDuckDbColumnDescription
+                    JD.map3 DuckDbColumnDescription
                         (JD.field "name" JD.string)
                         (JD.field "owning_ref" (JD.map DuckDbTable refDecoder))
                         (JD.field "type" JD.string)
             in
             JD.map2 DuckDbMetaResponse
-                (JD.field "columns" (JD.list (JD.map Persisted_ columnDescriptionDecoder)))
-                (JD.field "refs" (JD.list refDecoder))
+                (JD.field "columns" (JD.list columnDescriptionDecoder))
+                (JD.field "ref" refDecoder)
     in
-    Http.post
-        { url = apiHost ++ "/duckdb"
-        , body = Http.jsonBody duckDbQueryEncoder
+    Http.get
+        { url = apiHost ++ "/duckdb/refs/" ++ refToString ref
         , expect = Http.expectJson onResponse duckDbMetaResponseDecoder
         }
 

@@ -2,7 +2,14 @@ module DimensionalModelTest exposing (..)
 
 import Dict
 import DimensionalModel exposing (ColumnGraphEdge, DimModelDuckDbSourceInfo, DimensionalModel, EdgeLabel(..), KimballAssignment(..), Position)
-import FirApi exposing (DuckDbColumnDescription(..), DuckDbRef, DuckDbRefString, DuckDbRef_(..), refEquals, refToString)
+import FirApi
+    exposing
+        ( DuckDbColumnDescription
+        , DuckDbRef
+        , DuckDbRefString
+        , DuckDbRef_(..)
+        , refToString
+        )
 import Graph exposing (Edge, Node)
 import Utils exposing (cartesian)
 
@@ -47,21 +54,18 @@ table1 =
 table1Cols : List DuckDbColumnDescription
 table1Cols =
     -- NB: We share 1 column name with a column from table2Cols, and have a few columns with unique names
-    [ Persisted_
-        { name = "entity_id"
-        , parentRef = DuckDbTable table1
-        , dataType = "DOES_NOT_MATTER_HERE"
-        }
-    , Persisted_
-        { name = "table_1_col_a"
-        , parentRef = DuckDbTable table1
-        , dataType = "DOES_NOT_MATTER_HERE"
-        }
-    , Persisted_
-        { name = "table_1_col_b"
-        , parentRef = DuckDbTable table1
-        , dataType = "DOES_NOT_MATTER_HERE"
-        }
+    [ { name = "entity_id"
+      , parentRef = DuckDbTable table1
+      , dataType = "DOES_NOT_MATTER_HERE"
+      }
+    , { name = "table_1_col_a"
+      , parentRef = DuckDbTable table1
+      , dataType = "DOES_NOT_MATTER_HERE"
+      }
+    , { name = "table_1_col_b"
+      , parentRef = DuckDbTable table1
+      , dataType = "DOES_NOT_MATTER_HERE"
+      }
     ]
 
 
@@ -75,26 +79,22 @@ table2 =
 table2Cols : List DuckDbColumnDescription
 table2Cols =
     -- NB: We share 1 column name with a column from table1Cols, and have a few columns with unique names
-    [ Persisted_
-        { name = "entity_id"
-        , parentRef = DuckDbTable table2
-        , dataType = "DOES_NOT_MATTER_HERE"
-        }
-    , Persisted_
-        { name = "table_2_col_a"
-        , parentRef = DuckDbTable table2
-        , dataType = "DOES_NOT_MATTER_HERE"
-        }
-    , Persisted_
-        { name = "table_2_col_b"
-        , parentRef = DuckDbTable table2
-        , dataType = "DOES_NOT_MATTER_HERE"
-        }
-    , Persisted_
-        { name = "table_2_col_c"
-        , parentRef = DuckDbTable table2
-        , dataType = "DOES_NOT_MATTER_HERE"
-        }
+    [ { name = "entity_id"
+      , parentRef = DuckDbTable table2
+      , dataType = "DOES_NOT_MATTER_HERE"
+      }
+    , { name = "table_2_col_a"
+      , parentRef = DuckDbTable table2
+      , dataType = "DOES_NOT_MATTER_HERE"
+      }
+    , { name = "table_2_col_b"
+      , parentRef = DuckDbTable table2
+      , dataType = "DOES_NOT_MATTER_HERE"
+      }
+    , { name = "table_2_col_c"
+      , parentRef = DuckDbTable table2
+      , dataType = "DOES_NOT_MATTER_HERE"
+      }
     ]
 
 

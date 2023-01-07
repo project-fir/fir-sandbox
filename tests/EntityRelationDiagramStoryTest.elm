@@ -1,7 +1,7 @@
 module EntityRelationDiagramStoryTest exposing (..)
 
 import Expect exposing (Expectation)
-import FirApi exposing (DuckDbColumnDescription(..), DuckDbRef_(..))
+import FirApi exposing (DuckDbColumnDescription, DuckDbRef_(..))
 import Pages.Stories.EntityRelationshipDiagram as Erd
 import Test exposing (Test, describe, test)
 
@@ -26,9 +26,8 @@ testRef =
 
 colDescs : List DuckDbColumnDescription
 colDescs =
-    [ Persisted_
-        { name = "my_column"
-        , parentRef = testRef
-        , dataType = "STRING"
-        }
+    [ { name = "my_column"
+      , parentRef = testRef
+      , dataType = "STRING"
+      }
     ]

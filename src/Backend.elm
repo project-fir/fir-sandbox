@@ -3,7 +3,7 @@ module Backend exposing (..)
 import Bridge exposing (BackendErrorMessage, DeliveryEnvelope(..), DimensionalModelUpdate(..), DuckDbCache, DuckDbCache_(..), DuckDbMetaDataCacheEntry, ToBackend(..), defaultColdCache)
 import Dict exposing (Dict)
 import DimensionalModel exposing (CardRenderInfo, ColumnGraphEdge, DimModelDuckDbSourceInfo, DimensionalModel, DimensionalModelRef, EdgeLabel(..), KimballAssignment(..), Position, addEdges, addNodes)
-import FirApi exposing (DuckDbColumnDescription, DuckDbRef, DuckDbRefString, DuckDbRef_(..), fetchDuckDbTableRefs, pingServer, queryDuckDbMeta, refToString, taskBuildDateDimTable)
+import FirApi exposing (DuckDbColumnDescription, DuckDbRef, DuckDbRefString, DuckDbRef_(..), fetchDuckDbTableRefs, fetchMetaDataForRef, pingServer, refToString, taskBuildDateDimTable)
 import Graph
 import Lamdera exposing (ClientId, SessionId, broadcast, sendToFrontend)
 import RemoteData exposing (RemoteData(..))
@@ -110,13 +110,8 @@ update msg model =
                             )
 
                         r :: rs ->
-                            let
-                                queryStr : String
-                                queryStr =
-                                    "select * from " ++ refToString r ++ " limit 0"
-                            in
                             ( { model | duckDbCache = Warming oldCache partialInProgressCache rs }
-                            , queryDuckDbMeta queryStr True [ r ] Cache_GotDuckDbMetaDataResponse
+                            , fetchMetaDataForRef r Cache_GotDuckDbMetaDataResponse
                             )
 
                 _ ->
@@ -126,33 +121,27 @@ update msg model =
         Cache_GotDuckDbMetaDataResponse response ->
             case response of
                 Ok responseData ->
-                    case responseData.refs of
-                        [] ->
+                    case model.duckDbCache of
+                        Warming oldCache partialCache remainingRefs ->
+                            let
+                                updatedPartialCache : DuckDbCache
+                                updatedPartialCache =
+                                    { refs = responseData.ref :: partialCache.refs
+                                    , metaData =
+                                        Dict.insert (refToString responseData.ref)
+                                            { ref = responseData.ref
+                                            , columnDescriptions = responseData.columnDescriptions
+                                            }
+                                            partialCache.metaData
+                                    }
+                            in
+                            ( { model | duckDbCache = Warming oldCache updatedPartialCache remainingRefs }
+                            , send Cache_ContinueCacheWarmingInProgress
+                            )
+
+                        _ ->
                             -- TODO: Send error messaging to frontend
                             ( { model | duckDbCache = Cold defaultColdCache }, Cmd.none )
-
-                        r :: _ ->
-                            case model.duckDbCache of
-                                Warming oldCache partialCache remainingRefs ->
-                                    let
-                                        updatedPartialCache : DuckDbCache
-                                        updatedPartialCache =
-                                            { refs = r :: partialCache.refs
-                                            , metaData =
-                                                Dict.insert (refToString r)
-                                                    { ref = r
-                                                    , columnDescriptions = responseData.columnDescriptions
-                                                    }
-                                                    partialCache.metaData
-                                            }
-                                    in
-                                    ( { model | duckDbCache = Warming oldCache updatedPartialCache remainingRefs }
-                                    , send Cache_ContinueCacheWarmingInProgress
-                                    )
-
-                                _ ->
-                                    -- TODO: Send error messaging to frontend
-                                    ( { model | duckDbCache = Cold defaultColdCache }, Cmd.none )
 
                 Err error ->
                     -- TODO: Send error messaging to frontend

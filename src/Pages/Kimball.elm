@@ -12,7 +12,16 @@ import Element.Border as Border
 import Element.Events as Events
 import Element.Font as Font
 import Element.Input as Input
-import FirApi exposing (ColumnName, DuckDbColumn, DuckDbColumnDescription(..), DuckDbRef, DuckDbRefString, DuckDbRef_(..), PersistedDuckDbColumnDescription, fetchDuckDbTableRefs, refEquals, refToString)
+import FirApi
+    exposing
+        ( ColumnName
+        , DuckDbColumn
+        , DuckDbColumnDescription
+        , DuckDbRef
+        , DuckDbRefString
+        , DuckDbRef_(..)
+        , refToString
+        )
 import Gen.Params.Kimball exposing (Params)
 import Html.Events.Extra.Mouse as Mouse exposing (Event)
 import Json.Decode as JD
@@ -918,11 +927,9 @@ viewColumnInspectorPanel model =
         text =
             case model.inspectedColumn of
                 Just colDesc ->
-                    case colDesc of
-                        Persisted_ colDesc_ ->
-                            case colDesc_.parentRef of
-                                DuckDbTable ref ->
-                                    Just <| refToString ref ++ "::" ++ colDesc_.name
+                    case colDesc.parentRef of
+                        DuckDbTable ref ->
+                            Just <| refToString ref ++ "::" ++ colDesc.name
 
                 Nothing ->
                     Nothing

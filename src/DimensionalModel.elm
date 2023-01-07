@@ -24,7 +24,7 @@ module DimensionalModel exposing
     )
 
 import Dict exposing (Dict)
-import FirApi exposing (DuckDbColumnDescription(..), DuckDbRef, DuckDbRefString, DuckDbRef_(..), refToString, ref_ToString)
+import FirApi exposing (DuckDbColumnDescription, DuckDbRef, DuckDbRefString, DuckDbRef_(..), refToString, ref_ToString)
 import Graph exposing (Edge, Graph, Node, NodeId)
 import Graph.DOT
 import Hash exposing (Hash)
@@ -115,12 +115,10 @@ columnGraph2DotString graph =
     --       powered by the output of this function!
     let
         nodeHelper : DuckDbColumnDescription -> Maybe String
-        nodeHelper n =
-            case n of
-                Persisted_ persistedDuckDbColumnDescription ->
-                    case persistedDuckDbColumnDescription.parentRef of
-                        DuckDbTable ref ->
-                            Just <| refToString ref ++ ":" ++ persistedDuckDbColumnDescription.name
+        nodeHelper colDesc =
+            case colDesc.parentRef of
+                DuckDbTable ref ->
+                    Just <| refToString ref ++ ":" ++ colDesc.name
 
         edgeHelper : ColumnGraphEdge -> Maybe String
         edgeHelper e =
@@ -219,13 +217,11 @@ computeNodeId node =
 
 hashColDesc : DuckDbColumnDescription -> Hash
 hashColDesc colDesc =
-    case colDesc of
-        Persisted_ perCol ->
-            Hash.dependent
-                (Hash.dependent (Hash.fromString <| ref_ToString perCol.parentRef)
-                    (Hash.fromString <| perCol.name)
-                )
-                (Hash.fromString perCol.dataType)
+    Hash.dependent
+        (Hash.dependent (Hash.fromString <| ref_ToString colDesc.parentRef)
+            (Hash.fromString <| colDesc.name)
+        )
+        (Hash.fromString colDesc.dataType)
 
 
 edgesOfFamily : ColumnGraph -> EdgeFamily -> List (Edge ColumnGraphEdge)

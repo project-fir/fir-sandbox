@@ -12,7 +12,7 @@ import Element.Border as Border
 import Element.Events as Events
 import Element.Font as Font
 import Element.Input as Input
-import FirApi exposing (DuckDbRef, DuckDbRefsResponse, PingResponse, fetchDuckDbTableRefs, pingServer)
+import FirApi exposing (DuckDbColumnDescription, DuckDbMetaResponse, DuckDbRef, DuckDbRefsResponse, PingResponse, fetchDuckDbTableRefs, fetchMetaDataForRef, pingServer, refToString)
 import Gen.Params.Stories.DuckdbClient exposing (Params)
 import Html
 import Http
@@ -47,6 +47,9 @@ type alias Model =
     , viewStatus : ViewStatus
     , firApiStatus : FirApiStatus
     , duckDbRefs : RemoteData Http.Error (List DuckDbRef)
+
+    --, duckDbRefToInspect : Maybe DuckDbRef
+    , duckDbRefInspectionData : RemoteData Http.Error DuckDbMetaResponse
     }
 
 
@@ -90,7 +93,8 @@ type ViewStatus
 type alias LayoutInfo =
     { textPanelWidthPx : Float
     , textPanelHeightPx : Float
-    , navWidthPct : Int
+    , leftNavWidthPct : Int
+    , debugNavWidthPct : Int
     , dataTableHeightPct : Int
     }
 
@@ -98,15 +102,19 @@ type alias LayoutInfo =
 computeLayoutInfo : Browser.Dom.Viewport -> LayoutInfo
 computeLayoutInfo viewPort =
     let
-        navWidthPct =
-            20
+        leftNavWidthPct =
+            15
+
+        debugNavWidthPct =
+            15
 
         dataTableHeightPct =
             40
     in
-    { textPanelWidthPx = viewPort.viewport.width * ((100 - navWidthPct) / 100)
+    { textPanelWidthPx = viewPort.viewport.width * ((100 - (leftNavWidthPct + debugNavWidthPct)) / 100)
     , textPanelHeightPx = viewPort.viewport.height * ((100 - dataTableHeightPct) / 100)
-    , navWidthPct = navWidthPct
+    , leftNavWidthPct = leftNavWidthPct
+    , debugNavWidthPct = debugNavWidthPct
     , dataTableHeightPct = dataTableHeightPct
     }
 
@@ -147,6 +155,9 @@ init shared =
       , viewStatus = AwaitingViewportInfo
       , firApiStatus = AwaitingScaleFromZero scaleFromZeroPeriodMs 1
       , duckDbRefs = NotAsked
+
+      --, duckDbRefToInspect = Nothing
+      , duckDbRefInspectionData = NotAsked
       }
     , Effect.fromCmd (Task.perform GotViewport Browser.Dom.getViewport)
     )
@@ -163,12 +174,27 @@ type Msg
     | Tick_PingFirApi Posix
     | Got_PingResponse Int (Result Http.Error PingResponse)
     | Got_DuckDbRefsResponse (Result Http.Error DuckDbRefsResponse)
+    | Got_DuckDbMetaDataResponse (Result Http.Error DuckDbMetaResponse)
     | UserClickedQueryButton
+    | UserClickedDuckDbRefToInspect DuckDbRef
 
 
 update : Msg -> Model -> ( Model, Effect Msg )
 update msg model =
     case msg of
+        Got_DuckDbMetaDataResponse resp ->
+            case resp of
+                Ok resp_ ->
+                    ( { model | duckDbRefInspectionData = Success resp_ }, Effect.none )
+
+                Err error ->
+                    ( { model | duckDbRefInspectionData = Failure error }, Effect.none )
+
+        UserClickedDuckDbRefToInspect ref ->
+            ( { model | duckDbRefInspectionData = Loading }
+            , Effect.fromCmd <| fetchMetaDataForRef ref Got_DuckDbMetaDataResponse
+            )
+
         Got_DuckDbRefsResponse resp ->
             case resp of
                 Ok resp_ ->
@@ -339,7 +365,7 @@ viewElements model layoutInfo =
                 , spacing 5
                 ]
                 [ el
-                    [ width (fillPortion layoutInfo.navWidthPct)
+                    [ width (fillPortion layoutInfo.leftNavWidthPct)
                     , height fill
                     , Border.color model.theme.secondary
                     , Border.width 1
@@ -347,7 +373,7 @@ viewElements model layoutInfo =
                     ]
                     (viewNavPanel model)
                 , column
-                    [ width (fillPortion (100 - layoutInfo.navWidthPct))
+                    [ width (fillPortion (100 - (layoutInfo.leftNavWidthPct + layoutInfo.debugNavWidthPct)))
                     , height fill
                     , Border.color model.theme.secondary
                     , Border.width 1
@@ -356,6 +382,14 @@ viewElements model layoutInfo =
                     [ viewEditorPanel model
                     , viewToolbar model
                     ]
+                , el
+                    [ width (fillPortion layoutInfo.leftNavWidthPct)
+                    , height fill
+                    , Border.color model.theme.secondary
+                    , Border.width 1
+                    , Border.rounded 3
+                    ]
+                    (viewDebugPanel model)
                 ]
             , el
                 [ width fill
@@ -444,19 +478,67 @@ viewNavPanel model =
                     let
                         viewRef : DuckDbRef -> Element Msg
                         viewRef ref =
-                            el
-                                [ width fill
+                            let
+                                -- HACK: Unsure why I can't clipX
+                                refString =
+                                    ref.schemaName ++ "." ++ ref.tableName
+
+                                refString_ =
+                                    if String.length refString > 30 then
+                                        String.slice 0 30 refString ++ "..."
+
+                                    else
+                                        refString
+                            in
+                            paragraph
+                                [ Events.onClick (UserClickedDuckDbRefToInspect ref)
+
+                                --, clipX
                                 ]
-                                (E.text <| ref.schemaName ++ "." ++ ref.tableName)
+                                [ E.text refString_ ]
                     in
                     column
-                        [ width fill
-                        , height fill
-                        , spacing 5
-                        , clipX
-                        , scrollbarX
+                        [ spacing 5
+
+                        --, clipX
                         ]
                         (List.map (\ref -> viewRef ref) refs)
+
+        viewDuckDbRefInspectionPanel : RemoteData Http.Error DuckDbMetaResponse -> Element Msg
+        viewDuckDbRefInspectionPanel metadata =
+            case metadata of
+                NotAsked ->
+                    E.text "Select a ref"
+
+                Loading ->
+                    E.none
+
+                Failure e ->
+                    case e of
+                        Http.BadUrl string ->
+                            E.text string
+
+                        Http.Timeout ->
+                            E.text "Timed out."
+
+                        Http.NetworkError ->
+                            E.text "Network error."
+
+                        Http.BadStatus httpStatus ->
+                            E.text <| "Http bad status: " ++ String.fromInt httpStatus
+
+                        Http.BadBody body ->
+                            E.text <| "Bad body: " ++ body
+
+                Success resp ->
+                    let
+                        viewColumnDescription : DuckDbColumnDescription -> Element Msg
+                        viewColumnDescription colDesc =
+                            paragraph [] [ E.text (colDesc.name ++ "[" ++ colDesc.dataType ++ "]") ]
+                    in
+                    column [] <|
+                        paragraph [] [ E.text <| refToString resp.ref ]
+                            :: List.map (\colDesc -> viewColumnDescription colDesc) resp.columnDescriptions
     in
     column
         [ width fill
@@ -466,8 +548,36 @@ viewNavPanel model =
         , Background.color model.theme.background
         ]
         [ viewFirApiStatus model.theme model.firApiStatus
-        , paragraph [] [ E.text "TODO: Tree nav view goes here, below is a placeholder implementation" ]
-        , navRefElements
+        , paragraph [] [ E.text "TODO: Tree nav view goes here" ]
+        , el
+            [ height <| fillPortion 50
+            , width fill
+
+            --, clipY
+            , scrollbarY
+            , scrollbarX
+
+            --, clip
+            ]
+            navRefElements
+        , el
+            [ width fill
+            , Border.widthEach
+                { top = 1
+                , left = 0
+                , right = 0
+                , bottom = 0
+                }
+            , Border.color model.theme.secondary
+            ]
+            E.none
+        , el
+            [ width fill
+            , height <| fillPortion 50
+            , clipY
+            , scrollbarY
+            ]
+            (viewDuckDbRefInspectionPanel model.duckDbRefInspectionData)
         ]
 
 
@@ -484,7 +594,7 @@ viewDataTable model =
 viewDebugPanel : Model -> Element Msg
 viewDebugPanel model =
     column
-        [ width (px 450)
+        [ width fill
         , height fill
         , padding 5
         , Border.width 1
@@ -496,5 +606,7 @@ viewDebugPanel model =
         , scrollbarX
         , spacing 5
         ]
-        [ E.text "TODO: Yes, I do want a debug panel here. This page will perform simple query parsing to supply duckdb fallback refs, that'll need debugging!"
+        [ paragraph []
+            [ E.text "TODO: Yes, I do want a debug panel here. This page will perform simple query parsing to supply duckdb fallback refs, that'll need debugging!"
+            ]
         ]

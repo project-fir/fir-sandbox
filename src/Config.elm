@@ -14,14 +14,9 @@ pointTo =
 
 
 apiHost =
-    --case Env.mode of
-    --    Env.Production ->
-    --        "https://fir-api.robsoko.tech"
-    --
-    --    _ ->
     case pointTo of
         PointToLocalDevFastApi ->
-            "http://localhost:8000"
+            "http://localhost:8889"
 
         PointToLocalGunicorn ->
             "http://localhost:8080"

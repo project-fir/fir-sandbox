@@ -12,7 +12,7 @@ type alias SqlQuery =
 
 parseRefsFromSql : SqlQuery -> List DuckDbRef
 parseRefsFromSql queryStr =
-    case P.run fromClause queryStr of
+    case P.run from queryStr of
         Ok value ->
             [ value ]
 
@@ -20,9 +20,45 @@ parseRefsFromSql queryStr =
             []
 
 
-fromClause : P.Parser DuckDbRef
-fromClause =
+queryParser : String -> P.Parser ()
+queryParser s =
+    P.succeed ()
+        |. select
+        |. columns
+        |. from
+            P.oneOf
+            [ P.succeed joinOnClause
+            ]
+
+
+joins : P.Parser (Maybe DuckDbRef)
+joins =
+    P.oneOf
+        [ P.succeed (Just joinOnClause)
+        , P.succeed Nothing
+        ]
+
+
+select : P.Parser ()
+select =
+    P.succeed ()
+        |. P.spaces
+        |. P.keyword "select"
+        |. P.spaces
+
+
+columns : P.Parser ()
+columns =
+    P.succeed ()
+        |. P.spaces
+        |. P.symbol "*"
+        |. P.spaces
+
+
+from : P.Parser DuckDbRef
+from =
     P.succeed DuckDbRef
+        |. P.spaces
         |. P.keyword "from"
         |. P.spaces
         |= P.getChompedString (P.chompWhile Char.isAlphaNum)

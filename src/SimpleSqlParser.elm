@@ -1,6 +1,8 @@
 module SimpleSqlParser exposing (parseRefsFromSql)
 
 -- I'm not sure if this module is worthy of the word "parser", but all I need is basically functionality
+-- An idea, I'm not sure how practical TypeScript / Elm interop is, but this library appears to do what
+-- I'm looking for: https://github.com/oguimbal/pgsql-ast-parser/blob/99e61f489ac1ed829244b947dbe1574389610530/src/syntax/ast.ts#L204
 
 import FirApi exposing (DuckDbRef)
 import Parser as P exposing ((|.), (|=))
@@ -20,9 +22,45 @@ parseRefsFromSql queryStr =
             []
 
 
-queryParser : String -> P.Parser ()
+type Statement
+    = SelectStatement_ SelectStatement
+
+
+type alias SelectedColumn =
+    String
+
+
+type alias SelectFromStatement =
+    { columns : List SelectedColumn
+    , from : List From
+    }
+
+
+type From
+    = FromTable
+    | FromStatement
+    | FromCall
+
+
+type SelectStatement
+    = SelectFromStatement
+    | SelectFromUnion
+    | ValuesStatement
+    | WithStatement
+    | WithRecursiveStatement
+
+
+type JoinType
+    = InnerJoin
+    | LeftJoin
+    | RightJoin
+    | FullJoin
+    | CrossJoin
+
+
+queryParser : String -> P.Parser SqlValue
 queryParser s =
-    P.succeed ()
+    P.succeed DuckDbRef_
         |. select
         |. columns
         |. from

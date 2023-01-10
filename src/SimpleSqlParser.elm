@@ -58,15 +58,16 @@ type JoinType
     | CrossJoin
 
 
-queryParser : String -> P.Parser SqlValue
+queryParser : String -> P.Parser (List Statement)
 queryParser s =
-    P.succeed DuckDbRef_
-        |. select
-        |. columns
-        |. from
-            P.oneOf
-            [ P.succeed joinOnClause
-            ]
+    P.succeed identity
+
+
+statement : P.Parser Statement
+statement =
+    P.oneOf
+        [ select
+        ]
 
 
 joins : P.Parser (Maybe DuckDbRef)
@@ -77,9 +78,9 @@ joins =
         ]
 
 
-select : P.Parser ()
+select : P.Parser Statement
 select =
-    P.succeed ()
+    P.succeed SelectStatement_
         |. P.spaces
         |. P.keyword "select"
         |. P.spaces
